@@ -1,0 +1,56 @@
+#[tauri::command]
+async fn register_sparse_package() -> Result<String, String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::env;
+        use windows::core::HSTRING;
+        use windows::Foundation::Uri;
+        use windows::Management::Deployment::{DeploymentOptions, PackageManager};
+
+        let mut manifest_path = match env::current_exe() {
+            Ok(path) => path,
+            Err(e) => return Err(format!("Error locating executable: {}", e)),
+        };
+
+        manifest_path.pop();
+        manifest_path.push("AppxManifest.xml");
+
+        let path_str = match manifest_path.to_str() {
+            Some(s) => s,
+            None => return Err("Invalid path encoding".to_string()),
+        };
+
+        let uri = match Uri::CreateUri(&HSTRING::from(path_str)) {
+            Ok(u) => u,
+            Err(e) => return Err(format!("Error creating URI: {}", e)),
+        };
+
+        let package_manager = match PackageManager::new() {
+            Ok(pm) => pm,
+            Err(e) => return Err(format!("Error creating PackageManager: {}", e)),
+        };
+
+        let operation =
+            match package_manager.RegisterPackageAsync(&uri, None, DeploymentOptions::None) {
+                Ok(op) => op,
+                Err(e) => return Err(format!("Operation creation failed: {}", e)),
+            };
+
+        // Await the asynchronous operation directly instead of using get()
+        match operation.await {
+            Ok(_) => {
+                let err_msg = format!("Failed to register. Developer Mode required. Code");
+                Err(err_msg)
+            }
+            Err(e) => {
+                let err_msg = format!("Failed to register. Developer Mode required. Code: {}", e);
+                Err(err_msg)
+            }
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        Err("This feature is only supported on Windows".to_string())
+    }
+}
