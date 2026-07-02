@@ -1,12 +1,12 @@
 [package]
-name = "window-test"
+name = "widg-bar"
 version = "0.1.0"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
 
 [lib]
-name = "window_test_lib"
+name = "widgbarlib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

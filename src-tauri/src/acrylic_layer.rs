@@ -217,7 +217,7 @@ fn start_mouse_tracker() {
                         0,
                         0,
                         0,
-                        SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE,
+                        SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
                     );
                 }
             }
