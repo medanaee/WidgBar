@@ -10,7 +10,7 @@ interface Props {
 export default function WidgetSettingsPanel({ widget, onBack }: Props) {
 
   // Dynamically load the settings component for this specific widget type
-  const SettingComponent = React.lazy(() => import(`../widgets/${widget.type}/setting.tsx`).catch(() => {
+  const SettingComponent = React.lazy(() => import(`../widgets/${widget.type}/widgetSetting.tsx`).catch(() => {
     return { 
         default: () => (
             <div className="flex items-center justify-center h-48 border border-dashed border-zinc-500/30 rounded-xl mt-4">

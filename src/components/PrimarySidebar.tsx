@@ -1,7 +1,7 @@
 import React from 'react';
-import { HomeRegular, SettingsRegular, BoardRegular } from "@fluentui/react-icons";
+import { HomeRegular, SettingsRegular, BoardRegular, AppsRegular } from "@fluentui/react-icons";
 
-type ActiveTab = "home" | "settings" | "layout" | "appearance";
+type ActiveTab = "home" | "settings" | "layout" | "appearance" | "widgets_library";
 
 interface PrimarySidebarProps {
   activeTab: ActiveTab;
@@ -31,14 +31,19 @@ export default function PrimarySidebar({ activeTab, setActiveTab }: PrimarySideb
         onClick={() => setActiveTab("home")}
       />
       <SidebarItem
-        icon={<SettingsRegular fontSize={20} />}
-        active={activeTab === "settings"}
-        onClick={() => setActiveTab("settings")}
-      />
-      <SidebarItem
         icon={<BoardRegular fontSize={20} />}
         active={activeTab === "layout"}
         onClick={() => setActiveTab("layout")}
+      />
+      <SidebarItem
+        icon={<AppsRegular fontSize={20} />}
+        active={activeTab === "widgets_library"}
+        onClick={() => setActiveTab("widgets_library")}
+      />
+      <SidebarItem
+        icon={<SettingsRegular fontSize={20} />}
+        active={activeTab === "settings"}
+        onClick={() => setActiveTab("settings")}
       />
     </div>
   );

@@ -1,14 +1,14 @@
 import React from 'react';
 import { useWidgetRegistryStore } from '../stores/widgetRegistryStore';
 import { LayoutGrid, CheckSquare, Calendar, Timer } from 'lucide-react';
-import { ClockRegular } from '@fluentui/react-icons';
+import { ClockColor, ClipboardTaskColor, CalendarColor, ClockAlarmColor } from '@fluentui/react-icons';
 import { CutoutModal } from './ui/CutoutModal';
 
 const FluentIconMap: Record<string, React.ComponentType<any>> = {
-  ClockRegular,
-  CheckSquare,
-  Calendar,
-  Timer,
+  ClockColor,
+  ClipboardTaskColor,
+  CalendarColor,
+  ClockAlarmColor,
 };
 
 interface AddWidgetModalProps {

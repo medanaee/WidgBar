@@ -147,3 +147,8 @@ html.dark {
 .dark ::-webkit-scrollbar-thumb:hover {
   background-color: #52525b;
 }
+
+.no-clip-transition {
+  transition-property: width, height, background-color, transform;
+  /* Specifically exclude clip-path from CSS transitions */
+}

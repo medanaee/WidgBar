@@ -58,7 +58,7 @@ function AppContent() {
         useWidgetRegistryStore.getState().fetchRegistry().then(() => {
             useWidgetRegistryStore.getState().registerWidgetType({
                 type_name: 'clock',
-                icon: 'ClockRegular',
+                icon: 'ClockColor',
                 description: 'A simple minimalist digital clock with date.',
                 can_be_in_bar: true,
                 can_be_in_area: true,
@@ -68,7 +68,7 @@ function AppContent() {
             });
             useWidgetRegistryStore.getState().registerWidgetType({
                 type_name: 'todo',
-                icon: 'CheckSquare',
+                icon: 'ClipboardTaskColor',
                 description: 'A simple minimalist to-do list for testing.',
                 can_be_in_bar: true,
                 can_be_in_area: true,
@@ -78,7 +78,7 @@ function AppContent() {
             });
             useWidgetRegistryStore.getState().registerWidgetType({
                 type_name: 'calendar',
-                icon: 'Calendar',
+                icon: 'CalendarColor',
                 description: 'A simple calendar grid for testing.',
                 can_be_in_bar: true,
                 can_be_in_area: true,
@@ -88,7 +88,7 @@ function AppContent() {
             });
             useWidgetRegistryStore.getState().registerWidgetType({
                 type_name: 'timer',
-                icon: 'Timer',
+                icon: 'ClockAlarmColor',
                 description: 'A simple timer for testing.',
                 can_be_in_bar: true,
                 can_be_in_area: true,
@@ -123,7 +123,6 @@ function AppContent() {
 
                 for (let i = 0; i < updatedMonitors.length; i++) {
                     const m = updatedMonitors[i];
-                    // Check if monitor exists in backend list by trying to find it using its id
                     const isStillConnected = Object.values(backendState.monitors).some(bm => bm.id === m.id);
                     if (!isStillConnected) {
                         if (!m.is_disconnected) {
@@ -239,7 +238,7 @@ function AppContent() {
 
     useEffect(() => {
         const handleRustNav = (event: any) => {
-            const targetRoute = event.payload?.route || event.detail?.route; // پشتیبانی از نسخه 2 تائوری
+            const targetRoute = event.payload?.route || event.detail?.route;
             console.log("Navigating to target route:", targetRoute);
 
             if (targetRoute) {
@@ -265,7 +264,6 @@ function AppContent() {
 
         const appWindow = getCurrentWebviewWindow();
 
-        // در تائوری نسخه ۲ برای لیسن کردن ایونت‌ها از appWindow.listen استفاده می‌کنیم
         const unlisten = appWindow.listen('rust-navigation', handleRustNav);
 
         return () => {

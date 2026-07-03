@@ -11,19 +11,22 @@ import PrimarySidebar from "./PrimarySidebar";
 import SecondarySidebar from "./SecondarySidebar";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings as SettingsIcon, LayoutGrid, CheckSquare, Calendar, Monitor, Plus, MonitorOff, Trash2, Maximize2, Move, Timer } from 'lucide-react';
-import { ClockRegular } from "@fluentui/react-icons";
+import { Settings as SettingsIcon, LayoutGrid, CheckSquare, Calendar, Monitor, Plus, MonitorOff, Trash2, Maximize2, Move, Timer, Compass, Layers, Paintbrush } from 'lucide-react';
+import { ClockColor, ClipboardTaskColor, CalendarColor, ClockAlarmColor } from "@fluentui/react-icons";
 import WidgetSettingsPanel from "./WidgetSettingsPanel";
+import GlobalWidgetSettingsPanel from "./GlobalWidgetSettingsPanel";
 import { DesktopWidget } from "../types/layout";
 import { AddWidgetModal } from "./AddWidgetModal";
+import { Squircle } from "./ui/Squircle";
+import { TipCard } from "./ui/TipCard";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { CutoutProvider } from "./ui/CutoutProvider";
 
 const FluentIconMap: Record<string, React.ComponentType<any>> = {
-  ClockRegular,
-  CheckSquare,
-  Calendar,
-  Timer
+  ClockColor,
+  ClipboardTaskColor,
+  CalendarColor,
+  ClockAlarmColor
 };
 
 export default function Main() {
@@ -36,13 +39,14 @@ export default function Main() {
   const allMonitors = currentData?.monitors || [];
   const monitors = allMonitors.filter(m => !m.is_disconnected);
 
-  const [activeTab, setActiveTab] = useState<"home" | "settings" | "layout" | "appearance">("layout");
+  const [activeTab, setActiveTab] = useState<"home" | "settings" | "layout" | "appearance" | "widgets_library">("layout");
   const [selectedMonitorId, setSelectedMonitorId] = useState<string | null>(null);
   const [settingsTab, setSettingsTab] = useState<"general" | "bar" | "widgets">("general");
   const [addWidgetTarget, setAddWidgetTarget] = useState<"bar" | "widgetArea" | null>(null);
   const [editingWidget, setEditingWidget] = useState<DesktopWidget | null>(null);
   const [hoveredWidgetId, setHoveredWidgetId] = useState<string | null>(null);
   const [layoutInnerTab, setLayoutInnerTab] = useState<"bar" | "widgets">("bar");
+  const [selectedWidgetType, setSelectedWidgetType] = useState<string | null>(null);
 
   useEffect(() => {
     if (activeTab === "layout" && !selectedMonitorId && monitors.length > 0) {
@@ -139,20 +143,92 @@ export default function Main() {
             setSettingsTab={setSettingsTab}
             selectedMonitorId={selectedMonitorId}
             setSelectedMonitorId={setSelectedMonitorId}
+            selectedWidgetType={selectedWidgetType}
+            setSelectedWidgetType={setSelectedWidgetType}
             monitors={monitors}
           />
 
           {/* Content Area */}
           <div className="flex-1 bg-zinc-100/20 dark:bg-zinc-900/20 p-6 z-0 flex flex-col min-h-0 overflow-hidden">
             {activeTab === "home" && (
-              <div className="flex flex-col items-center justify-center h-full text-zinc-500 dark:text-zinc-400 gap-4 animate-in fade-in zoom-in-95 duration-300 overflow-y-auto custom-scrollbar">
-                <Logo className="w-20 h-20 opacity-80" />
-                <h1 className="text-xl font-semibold text-zinc-800 dark:text-zinc-200">{t("welcome")}</h1>
+              <div className="w-full h-full animate-in fade-in zoom-in-95 duration-300 overflow-y-auto custom-scrollbar ltr:pr-2 ltr:-mr-2 rtl:pl-2 rtl:-ml-2 flex flex-col gap-6 pb-6 pr-2 -mr-2">
+                {/* Banner */}
+                <Squircle
+                  cornerRadius={24}
+                  borderWidth={1}
+                  borderClassName="text-zinc-500/25 dark:text-zinc-700/30"
+                  className="w-full bg-zinc-950/20 dark:bg-black/40 backdrop-blur-md text-white p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl shrink-0 overflow-hidden"
+                >
+                  {/* Decorative Blur Circles for Mesh Gradient */}
+                  <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+                    <div className="absolute -top-16 -left-16 w-56 h-56 bg-blue-500 rounded-full filter blur-[70px] opacity-40 mix-blend-screen"></div>
+                    <div className="absolute -bottom-20 right-1/4 w-64 h-64 bg-emerald-500 rounded-full filter blur-[80px] opacity-30 mix-blend-screen"></div>
+                    <div className="absolute top-1/4 -right-16 w-56 h-56 bg-purple-500 rounded-full filter blur-[70px] opacity-40 mix-blend-screen"></div>
+                  </div>
+
+                  <div className="flex flex-col gap-2 text-center md:text-start max-w-lg relative z-10">
+                    <span className="text-xs uppercase tracking-wider font-semibold text-zinc-400">WidgBar Desktop</span>
+                    <h1 className="text-3xl font-extrabold tracking-tight">{t("bannerWelcome")}</h1>
+                    <p className="text-sm text-zinc-300 leading-relaxed mt-1">{t("bannerDesc")}</p>
+                  </div>
+                  <div className="shrink-0 p-4 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 shadow-inner relative z-10">
+                    <Logo className="w-20 h-20 drop-shadow-2xl brightness-110" />
+                  </div>
+                </Squircle>
+
+                {/* Suggestions Section */}
+                <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 duration-350 delay-100">
+                  <h2 className="text-lg font-bold text-zinc-800 dark:text-zinc-200 px-1">
+                    {t("tipsSectionTitle")}
+                  </h2>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <TipCard
+                      icon={Compass}
+                      iconBgClass="bg-indigo-500/10 dark:bg-indigo-500/20"
+                      iconColorClass="text-indigo-500"
+                      title={t("tipSnappingTitle")}
+                      description={t("tipSnappingDesc")}
+                    />
+                    <TipCard
+                      icon={LayoutGrid}
+                      iconBgClass="bg-purple-500/10 dark:bg-purple-500/20"
+                      iconColorClass="text-purple-500"
+                      title={t("tipEditModeTitle")}
+                      description={t("tipEditModeDesc")}
+                    />
+                    <TipCard
+                      icon={Layers}
+                      iconBgClass="bg-pink-500/10 dark:bg-pink-500/20"
+                      iconColorClass="text-pink-500"
+                      title={t("tipDualPlacementTitle")}
+                      description={t("tipDualPlacementDesc")}
+                    />
+                    <TipCard
+                      icon={Paintbrush}
+                      iconBgClass="bg-rose-500/10 dark:bg-rose-500/20"
+                      iconColorClass="text-rose-500"
+                      title={t("tipAestheticsTitle")}
+                      description={t("tipAestheticsDesc")}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === "widgets_library" && selectedWidgetType && (
+              <GlobalWidgetSettingsPanel widgetType={selectedWidgetType} />
+            )}
+            
+            {activeTab === "widgets_library" && !selectedWidgetType && (
+              <div className="flex flex-col items-center justify-center h-full text-zinc-500 dark:text-zinc-400 gap-4 animate-in fade-in zoom-in-95 duration-300">
+                <LayoutGrid className="w-16 h-16 opacity-30" />
+                <h2 className="text-lg font-medium">Select a widget type from the sidebar</h2>
               </div>
             )}
 
             {activeTab === "settings" && (
-              <div className="max-w-xl mx-auto w-full h-full animate-in fade-in zoom-in-95 duration-200 overflow-y-auto custom-scrollbar pr-2 -mr-2">
+              <div className="max-w-xl w-full self-center h-full animate-in fade-in zoom-in-95 duration-200 overflow-y-auto custom-scrollbar ltr:pr-2 ltr:-mr-2 rtl:pl-2 rtl:-ml-2">
                 <h2 className="text-xl font-semibold mb-5 capitalize text-zinc-800 dark:text-zinc-100">{t(settingsTab as any)}</h2>
 
                 {settingsTab === "general" && (
@@ -247,14 +323,14 @@ export default function Main() {
             )}
 
             {activeTab === "layout" && selectedMonitorId && editingWidget ? (
-              <div className="max-w-xl mx-auto w-full h-full overflow-y-auto custom-scrollbar pr-2 -mr-2">
+              <div className="max-w-xl w-full self-center h-full overflow-y-auto custom-scrollbar ltr:pr-2 ltr:-mr-2 rtl:pl-2 rtl:-ml-2">
                 <WidgetSettingsPanel 
                   widget={editingWidget} 
                   onBack={() => setEditingWidget(null)} 
                 />
               </div>
-            ) : activeTab === "layout" && selectedMonitorId && !editingWidget ? (
-              <div className="max-w-xl mx-auto w-full h-full flex flex-col min-h-0 animate-in fade-in zoom-in-95 duration-200">
+            ) : activeTab === "layout" && selectedMonitorId ? (
+              <div className="max-w-xl w-full self-center h-full flex flex-col min-h-0 animate-in fade-in zoom-in-95 duration-200">
                 <Tabs value={layoutInnerTab} onValueChange={(v) => setLayoutInnerTab(v as "bar" | "widgets")} className="w-full flex-1 flex flex-col min-h-0" dir={language === 'fa' ? 'rtl' : 'ltr'}>
                   <div className="shrink-0">
                     <h2 className="text-xl font-semibold mb-4 text-zinc-800 dark:text-zinc-100">
@@ -266,7 +342,7 @@ export default function Main() {
                     </TabsList>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 -mr-2 pb-6">
+                  <div className="flex-1 overflow-y-auto custom-scrollbar ltr:pr-2 ltr:-mr-2 rtl:pl-2 rtl:-ml-2 pb-6">
                     <TabsContent value="bar" className="animate-in fade-in duration-200 space-y-3 mt-0">
                     <SettingCard>
                       <div>
