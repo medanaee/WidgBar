@@ -6,6 +6,7 @@ export interface WidgetConstraints {
   maxW?: number;
   minH?: number;
   maxH?: number;
+  aspectRatio?: number;
 }
 
 interface WidgetConstraintsState {

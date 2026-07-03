@@ -7,11 +7,8 @@ import { useSettingsStore } from "../stores/settingsStore";
 import { useWidgetRegistryStore } from "../stores/widgetRegistryStore";
 import { BarHeight } from "../types/layout";
 import { useTranslation } from "../lib/i18n";
-import {
-  HomeRegular,
-  SettingsRegular,
-  BoardRegular,
-} from "@fluentui/react-icons";
+import PrimarySidebar from "./PrimarySidebar";
+import SecondarySidebar from "./SecondarySidebar";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Settings as SettingsIcon, LayoutGrid, CheckSquare, Calendar, Monitor, Plus, MonitorOff, Trash2, Maximize2, Move, Timer } from 'lucide-react';
@@ -39,7 +36,7 @@ export default function Main() {
   const allMonitors = currentData?.monitors || [];
   const monitors = allMonitors.filter(m => !m.is_disconnected);
 
-  const [activeTab, setActiveTab] = useState<"layout" | "appearance">("layout");
+  const [activeTab, setActiveTab] = useState<"home" | "settings" | "layout" | "appearance">("layout");
   const [selectedMonitorId, setSelectedMonitorId] = useState<string | null>(null);
   const [settingsTab, setSettingsTab] = useState<"general" | "bar" | "widgets">("general");
   const [addWidgetTarget, setAddWidgetTarget] = useState<"bar" | "widgetArea" | null>(null);
@@ -134,54 +131,16 @@ export default function Main() {
         <Titlebar />
 
         <div className="flex flex-1 overflow-hidden">
-          {/* Primary Sidebar */}
-          <div className="w-14 flex flex-col items-center py-4 bg-zinc-50/70 dark:bg-zinc-900/40 border-x border-zinc-200/50 dark:border-zinc-500/10 shrink-0 z-20 gap-3">
-            <SidebarItem
-              icon={<HomeRegular fontSize={20} />}
-              active={activeTab === "home"}
-              onClick={() => setActiveTab("home")}
-            />
-            <SidebarItem
-              icon={<SettingsRegular fontSize={20} />}
-              active={activeTab === "settings"}
-              onClick={() => setActiveTab("settings")}
-            />
-            <SidebarItem
-              icon={<BoardRegular fontSize={20} />}
-              active={activeTab === "layout"}
-              onClick={() => setActiveTab("layout")}
-            />
-          </div>
-
-          {/* Secondary Sidebar - Settings */}
-          {activeTab === "settings" && (
-            <div className="w-48 flex flex-col bg-white/40 dark:bg-zinc-900/40 border-x border-zinc-200/50 dark:border-zinc-500/10 shrink-0 z-10 animate-in fade-in slide-in-from-left-4 duration-200">
-              <div className="p-4 font-semibold text-sm text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">{t("settings")}</div>
-              <div className="flex flex-col px-2 space-y-0.5">
-                <SubMenuItem active={settingsTab === "general"} onClick={() => setSettingsTab("general")}>{t("general")}</SubMenuItem>
-                <SubMenuItem active={settingsTab === "bar"} onClick={() => setSettingsTab("bar")}>{t("bar")}</SubMenuItem>
-                <SubMenuItem active={settingsTab === "widgets"} onClick={() => setSettingsTab("widgets")}>{t("widgets")}</SubMenuItem>
-              </div>
-            </div>
-          )}
-
-          {/* Secondary Sidebar - Layout */}
-          {activeTab === "layout" && (
-            <div className="w-48 flex flex-col bg-white/40 dark:bg-zinc-950/40 border-x border-zinc-200/50 dark:border-zinc-500/10 shrink-0 z-10 animate-in fade-in slide-in-from-left-4 duration-200">
-              <div className="p-4 font-semibold text-sm text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">{t("monitors")}</div>
-              <div className="flex flex-col px-2 space-y-0.5 overflow-y-auto">
-                {monitors.map((m, index) => (
-                  <SubMenuItem
-                    key={m.id}
-                    active={selectedMonitorId === m.id}
-                    onClick={() => setSelectedMonitorId(m.id)}
-                  >
-                    {t("monitorPrefix")} {index + 1} {m.is_primary ? `(${t("primary")})` : ""}
-                  </SubMenuItem>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Primary & Secondary Sidebars */}
+          <PrimarySidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+          <SecondarySidebar
+            activeTab={activeTab}
+            settingsTab={settingsTab}
+            setSettingsTab={setSettingsTab}
+            selectedMonitorId={selectedMonitorId}
+            setSelectedMonitorId={setSelectedMonitorId}
+            monitors={monitors}
+          />
 
           {/* Content Area */}
           <div className="flex-1 bg-zinc-100/20 dark:bg-zinc-900/20 p-6 z-0 flex flex-col min-h-0 overflow-hidden">
@@ -502,33 +461,7 @@ export default function Main() {
   );
 }
 
-function SidebarItem({ icon, active, onClick }: { icon: React.ReactNode, active: boolean, onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`p-2 rounded-lg flex items-center justify-center transition-all duration-200 ${active
-        ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 shadow-sm"
-        : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/50 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800/50"
-        }`}
-    >
-      {icon}
-    </button>
-  );
-}
 
-function SubMenuItem({ active, onClick, children }: { active: boolean, onClick: () => void, children: React.ReactNode }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`px-3 py-1.5 rounded-lg text-start text-xs font-medium transition-all duration-150 ${active
-        ? "bg-zinc-500/10 dark:bg-zinc-500/20 text-zinc-900 dark:text-zinc-100"
-        : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-500/5 dark:hover:bg-zinc-500/10 hover:text-zinc-900 dark:hover:text-zinc-200"
-        }`}
-    >
-      {children}
-    </button>
-  );
-}
 
 function SettingCard({ children }: { children: React.ReactNode }) {
   return (

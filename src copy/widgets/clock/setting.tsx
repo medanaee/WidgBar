@@ -1,0 +1,147 @@
+import React from 'react';
+import { useWidgetInstanceStore } from '../../stores/widgetInstanceStore';
+import { Switch } from '../../components/ui/switch';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+
+// Styled Card matching the Main layout settings card exactly
+function SettingCard({ children }: { children: React.ReactNode }) {
+    return (
+        <div className="flex items-center justify-between p-3.5 rounded-xl bg-white/50 dark:bg-zinc-900/10 border border-zinc-500/20 dark:border-zinc-500/20 shadow-sm transition-all hover:bg-white/80 dark:hover:bg-zinc-900/50">
+            {children}
+        </div>
+    );
+}
+
+export default function ClockSetting({ widgetId }: { widgetId: string }) {
+    const config = useWidgetInstanceStore(state => state.instances[widgetId]) || {};
+    const updateInstance = useWidgetInstanceStore(state => state.updateInstance);
+
+    const clockType = config.clockType || 'digital';
+    const timeZone = config.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const showSeconds = config.showSeconds ?? false;
+    const is24Hour = config.is24Hour ?? false;
+
+    const handleUpdate = (updates: any) => {
+        updateInstance(widgetId, { ...config, ...updates });
+    };
+
+    const timeZones = [
+        { value: Intl.DateTimeFormat().resolvedOptions().timeZone, label: 'Local Time (Default)' },
+        { value: 'UTC', label: 'UTC' },
+        { value: 'America/New_York', label: 'New York (EST/EDT)' },
+        { value: 'America/Los_Angeles', label: 'Los Angeles (PST/PDT)' },
+        { value: 'Europe/London', label: 'London (GMT/BST)' },
+        { value: 'Europe/Paris', label: 'Paris (CET/CEST)' },
+        { value: 'Asia/Tehran', label: 'Tehran (IRST/IRDT)' },
+        { value: 'Asia/Dubai', label: 'Dubai (GST)' },
+        { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
+        { value: 'Australia/Sydney', label: 'Sydney (AEST/AEDT)' },
+    ];
+
+    if (!timeZones.find(tz => tz.value === timeZone)) {
+        timeZones.push({ value: timeZone, label: timeZone });
+    }
+
+    return (
+        <div className="space-y-3 pt-2">
+            {/* Clock Type selection grid with previews */}
+            <div className="flex flex-col gap-2.5 p-3.5 rounded-xl bg-white/50 dark:bg-zinc-900/10 border border-zinc-500/20 dark:border-zinc-500/20 shadow-sm transition-all">
+                <div>
+                    <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Clock Type</h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Choose between digital or analog display</p>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3 w-full pt-1">
+                    {/* Digital Option */}
+                    <button
+                        onClick={() => handleUpdate({ clockType: 'digital' })}
+                        className={`flex flex-col items-center gap-2 p-2.5 rounded-lg border text-center transition-all duration-200 ${
+                            clockType === 'digital'
+                                ? 'border-indigo-500 dark:border-indigo-400 bg-indigo-500/5 dark:bg-indigo-500/10 shadow-[0_0_12px_rgba(99,102,241,0.1)]'
+                                : 'border-zinc-500/10 bg-zinc-950/5 dark:bg-zinc-950/20 hover:border-zinc-500/30'
+                        }`}
+                    >
+                        {/* Digital Preview */}
+                        <div className="h-14 w-full bg-zinc-950/25 dark:bg-zinc-900/30 border border-zinc-500/5 rounded flex items-center justify-center pointer-events-none">
+                            <span className="text-zinc-600 dark:text-zinc-300 text-lg font-semibold font-sans tracking-tight">12:00</span>
+                        </div>
+                        <span className={`text-[11px] font-medium ${
+                            clockType === 'digital' ? 'text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-zinc-500 dark:text-zinc-400'
+                        }`}>Digital Clock</span>
+                    </button>
+
+                    {/* Analog Option */}
+                    <button
+                        onClick={() => handleUpdate({ clockType: 'analog' })}
+                        className={`flex flex-col items-center gap-2 p-2.5 rounded-lg border text-center transition-all duration-200 ${
+                            clockType === 'analog'
+                                ? 'border-indigo-500 dark:border-indigo-400 bg-indigo-500/5 dark:bg-indigo-500/10 shadow-[0_0_12px_rgba(99,102,241,0.1)]'
+                                : 'border-zinc-500/10 bg-zinc-950/5 dark:bg-zinc-950/20 hover:border-zinc-500/30'
+                        }`}
+                    >
+                        {/* Analog Preview */}
+                        <div className="h-14 w-full bg-zinc-950/25 dark:bg-zinc-900/30 border border-zinc-500/5 rounded flex items-center justify-center pointer-events-none p-1">
+                            <svg viewBox="0 0 40 40" className="w-9 h-9">
+                                <circle cx="20" cy="20" r="17" className="fill-none stroke-zinc-500/50 dark:stroke-zinc-400/50" strokeWidth="1.5" />
+                                <line x1="20" y1="20" x2="20" y2="9" className="stroke-zinc-500/80 dark:stroke-zinc-300" strokeWidth="2.2" strokeLinecap="round" />
+                                <line x1="20" y1="20" x2="28" y2="20" className="stroke-zinc-500/80 dark:stroke-zinc-300" strokeWidth="1.6" strokeLinecap="round" />
+                                <circle cx="20" cy="20" r="2.2" className="fill-zinc-600 dark:fill-zinc-200" />
+                            </svg>
+                        </div>
+                        <span className={`text-[11px] font-medium ${
+                            clockType === 'analog' ? 'text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-zinc-500 dark:text-zinc-400'
+                        }`}>Analog Clock</span>
+                    </button>
+                </div>
+            </div>
+
+            {/* Timezone */}
+            <div className="flex flex-col gap-2 p-3.5 rounded-xl bg-white/50 dark:bg-zinc-900/10 border border-zinc-500/20 dark:border-zinc-500/20 shadow-sm transition-all hover:bg-white/80 dark:hover:bg-zinc-900/50">
+                <div className="flex justify-between items-start">
+                    <div>
+                        <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Timezone</h3>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">Select the timezone for this clock</p>
+                    </div>
+                </div>
+                <Select value={timeZone} onValueChange={(val) => handleUpdate({ timeZone: val })}>
+                    <SelectTrigger className="w-full h-9 bg-white/80 dark:bg-zinc-950/80 border-zinc-500/20">
+                        <SelectValue placeholder="Select timezone" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectGroup>
+                            {timeZones.map(tz => (
+                                <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>
+                            ))}
+                        </SelectGroup>
+                    </SelectContent>
+                </Select>
+            </div>
+
+            {/* Show Seconds */}
+            <SettingCard>
+                <div>
+                    <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Show Seconds</h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Display seconds hand or digits</p>
+                </div>
+                <Switch 
+                    checked={showSeconds} 
+                    onCheckedChange={(checked) => handleUpdate({ showSeconds: checked })} 
+                />
+            </SettingCard>
+
+            {/* 24-Hour Format (only applicable for Digital Clock) */}
+            {clockType === 'digital' && (
+                <SettingCard>
+                    <div>
+                        <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">24-Hour Format</h3>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">Use 24-hour time instead of AM/PM</p>
+                    </div>
+                    <Switch 
+                        checked={is24Hour} 
+                        onCheckedChange={(checked) => handleUpdate({ is24Hour: checked })} 
+                    />
+                </SettingCard>
+            )}
+        </div>
+    );
+}

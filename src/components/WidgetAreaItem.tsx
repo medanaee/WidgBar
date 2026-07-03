@@ -40,6 +40,54 @@ export default function WidgetAreaItem({
     // Track local interaction state for styling
     const [action, setAction] = useState<'drag' | 'resize' | null>(null);
     const constraints = useWidgetConstraintsStore(state => state.constraints[widget.id]);
+
+    // Automatically adjust size if widget constraints update to define a new aspect ratio
+    useEffect(() => {
+        if (constraints?.aspectRatio) {
+            const ratio = constraints.aspectRatio;
+            const currentRatio = widget.width / widget.height;
+            if (Math.abs(currentRatio - ratio) > 0.01) {
+                let newWidth = widget.width;
+                let newHeight = newWidth / ratio;
+
+                const minW = constraints.minW ?? 120;
+                const maxW = constraints.maxW ?? Infinity;
+                const minH = constraints.minH ?? 120;
+                const maxH = constraints.maxH ?? Infinity;
+
+                if (newHeight < minH) {
+                    newHeight = minH;
+                    newWidth = newHeight * ratio;
+                } else if (newHeight > maxH) {
+                    newHeight = maxH;
+                    newWidth = newHeight * ratio;
+                }
+
+                if (newWidth < minW) {
+                    newWidth = minW;
+                    newHeight = newWidth / ratio;
+                } else if (newWidth > maxW) {
+                    newWidth = maxW;
+                    newHeight = newWidth / ratio;
+                }
+
+                onUpdate(widget.id, {
+                    width: Math.round(newWidth),
+                    height: Math.round(newHeight)
+                }, true);
+            }
+        }
+    }, [
+        constraints?.aspectRatio,
+        constraints?.minW,
+        constraints?.maxW,
+        constraints?.minH,
+        constraints?.maxH,
+        widget.id,
+        widget.width,
+        widget.height,
+        onUpdate
+    ]);
     
     const settings = useSettingsStore(state => state.settings);
     const setSnapLines = useSnapStore(state => state.setLines);
@@ -257,8 +305,36 @@ export default function WidgetAreaItem({
         const minH = constraints?.minH ?? 120;
         const maxH = constraints?.maxH ?? Infinity;
         
-        newWidth = Math.max(minW, Math.min(maxW, newWidth));
-        newHeight = Math.max(minH, Math.min(maxH, newHeight));
+        if (constraints?.aspectRatio) {
+            const ratio = constraints.aspectRatio;
+            const deltaX = Math.abs(e.clientX - resizeRef.current.startX);
+            const deltaY = Math.abs(e.clientY - resizeRef.current.startY);
+            
+            if (deltaX > deltaY) {
+                newWidth = Math.max(minW, Math.min(maxW, newWidth));
+                newHeight = newWidth / ratio;
+                if (newHeight < minH) {
+                    newHeight = minH;
+                    newWidth = newHeight * ratio;
+                } else if (newHeight > maxH) {
+                    newHeight = maxH;
+                    newWidth = newHeight * ratio;
+                }
+            } else {
+                newHeight = Math.max(minH, Math.min(maxH, newHeight));
+                newWidth = newHeight * ratio;
+                if (newWidth < minW) {
+                    newWidth = minW;
+                    newHeight = newWidth / ratio;
+                } else if (newWidth > maxW) {
+                    newWidth = maxW;
+                    newHeight = newWidth / ratio;
+                }
+            }
+        } else {
+            newWidth = Math.max(minW, Math.min(maxW, newWidth));
+            newHeight = Math.max(minH, Math.min(maxH, newHeight));
+        }
 
         if (snapMargin > 0) {
             const { vLines, hLines } = getTargetLines(widget.id);
@@ -283,17 +359,46 @@ export default function WidgetAreaItem({
             });
 
             const newLines: any[] = [];
-            if (bestVSnap) {
-                newWidth = bestVSnap.pos - widget.x;
-                newLines.push({ type: 'vertical', position: bestVSnap.pos });
-            }
-            if (bestHSnap) {
-                newHeight = bestHSnap.pos - widget.y;
-                newLines.push({ type: 'horizontal', position: bestHSnap.pos });
+            if (constraints?.aspectRatio) {
+                const ratio = constraints.aspectRatio;
+                if (bestVSnap && (!bestHSnap || bestVSnap.dist <= bestHSnap.dist)) {
+                    newWidth = bestVSnap.pos - widget.x;
+                    newWidth = Math.max(minW, Math.min(maxW, newWidth));
+                    newHeight = newWidth / ratio;
+                    if (newHeight < minH) {
+                        newHeight = minH;
+                        newWidth = newHeight * ratio;
+                    } else if (newHeight > maxH) {
+                        newHeight = maxH;
+                        newWidth = newHeight * ratio;
+                    }
+                    newLines.push({ type: 'vertical', position: bestVSnap.pos });
+                } else if (bestHSnap) {
+                    newHeight = bestHSnap.pos - widget.y;
+                    newHeight = Math.max(minH, Math.min(maxH, newHeight));
+                    newWidth = newHeight * ratio;
+                    if (newWidth < minW) {
+                        newWidth = minW;
+                        newHeight = newWidth / ratio;
+                    } else if (newWidth > maxW) {
+                        newWidth = maxW;
+                        newHeight = newWidth * ratio;
+                    }
+                    newLines.push({ type: 'horizontal', position: bestHSnap.pos });
+                }
+            } else {
+                if (bestVSnap) {
+                    newWidth = bestVSnap.pos - widget.x;
+                    newWidth = Math.max(minW, Math.min(maxW, newWidth));
+                    newLines.push({ type: 'vertical', position: bestVSnap.pos });
+                }
+                if (bestHSnap) {
+                    newHeight = bestHSnap.pos - widget.y;
+                    newHeight = Math.max(minH, Math.min(maxH, newHeight));
+                    newLines.push({ type: 'horizontal', position: bestHSnap.pos });
+                }
             }
             
-            newWidth = Math.max(minW, Math.min(maxW, newWidth));
-            newHeight = Math.max(minH, Math.min(maxH, newHeight));
             setSnapLines(newLines);
         }
         
