@@ -56,7 +56,7 @@ export default function WidgetsArea() {
 
             {/* Background Overlay */}
             <div 
-                className="absolute inset-0 bg-black/40 pointer-events-none" 
+                className="absolute inset-0 bg-white/20 dark:bg-black/40 transition-colors duration-200 pointer-events-none" 
                 style={{ maskImage: 'url(#desktop-holes)', WebkitMaskImage: 'url(#desktop-holes)' }}
             />
 

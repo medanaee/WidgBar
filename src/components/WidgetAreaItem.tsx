@@ -291,6 +291,12 @@ export default function WidgetAreaItem({
         setActiveWidgetId(widget.id); // Broadcast that this widget is on top
         resizeRef.current = { startX: e.clientX, startY: e.clientY, startW: widget.width, startH: widget.height };
         snapCoordsRef.current = { x: widget.x, y: widget.y, w: widget.width, h: widget.height };
+        
+        if (delayTimeoutRef.current) clearTimeout(delayTimeoutRef.current);
+        await new Promise<void>((resolve) => {
+            delayTimeoutRef.current = setTimeout(() => { resolve(); }, 150);
+        });
+
         await invoke('start_change_region', { label: getCurrentWebviewWindow().label, widgetId: widget.id }).catch(console.error);
     };
 
@@ -414,6 +420,11 @@ export default function WidgetAreaItem({
         setActiveWidgetId(null);
         setSnapLines([]);
 
+        if (delayTimeoutRef.current) {
+            clearTimeout(delayTimeoutRef.current);
+            delayTimeoutRef.current = null;
+        }
+
         onUpdate(widget.id, { width: snapCoordsRef.current.w, height: snapCoordsRef.current.h }, true);
         onDragEnd(widget.id);
     };
@@ -423,7 +434,10 @@ export default function WidgetAreaItem({
     return (
         <div
             ref={containerRef}
-            className={`absolute flex items-center justify-center select-none overflow-hidden transition-colors duration-150 ease-out border pointer-events-auto ${isInteracting ? 'border-white/20 bg-zinc-800 shadow-xl z-50' : 'border-white/10 bg-zinc-900/50'}`}
+            className={`absolute flex items-center justify-center select-none overflow-hidden transition-all duration-150 ease-out border pointer-events-auto ${isInteracting 
+                ? 'border-zinc-500/30 dark:border-white/20 bg-white dark:bg-zinc-800 shadow-xl z-50' 
+                : 'border-zinc-500/10 dark:border-white/10 bg-white/70 dark:bg-zinc-900/70'
+            }`}
             style={{
                 left: `${widget.x}px`, 
                 top: `${widget.y}px`, 
@@ -448,7 +462,7 @@ export default function WidgetAreaItem({
                         onPointerMove={handleDragMove}
                         onPointerUp={handleDragUp}
                         onPointerCancel={handleDragUp}
-                        className="absolute bottom-2 left-1/2 -translate-x-1/2 w-16 h-1 rounded-full bg-white/80 hover:bg-white cursor-grab active:cursor-grabbing backdrop-blur-sm shadow-sm transition-all pointer-events-auto flex items-center justify-center"
+                        className="absolute bottom-2 left-1/2 -translate-x-1/2 w-16 h-1 rounded-full bg-zinc-900/40 dark:bg-white/80 hover:bg-zinc-900/80 dark:hover:bg-white cursor-grab active:cursor-grabbing shadow-sm transition-all pointer-events-auto flex items-center justify-center"
                     />
 
                     {/* Resize Handle (Bottom Right) */}
@@ -460,7 +474,7 @@ export default function WidgetAreaItem({
                         className="absolute bottom-0 right-0 w-8 h-8 cursor-nwse-resize flex items-end justify-end p-2 opacity-80 hover:opacity-100 transition-opacity pointer-events-auto"
                     >
                         {/* A beautiful minimal corner grip */}
-                        <div className="w-3.5 h-3.5 border-r-2 border-b-2 border-white rounded-br-2xl pointer-events-none" />
+                        <div className="w-3.5 h-3.5 border-r-2 border-b-2 border-zinc-500 dark:border-white rounded-br-2xl pointer-events-none" />
                     </div>
                 </>
             )}
