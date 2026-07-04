@@ -54,6 +54,7 @@ export interface Monitor {
   widgetArea: DesktopWidget[];
   is_disconnected?: boolean;
   isEditMode?: boolean;
+  showMainWindowButton?: boolean;
 }
 
 export interface LayoutData {

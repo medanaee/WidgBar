@@ -93,6 +93,7 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
               m.barJustify = m.barJustify || 'space-between';
               m.barWidgetSpacing = m.barWidgetSpacing ?? 8;
               m.barSectionSpacing = m.barSectionSpacing ?? 16;
+              m.showMainWindowButton = m.showMainWindowButton ?? true;
               if (!m.barSections) m.barSections = [];
               return m;
             });

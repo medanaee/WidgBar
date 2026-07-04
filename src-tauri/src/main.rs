@@ -146,6 +146,11 @@ async fn request_window(
 
 
 
+#[tauri::command]
+fn exit_app() {
+    std::process::exit(0);
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -176,7 +181,8 @@ fn main() {
             save_widget_type_settings,
             load_widget_instances,
             save_widget_instance_settings,
-            delete_widget_instance
+            delete_widget_instance,
+            exit_app
         ])
         .setup(|app| {
             let handle = app.handle().clone();

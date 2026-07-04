@@ -186,6 +186,14 @@ export default function BarSettingsTab({
                             />
                           </div>
                         )}
+
+                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-zinc-500/10">
+                          <span className="text-sm font-medium">Show Settings Button</span>
+                          <Switch
+                            checked={currentMon.showMainWindowButton !== false}
+                            onCheckedChange={(checked) => handleUpdateBarConfig(selectedMonitorId, { showMainWindowButton: checked })}
+                          />
+                        </div>
                       </SettingCardNoLayout>
 
                       {/* Sections Header */}
