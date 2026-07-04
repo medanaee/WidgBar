@@ -310,17 +310,6 @@ export default function Main() {
                         </SelectContent>
                       </Select>
                     </SettingCard>
-
-                    <SettingCard>
-                      <div>
-                        <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{t("barAnimate")}</h3>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400">{t("barAnimateDesc")}</p>
-                      </div>
-                      <Switch
-                        checked={settings?.barAnimate !== false}
-                        onCheckedChange={(checked) => updateSettings({ barAnimate: checked })}
-                      />
-                    </SettingCard>
                   </div>
                 )}
 
@@ -345,6 +334,17 @@ export default function Main() {
                           </SelectGroup>
                         </SelectContent>
                       </Select>
+                    </SettingCard>
+
+                    <SettingCard>
+                      <div>
+                        <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{t("barAnimate")}</h3>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">{t("barAnimateDesc")}</p>
+                      </div>
+                      <Switch
+                        checked={settings?.barAnimate !== false}
+                        onCheckedChange={(checked) => updateSettings({ barAnimate: checked })}
+                      />
                     </SettingCard>
                   </div>
                 )}

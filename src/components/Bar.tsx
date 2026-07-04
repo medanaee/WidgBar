@@ -26,7 +26,7 @@ export default function Bar() {
   return (
     <div 
       className={`w-full h-screen flex items-center px-4 shadow-[inset_0_-2px_0_0_rgba(255,255,255,0.05)] select-none overflow-hidden ${justifyClass} ${
-        animate ? 'transition-[gap] duration-300 ease-in-out' : ''
+        animate ? 'transition-all duration-500 ease-in-out' : ''
       }`}
       style={{ gap: isSpacingJustify ? `${sectionSpacing}px` : undefined }}
     >
@@ -34,7 +34,7 @@ export default function Bar() {
         <div 
           key={section.id} 
           className={`flex items-center shrink-0 ${
-            animate ? 'transition-[gap] duration-300 ease-in-out' : ''
+            animate ? 'transition-all duration-500 ease-in-out' : ''
           }`} 
           style={{ gap: `${spacing}px` }}
         >
