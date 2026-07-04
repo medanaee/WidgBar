@@ -51,13 +51,14 @@ function WidgetListItem({
       onClick={onClick}
       cornerRadius={14}
       borderWidth={isSelected ? 1 : 0}
+      autoMargin={false}
       borderClassName="text-zinc-300 dark:text-zinc-600"
       className={`w-full px-2.5 py-2 text-start transition-all duration-150 flex items-start gap-2.5 ${isSelected
         ? "bg-zinc-500/10 dark:bg-zinc-500/20 text-zinc-900 dark:text-zinc-100"
         : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-500/5 dark:hover:bg-zinc-500/10 hover:text-zinc-900 dark:hover:text-zinc-200"
         }`}
     >
-      <div className="p-1 rounded-md flex items-center justify-center shrink-0 bg-white/60 dark:bg-zinc-800/60 border border-zinc-200/40 dark:border-zinc-700/40 shadow-sm relative z-10">
+      <div className="shrink-0 flex items-center justify-center relative z-10">
         <IconComp fontSize={28} />
       </div>
       <div className="flex flex-col min-w-0 relative z-10">

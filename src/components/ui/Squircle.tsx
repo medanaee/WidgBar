@@ -5,6 +5,7 @@ export interface SquircleProps extends React.HTMLAttributes<HTMLElement> {
   cornerRadius?: number;
   cornerSmoothing?: number;
   borderClassName?: string;
+  autoMargin?: boolean;
   borderWidth?: number;
   as?: React.ElementType;
 }
@@ -14,6 +15,7 @@ export function Squircle({
   cornerSmoothing = 0.6,
   borderClassName,
   borderWidth = 0,
+  autoMargin = true,
   className = '',
   children,
   as: Component = 'div',
@@ -28,7 +30,7 @@ export function Squircle({
     <Component
   ref={ref as any}
   className={`relative overflow-visible`}
-  style={{ margin: `${borderWidth}px` }}
+  style={{ margin: `${autoMargin ? borderWidth : 0}px` }}
   {...props}
 >
   <div 

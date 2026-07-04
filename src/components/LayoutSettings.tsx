@@ -8,8 +8,6 @@ import { useWidgetRegistryStore } from "../stores/widgetRegistryStore";
 import { BarHeight, DesktopWidget } from "../types/layout";
 import { useTranslation } from "../lib/i18n";
 import { Switch } from "@/components/ui/switch";
-import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
-import { GripVertical } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Settings as SettingsIcon, LayoutGrid, Plus, Trash2 } from 'lucide-react';
 import { ClockColor, ClipboardTaskColor, CalendarColor, ClockAlarmColor } from "@fluentui/react-icons";
@@ -42,41 +40,6 @@ export default function LayoutSettings({ selectedMonitorId }: { selectedMonitorI
   const [layoutInnerTab, setLayoutInnerTab] = useState<"bar" | "widgets">("bar");
 
   if (!selectedMonitorId) return null;
-
-  const onDragEnd = (result: DropResult) => {
-    const { source, destination } = result;
-
-    if (!destination) return;
-    if (source.droppableId === destination.droppableId && source.index === destination.index) return;
-
-    const newLayouts = { ...layouts };
-    const monitorIndex = newLayouts[currentLayout].monitors.findIndex(m => m.id === selectedMonitorId);
-    if (monitorIndex === -1) return;
-
-    const monitor = newLayouts[currentLayout].monitors[monitorIndex];
-    if (!monitor.barSections) return;
-
-    const sourceSectionIndex = monitor.barSections.findIndex(s => s.id === source.droppableId);
-    const destSectionIndex = monitor.barSections.findIndex(s => s.id === destination.droppableId);
-    
-    if (sourceSectionIndex === -1 || destSectionIndex === -1) return;
-
-    const sourceSection = monitor.barSections[sourceSectionIndex];
-    const destSection = monitor.barSections[destSectionIndex];
-
-    const sourceWidgets = Array.from(sourceSection.widgets);
-    const destWidgets = sourceSection.id === destSection.id ? sourceWidgets : Array.from(destSection.widgets);
-
-    const [movedWidget] = sourceWidgets.splice(source.index, 1);
-    destWidgets.splice(destination.index, 0, movedWidget);
-
-    monitor.barSections[sourceSectionIndex].widgets = sourceWidgets;
-    if (sourceSection.id !== destSection.id) {
-      monitor.barSections[destSectionIndex].widgets = destWidgets;
-    }
-
-    useLayoutStore.getState().setLayouts(newLayouts);
-  };
 
 
   const handleMonitorToggle = async (monitorId: string, type: "bar" | "widgetArea", checked: boolean) => {
@@ -149,44 +112,8 @@ export default function LayoutSettings({ selectedMonitorId }: { selectedMonitorI
     useLayoutStore.getState().setLayouts(newLayouts);
   };
 
-  const handleAddSection = (monitorId: string) => {
-    const newLayouts = { ...layouts };
-    const monitorIndex = newLayouts[currentLayout].monitors.findIndex(m => m.id === monitorId);
-    if (monitorIndex === -1) return;
 
-    if (!newLayouts[currentLayout].monitors[monitorIndex].barSections) {
-      newLayouts[currentLayout].monitors[monitorIndex].barSections = [];
-    }
-    newLayouts[currentLayout].monitors[monitorIndex].barSections.push({
-      id: `section_${Date.now()}`,
-      name: `Section ${newLayouts[currentLayout].monitors[monitorIndex].barSections.length + 1}`,
-      widgets: []
-    });
-    useLayoutStore.getState().setLayouts(newLayouts);
-  };
 
-  const handleRemoveSection = (monitorId: string, sectionId: string) => {
-    const newLayouts = { ...layouts };
-    const monitorIndex = newLayouts[currentLayout].monitors.findIndex(m => m.id === monitorId);
-    if (monitorIndex === -1) return;
-
-    if (newLayouts[currentLayout].monitors[monitorIndex].barSections) {
-      newLayouts[currentLayout].monitors[monitorIndex].barSections = newLayouts[currentLayout].monitors[monitorIndex].barSections!.filter(s => s.id !== sectionId);
-    }
-    useLayoutStore.getState().setLayouts(newLayouts);
-  };
-
-  const handleUpdateBarConfig = (monitorId: string, updates: any) => {
-    const newLayouts = { ...layouts };
-    const monitorIndex = newLayouts[currentLayout].monitors.findIndex(m => m.id === monitorId);
-    if (monitorIndex === -1) return;
-
-    newLayouts[currentLayout].monitors[monitorIndex] = {
-      ...newLayouts[currentLayout].monitors[monitorIndex],
-      ...updates
-    };
-    useLayoutStore.getState().setLayouts(newLayouts);
-  };
 
   return (
     <>
@@ -221,12 +148,8 @@ export default function LayoutSettings({ selectedMonitorId }: { selectedMonitorI
                 t={t}
                 language={language}
                 handleMonitorToggle={handleMonitorToggle}
-                handleUpdateBarConfig={handleUpdateBarConfig}
-                handleAddSection={handleAddSection}
-                handleRemoveSection={handleRemoveSection}
                 setAddWidgetTarget={setAddWidgetTarget}
                 handleRemoveWidget={handleRemoveWidget}
-                onDragEnd={onDragEnd}
               />
               
               <WidgetAreaSettingsTab

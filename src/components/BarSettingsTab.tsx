@@ -1,12 +1,13 @@
 import React from 'react';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { GripVertical, Plus, Trash2, LayoutGrid } from 'lucide-react';
+import { useLayoutStore } from '../stores/layoutStore';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import { GripVertical, Plus, Trash2, LayoutGrid, Settings } from 'lucide-react';
 import { Switch } from "@/components/ui/switch";
 import { TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { NumberInput } from "./ui/NumberInput";
 import { SettingCard, SettingCardNoLayout } from "./ui/SettingCard";
-import { ClockColor, ClipboardTaskColor, CalendarColor, ClockAlarmColor } from "@fluentui/react-icons";
+import { ClockColor, ClipboardTaskColor, CalendarColor, ClockAlarmColor, ChevronUp24Regular, ChevronDown24Regular } from "@fluentui/react-icons";
 
 const FluentIconMap: Record<string, React.ComponentType<any>> = {
   ClockColor,
@@ -23,13 +24,106 @@ export default function BarSettingsTab({
   t,
   language,
   handleMonitorToggle,
-  handleUpdateBarConfig,
-  handleAddSection,
-  handleRemoveSection,
   setAddWidgetTarget,
   handleRemoveWidget,
-  onDragEnd
 }: any) {
+
+  const { layouts, currentLayout } = useLayoutStore();
+  
+  const onDragEnd = (result: DropResult) => {
+    const { source, destination } = result;
+
+    if (!destination) return;
+    if (source.droppableId === destination.droppableId && source.index === destination.index) return;
+
+    const newLayouts = { ...layouts };
+    const monitorIndex = newLayouts[currentLayout].monitors.findIndex(m => m.id === selectedMonitorId);
+    if (monitorIndex === -1) return;
+
+    const monitor = newLayouts[currentLayout].monitors[monitorIndex];
+    if (!monitor.barSections) return;
+
+    const sourceSectionIndex = monitor.barSections.findIndex(s => s.id === source.droppableId);
+    const destSectionIndex = monitor.barSections.findIndex(s => s.id === destination.droppableId);
+    
+    if (sourceSectionIndex === -1 || destSectionIndex === -1) return;
+
+    const sourceSection = monitor.barSections[sourceSectionIndex];
+    const destSection = monitor.barSections[destSectionIndex];
+
+    const sourceWidgets = Array.from(sourceSection.widgets);
+    const destWidgets = sourceSection.id === destSection.id ? sourceWidgets : Array.from(destSection.widgets);
+
+    const [movedWidget] = sourceWidgets.splice(source.index, 1);
+    destWidgets.splice(destination.index, 0, movedWidget);
+
+    monitor.barSections[sourceSectionIndex].widgets = sourceWidgets;
+    if (sourceSection.id !== destSection.id) {
+      monitor.barSections[destSectionIndex].widgets = destWidgets;
+    }
+
+    useLayoutStore.getState().setLayouts(newLayouts);
+  };
+
+  const handleAddSection = (monitorId: string) => {
+    const newLayouts = { ...layouts };
+    const monitorIndex = newLayouts[currentLayout].monitors.findIndex(m => m.id === monitorId);
+    if (monitorIndex === -1) return;
+
+    if (!newLayouts[currentLayout].monitors[monitorIndex].barSections) {
+      newLayouts[currentLayout].monitors[monitorIndex].barSections = [];
+    }
+    newLayouts[currentLayout].monitors[monitorIndex].barSections.push({
+      id: `section_${Date.now()}`,
+      name: `Section ${newLayouts[currentLayout].monitors[monitorIndex].barSections.length + 1}`,
+      widgets: []
+    });
+    useLayoutStore.getState().setLayouts(newLayouts);
+  };
+  const handleRemoveSection = (monitorId: string, sectionId: string) => {
+    const newLayouts = { ...layouts };
+    const monitorIndex = newLayouts[currentLayout].monitors.findIndex(m => m.id === monitorId);
+    if (monitorIndex === -1) return;
+
+    if (newLayouts[currentLayout].monitors[monitorIndex].barSections) {
+      newLayouts[currentLayout].monitors[monitorIndex].barSections = newLayouts[currentLayout].monitors[monitorIndex].barSections!.filter(s => s.id !== sectionId);
+    }
+    useLayoutStore.getState().setLayouts(newLayouts);
+  };
+  const handleUpdateBarConfig = (monitorId: string, updates: any) => {
+    const newLayouts = { ...layouts };
+    const monitorIndex = newLayouts[currentLayout].monitors.findIndex(m => m.id === monitorId);
+    if (monitorIndex === -1) return;
+
+    newLayouts[currentLayout].monitors[monitorIndex] = {
+      ...newLayouts[currentLayout].monitors[monitorIndex],
+      ...updates
+    };
+    useLayoutStore.getState().setLayouts(newLayouts);
+  };
+
+  const handleMoveSection = (monitorId: string, sectionId: string, direction: 'up' | 'down') => {
+    const newLayouts = { ...layouts };
+    const monitorIndex = newLayouts[currentLayout].monitors.findIndex(m => m.id === monitorId);
+    if (monitorIndex === -1) return;
+
+    const monitor = newLayouts[currentLayout].monitors[monitorIndex];
+    if (!monitor.barSections) return;
+
+    const sectionIndex = monitor.barSections.findIndex(s => s.id === sectionId);
+    if (sectionIndex === -1) return;
+
+    const targetIndex = direction === 'up' ? sectionIndex - 1 : sectionIndex + 1;
+    if (targetIndex < 0 || targetIndex >= monitor.barSections.length) return;
+
+    // Swap sections
+    const temp = monitor.barSections[sectionIndex];
+    monitor.barSections[sectionIndex] = monitor.barSections[targetIndex];
+    monitor.barSections[targetIndex] = temp;
+
+    useLayoutStore.getState().setLayouts(newLayouts);
+  };
+
   return (
     <TabsContent value="bar" className="animate-in fade-in duration-200 space-y-3 mt-0">
                 <SettingCard>
@@ -117,6 +211,24 @@ export default function BarSettingsTab({
                                 <span className="text-[10px] text-zinc-500">{section.widgets.length} widgets</span>
                               </div>
                               <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-0.5 border-r border-zinc-500/20 dark:border-zinc-500/10 pr-2 mr-1">
+                                  <button
+                                    onClick={() => handleMoveSection(selectedMonitorId, section.id, 'up')}
+                                    disabled={sIndex === 0}
+                                    className="p-1 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 disabled:opacity-30 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors"
+                                    title="Move Up"
+                                  >
+                                    <ChevronUp24Regular className="w-5 h-5" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleMoveSection(selectedMonitorId, section.id, 'down')}
+                                    disabled={sIndex === (currentMon.barSections || []).length - 1}
+                                    className="p-1 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 disabled:opacity-30 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors"
+                                    title="Move Down"
+                                  >
+                                    <ChevronDown24Regular className="w-5 h-5" />
+                                  </button>
+                                </div>
                                 <button
                                   onClick={() => setAddWidgetTarget({ context: "bar", sectionId: section.id })}
                                   className="flex items-center gap-1 px-2 py-1 bg-zinc-200 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-xs font-medium rounded hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors"
@@ -162,10 +274,16 @@ export default function BarSettingsTab({
                                                 </div>
                                                 <div className="flex flex-col items-start">
                                                   <span className="text-xs font-medium text-zinc-900 dark:text-zinc-200 capitalize">{widget.type}</span>
-                                                  <span className="text-[10px] text-zinc-500">Pos: {i + 1}</span>
                                                 </div>
                                               </div>
                                               <div className="flex items-center gap-1">
+                                                <button 
+                                                  className="p-1.5 text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-50 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors" 
+                                                  title="Settings"
+                                                  onClick={() => {}}
+                                                >
+                                                  <Settings className="w-3.5 h-3.5" />
+                                                </button>
                                                 <button onClick={() => handleRemoveWidget(selectedMonitorId, widget.id, { context: "bar", sectionId: section.id })} className="p-1.5 text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded transition-colors" title="Delete">
                                                   <Trash2 className="w-3.5 h-3.5" />
                                                 </button>
