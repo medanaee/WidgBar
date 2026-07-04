@@ -40,12 +40,7 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Build Tauri App
-        uses: tauri-apps/tauri-action@v0
-        id: tauri_build
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          includeRelease: false
+        run: npm run tauri build
 
       - name: Prepare portable binary
         shell: bash
