@@ -12,6 +12,7 @@
   "dependencies": {
     "@fluentui/react-icons": "^2.0.330",
     "@fontsource-variable/figtree": "^5.2.10",
+    "@hello-pangea/dnd": "^18.0.1",
     "@tailwindcss/vite": "^4.3.0",
     "@tauri-apps/api": "^2.11.0",
     "@tauri-apps/plugin-opener": "^2.5.4",
