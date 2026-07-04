@@ -141,16 +141,18 @@ export default function ClockSetting({ widgetId }: { widgetId: string }) {
 
             {/* 24-Hour Format (only applicable for Digital Clock) */}
             {clockType === 'digital' && (
-                <SettingCard>
-                    <div>
-                        <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">24-Hour Format</h3>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400">Use 24-hour time instead of AM/PM</p>
-                    </div>
-                    <Switch 
-                        checked={is24Hour} 
-                        onCheckedChange={(checked) => handleUpdate({ is24Hour: checked })} 
-                    />
-                </SettingCard>
+                <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                    <SettingCard>
+                        <div>
+                            <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">24-Hour Format</h3>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400">Use 24-hour time instead of AM/PM</p>
+                        </div>
+                        <Switch 
+                            checked={is24Hour} 
+                            onCheckedChange={(checked) => handleUpdate({ is24Hour: checked })} 
+                        />
+                    </SettingCard>
+                </div>
             )}
         </div>
     );

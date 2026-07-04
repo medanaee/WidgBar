@@ -106,6 +106,8 @@ pub async fn init_main_window(app: AppHandle) {
     // 1. Creating the window using WebviewWindowBuilder with the requested configurations
     let window = WebviewWindowBuilder::new(&app, "main", WebviewUrl::default())
         .title("Main Window")
+        .inner_size(1200.0, 800.0)
+        .min_inner_size(1000.0, 400.0)
         .visible(false)
         .decorations(false)
         .transparent(true)

@@ -35,7 +35,7 @@ export default function Bar() {
 
   return (
     <div
-      className={`w-full h-screen flex items-center pl-4 ${showButton ? 'pr-12' : 'pr-4'} shadow-[inset_0_-2px_0_0_rgba(255,255,255,0.05)] select-none overflow-hidden relative ${justifyClass} ${animate ? 'transition-all duration-500 ease-in-out' : ''
+      className={`w-full h-screen flex items-center pl-4 ${showButton ? 'pr-8' : 'pr-4'} shadow-[inset_0_-2px_0_0_rgba(255,255,255,0.05)] select-none overflow-hidden relative ${justifyClass} ${animate ? 'transition-all duration-500 ease-in-out' : ''
         }`}
       style={{ gap: isSpacingJustify ? `${sectionSpacing}px` : undefined }}
     >

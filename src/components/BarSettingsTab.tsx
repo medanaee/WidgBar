@@ -177,7 +177,7 @@ export default function BarSettingsTab({
                         </div>
 
                          {["start", "end", "center"].includes(currentMon.barJustify || "space-between") && (
-                          <div className="flex items-center justify-between mt-2 pt-2 border-t border-zinc-500/10">
+                          <div className="flex items-center justify-between mt-2 pt-2 border-t border-zinc-500/10 animate-in fade-in slide-in-from-top-1 duration-200">
                             <span className="text-sm font-medium">Section Spacing (px)</span>
                             <NumberInput
                               value={currentMon.barSectionSpacing ?? 16}
@@ -199,6 +199,7 @@ export default function BarSettingsTab({
 
                       {["start", "end", "center"].includes(currentMon.barJustify || "space-between") && (
                         <VisualSelector
+                          className="animate-in fade-in slide-in-from-top-1 duration-200"
                           value={currentMon.barSeparator || "none"}
                           onChange={(val) => handleUpdateBarConfig(selectedMonitorId, { barSeparator: val })}
                           label="Section Separator"
@@ -250,7 +251,7 @@ export default function BarSettingsTab({
                                   <button
                                     onClick={() => handleMoveSection(selectedMonitorId, section.id, 'up')}
                                     disabled={sIndex === 0}
-                                    className="p-1 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 disabled:opacity-30 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors"
+                                    className="p-1 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 disabled:opacity-30 rounded hover:bg-zinc-500/30 transition-colors"
                                     title="Move Up"
                                   >
                                     <ChevronUp24Regular className="w-5 h-5" />
@@ -258,7 +259,7 @@ export default function BarSettingsTab({
                                   <button
                                     onClick={() => handleMoveSection(selectedMonitorId, section.id, 'down')}
                                     disabled={sIndex === (currentMon.barSections || []).length - 1}
-                                    className="p-1 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 disabled:opacity-30 rounded hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors"
+                                    className="p-1 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 disabled:opacity-30 rounded hover:bg-zinc-500/30 transition-colors"
                                     title="Move Down"
                                   >
                                     <ChevronDown24Regular className="w-5 h-5" />
@@ -266,7 +267,7 @@ export default function BarSettingsTab({
                                 </div>
                                 <button
                                   onClick={() => setAddWidgetTarget({ context: "bar", sectionId: section.id })}
-                                  className="flex items-center gap-1 px-2 py-1 bg-zinc-200 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-xs font-medium rounded hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors"
+                                  className="flex items-center gap-1 px-2 py-1 bg-zinc-500/20 hover:bg-zinc-500/30 text-zinc-800 dark:text-zinc-200 text-xs font-medium rounded transition-colors"
                                 >
                                   <Plus className="w-3 h-3" />
                                   Widget

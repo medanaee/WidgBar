@@ -22,8 +22,9 @@ export function VisualSelector({
   options,
   label,
   description,
-  gridCols = 3
-}: VisualSelectorProps<any>) {
+  gridCols = 3,
+  className
+}: VisualSelectorProps<any> & { className?: string }) {
   const gridColsClass = {
     2: "grid-cols-2",
     3: "grid-cols-3",
@@ -31,7 +32,7 @@ export function VisualSelector({
   }[gridCols] || "grid-cols-3";
 
   return (
-    <div className="flex flex-col gap-2.5 p-3.5 rounded-xl bg-white/50 dark:bg-zinc-900/10 border border-zinc-500/20 dark:border-zinc-500/20 shadow-sm transition-all">
+    <div className={cn("flex flex-col gap-2.5 p-3.5 rounded-xl bg-white/50 dark:bg-zinc-900/10 border border-zinc-500/20 dark:border-zinc-500/20 shadow-sm transition-all", className)}>
       {(label || description) && (
         <div>
           {label && <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{label}</h3>}
