@@ -52,10 +52,10 @@ export function AddWidgetModal({ isOpen, onClose, onSelect, context }: AddWidget
                     onSelect(w.type_name);
                     onClose();
                   }}
-                  className="flex items-start gap-3 w-full p-2.5 rounded-lg hover:bg-zinc-500/20 dark:hover:bg-zinc-500/20 transition-colors text-left"
+                  className="flex items-center gap-3 w-full p-2.5 rounded-lg hover:bg-zinc-500/20 dark:hover:bg-zinc-500/20 transition-colors text-left"
                 >
-                  <div className="p-1.5 rounded-md bg-zinc-300/50 dark:bg-zinc-800/80 shrink-0 mt-0.5">
-                    <IconComponent className="w-4 h-4 text-zinc-600 dark:text-zinc-300" />
+                  <div className="shrink-0 flex items-center justify-center">
+                    <IconComponent className="w-8 h-8 text-zinc-700 dark:text-zinc-200" />
                   </div>
                   <div className="flex flex-col">
                     <span className="font-medium text-sm text-zinc-900 dark:text-zinc-100 capitalize">{w.type_name}</span>

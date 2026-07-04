@@ -434,7 +434,7 @@ export default function WidgetAreaItem({
     return (
         <div
             ref={containerRef}
-            className={`absolute flex items-center justify-center select-none overflow-hidden transition-all duration-150 ease-out border pointer-events-auto ${isInteracting 
+            className={`absolute flex items-center justify-center select-none overflow-hidden transition duration-150 ease-out border pointer-events-auto ${isInteracting 
                 ? 'border-zinc-500/30 dark:border-white/20 bg-white dark:bg-zinc-800 shadow-xl z-50' 
                 : 'border-zinc-500/10 dark:border-white/10 bg-white/70 dark:bg-zinc-900/70'
             }`}
