@@ -10,6 +10,7 @@ export interface Settings {
   language: string;
   barHeight: BarHeight;
   snapMargin?: number;
+  barAnimate?: boolean;
 }
 
 export interface BarWidget {

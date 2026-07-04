@@ -8,6 +8,7 @@ const DEFAULT_SETTINGS: Settings = {
   language: 'en',
   barHeight: BarHeight.Medium,
   snapMargin: 16,
+  barAnimate: true,
 };
 
 interface SettingsState {

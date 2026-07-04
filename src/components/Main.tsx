@@ -21,7 +21,7 @@ import { Squircle } from "./ui/Squircle";
 import { TipCard } from "./ui/TipCard";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { CutoutProvider } from "./ui/CutoutProvider";
-import { Slider } from "./ui/slider";
+import { NumberInput } from "./ui/NumberInput";
 
 const FluentIconMap: Record<string, React.ComponentType<any>> = {
   ClockColor,
@@ -310,6 +310,17 @@ export default function Main() {
                         </SelectContent>
                       </Select>
                     </SettingCard>
+
+                    <SettingCard>
+                      <div>
+                        <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{t("barAnimate")}</h3>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">{t("barAnimateDesc")}</p>
+                      </div>
+                      <Switch
+                        checked={settings?.barAnimate !== false}
+                        onCheckedChange={(checked) => updateSettings({ barAnimate: checked })}
+                      />
+                    </SettingCard>
                   </div>
                 )}
 
@@ -429,34 +440,24 @@ export default function Main() {
                                   </SelectContent>
                                 </Select>
                               </div>
-                              <div className="flex flex-col gap-1.5 mt-2">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-sm font-medium">Widget Spacing</span>
-                                  <span className="text-xs text-zinc-500 font-mono">{currentMon.barWidgetSpacing ?? 8}px</span>
-                                </div>
-                                <Slider
-                                  value={[currentMon.barWidgetSpacing ?? 8]}
+                              <div className="flex items-center justify-between mt-2 pt-2 border-t border-zinc-500/10">
+                                <span className="text-sm font-medium">Widget Spacing (px)</span>
+                                <NumberInput
+                                  value={currentMon.barWidgetSpacing ?? 8}
                                   min={0}
                                   max={64}
-                                  step={1}
-                                  onValueChange={(val) => handleUpdateBarConfig(selectedMonitorId, { barWidgetSpacing: val[0] })}
-                                  className="py-2"
+                                  onChange={(val) => handleUpdateBarConfig(selectedMonitorId, { barWidgetSpacing: val })}
                                 />
                               </div>
 
                               {["start", "end", "center"].includes(currentMon.barJustify || "space-between") && (
-                                <div className="flex flex-col gap-1.5 mt-2 pt-2 border-t border-zinc-500/10">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-sm font-medium">Section Spacing</span>
-                                    <span className="text-xs text-zinc-500 font-mono">{currentMon.barSectionSpacing ?? 16}px</span>
-                                  </div>
-                                  <Slider
-                                    value={[currentMon.barSectionSpacing ?? 16]}
+                                <div className="flex items-center justify-between mt-2 pt-2 border-t border-zinc-500/10">
+                                  <span className="text-sm font-medium">Section Spacing (px)</span>
+                                  <NumberInput
+                                    value={currentMon.barSectionSpacing ?? 16}
                                     min={0}
                                     max={128}
-                                    step={1}
-                                    onValueChange={(val) => handleUpdateBarConfig(selectedMonitorId, { barSectionSpacing: val[0] })}
-                                    className="py-2"
+                                    onChange={(val) => handleUpdateBarConfig(selectedMonitorId, { barSectionSpacing: val })}
                                   />
                                 </div>
                               )}
