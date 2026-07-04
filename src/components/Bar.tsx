@@ -1,3 +1,4 @@
+import React from 'react';
 import { useParams } from 'react-router-dom';
 import { useLayoutStore } from '../stores/layoutStore';
 import { useSettingsStore } from '../stores/settingsStore';
@@ -17,6 +18,8 @@ export default function Bar() {
   const isSpacingJustify = ["start", "end", "center"].includes(justify);
   const animate = settings?.barAnimate !== false;
   const showButton = monitor?.showMainWindowButton !== false;
+  const separator = monitor?.barSeparator || "none";
+  const showSeparator = isSpacingJustify && separator !== "none";
 
   const justifyClass = {
     "start": "justify-start",
@@ -32,26 +35,34 @@ export default function Bar() {
 
   return (
     <div
-      className={`w-full h-screen flex items-center pl-1 ${showButton ? 'pr-8' : 'pr-1'} shadow-[inset_0_-2px_0_0_rgba(255,255,255,0.05)] select-none overflow-hidden relative ${justifyClass} ${animate ? 'transition-all duration-500 ease-in-out' : ''
+      className={`w-full h-screen flex items-center pl-4 ${showButton ? 'pr-12' : 'pr-4'} shadow-[inset_0_-2px_0_0_rgba(255,255,255,0.05)] select-none overflow-hidden relative ${justifyClass} ${animate ? 'transition-all duration-500 ease-in-out' : ''
         }`}
       style={{ gap: isSpacingJustify ? `${sectionSpacing}px` : undefined }}
     >
-      {barSections.map(section => (
-        <div
-          key={section.id}
-          className={`flex items-center shrink-0 ${animate ? 'transition-all duration-500 ease-in-out' : ''
-            }`}
-          style={{ gap: `${spacing}px` }}
-        >
-          {section.widgets.map((widget, index) => (
-            <Widget
-              key={widget.id}
-              context="bar"
-              index={index}
-              widget={widget}
-            />
-          ))}
-        </div>
+      {barSections.map((section, sIndex) => (
+        <React.Fragment key={section.id}>
+          {sIndex > 0 && showSeparator && (
+            separator === "line" ? (
+              <div className="w-[1px] h-3.5 bg-white/20 dark:bg-white/10 shrink-0 self-center" />
+            ) : (
+              <div className="w-1 h-1 rounded-full bg-white/30 dark:bg-white/20 shrink-0 self-center" />
+            )
+          )}
+          <div
+            className={`flex items-center shrink-0 ${animate ? 'transition-all duration-500 ease-in-out' : ''
+              }`}
+            style={{ gap: `${spacing}px` }}
+          >
+            {section.widgets.map((widget, index) => (
+              <Widget
+                key={widget.id}
+                context="bar"
+                index={index}
+                widget={widget}
+              />
+            ))}
+          </div>
+        </React.Fragment>
       ))}
 
       {showButton && (

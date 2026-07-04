@@ -94,6 +94,7 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
               m.barWidgetSpacing = m.barWidgetSpacing ?? 8;
               m.barSectionSpacing = m.barSectionSpacing ?? 16;
               m.showMainWindowButton = m.showMainWindowButton ?? true;
+              m.barSeparator = m.barSeparator || 'none';
               if (!m.barSections) m.barSections = [];
               return m;
             });

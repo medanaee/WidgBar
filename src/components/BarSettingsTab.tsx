@@ -7,6 +7,7 @@ import { TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { NumberInput } from "./ui/NumberInput";
 import { SettingCard, SettingCardNoLayout } from "./ui/SettingCard";
+import { VisualSelector } from "./ui/VisualSelector";
 import { ClockColor, ClipboardTaskColor, CalendarColor, ClockAlarmColor, ChevronUp24Regular, ChevronDown24Regular } from "@fluentui/react-icons";
 
 const FluentIconMap: Record<string, React.ComponentType<any>> = {
@@ -175,7 +176,7 @@ export default function BarSettingsTab({
                           />
                         </div>
 
-                        {["start", "end", "center"].includes(currentMon.barJustify || "space-between") && (
+                         {["start", "end", "center"].includes(currentMon.barJustify || "space-between") && (
                           <div className="flex items-center justify-between mt-2 pt-2 border-t border-zinc-500/10">
                             <span className="text-sm font-medium">Section Spacing (px)</span>
                             <NumberInput
@@ -195,6 +196,32 @@ export default function BarSettingsTab({
                           />
                         </div>
                       </SettingCardNoLayout>
+
+                      {["start", "end", "center"].includes(currentMon.barJustify || "space-between") && (
+                        <VisualSelector
+                          value={currentMon.barSeparator || "none"}
+                          onChange={(val) => handleUpdateBarConfig(selectedMonitorId, { barSeparator: val })}
+                          label="Section Separator"
+                          description="Choose how sections are separated"
+                          options={[
+                            {
+                              value: "none",
+                              label: "None",
+                              preview: <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium">No Separator</span>
+                            },
+                            {
+                              value: "line",
+                              label: "Line",
+                              preview: <div className="w-[1px] h-6 bg-zinc-400 dark:bg-zinc-600" />
+                            },
+                            {
+                              value: "dot",
+                              label: "Dot",
+                              preview: <div className="w-2 h-2 rounded-full bg-zinc-400 dark:bg-zinc-600" />
+                            }
+                          ]}
+                        />
+                      )}
 
                       {/* Sections Header */}
                       <div className="flex items-center justify-between pt-2">

@@ -3,6 +3,8 @@ import { useWidgetInstanceStore } from '../../stores/widgetInstanceStore';
 import { Switch } from '../../components/ui/switch';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 
+import { VisualSelector } from '../../components/ui/VisualSelector';
+
 // Styled Card matching the Main layout settings card exactly
 function SettingCard({ children }: { children: React.ReactNode }) {
     return (
@@ -42,98 +44,66 @@ export default function ClockSetting({ widgetId }: { widgetId: string }) {
         timeZones.push({ value: timeZone, label: timeZone });
     }
 
+    const clockTypeOptions = [
+        {
+            value: 'digital',
+            label: 'Digital',
+            preview: (
+                <span className="text-zinc-600 dark:text-zinc-300 text-sm font-bold font-sans tracking-tight">12:00</span>
+            )
+        },
+        {
+            value: 'analog',
+            label: 'Classic',
+            preview: (
+                <svg viewBox="0 0 40 40" className="w-9 h-9">
+                    <circle cx="20" cy="20" r="17" className="fill-none stroke-zinc-500/50 dark:stroke-zinc-400/50" strokeWidth="1.5" />
+                    <line x1="20" y1="20" x2="20" y2="9" className="stroke-zinc-500/80 dark:stroke-zinc-300" strokeWidth="2.2" strokeLinecap="round" />
+                    <line x1="20" y1="20" x2="28" y2="20" className="stroke-zinc-500/80 dark:stroke-zinc-300" strokeWidth="1.6" strokeLinecap="round" />
+                    <circle cx="20" cy="20" r="2.2" className="fill-zinc-600 dark:fill-zinc-200" />
+                </svg>
+            )
+        },
+        {
+            value: 'analog_macos',
+            label: 'macOS',
+            preview: (
+                <svg viewBox="0 0 40 40" className="w-9 h-9">
+                    {Array.from({ length: 12 }).map((_, h) => {
+                        const isMajor = h % 3 === 0;
+                        const angle = h * 30 * (Math.PI / 180);
+                        const len = isMajor ? 3 : 1.5;
+                        const x1 = 20 + (18 - len) * Math.sin(angle);
+                        const y1 = 20 - (18 - len) * Math.cos(angle);
+                        const x2 = 20 + 18 * Math.sin(angle);
+                        const y2 = 20 - 18 * Math.cos(angle);
+                        return (
+                            <line 
+                                key={h} 
+                                x1={x1} y1={y1} x2={x2} y2={y2} 
+                                className={isMajor ? "stroke-zinc-500/80 dark:stroke-zinc-300" : "stroke-zinc-500/30 dark:stroke-zinc-400/20"} 
+                                strokeWidth={isMajor ? 1.2 : 0.8} 
+                                strokeLinecap="round" 
+                            />
+                        );
+                    })}
+                    <line x1="20" y1="20" x2="20" y2="10" className="stroke-zinc-500/80 dark:stroke-zinc-300" strokeWidth="2.2" strokeLinecap="round" />
+                    <line x1="20" y1="20" x2="28" y2="20" className="stroke-zinc-500/80 dark:stroke-zinc-300" strokeWidth="1.6" strokeLinecap="round" />
+                    <circle cx="20" cy="20" r="1.8" className="fill-zinc-600 dark:fill-zinc-200" />
+                </svg>
+            )
+        }
+    ];
+
     return (
         <div className="space-y-3 pt-2">
-            {/* Clock Type selection grid with previews */}
-            <div className="flex flex-col gap-2.5 p-3.5 rounded-xl bg-white/50 dark:bg-zinc-900/10 border border-zinc-500/20 dark:border-zinc-500/20 shadow-sm transition-all">
-                <div>
-                    <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Clock Type</h3>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Choose between digital or analog displays</p>
-                </div>
-                
-                <div className="grid grid-cols-3 gap-2 w-full pt-1">
-                    {/* Digital Option */}
-                    <button
-                        onClick={() => handleUpdate({ clockType: 'digital' })}
-                        className={`flex flex-col items-center gap-2 p-2 rounded-lg border text-center transition-all duration-200 ${
-                            clockType === 'digital'
-                                ? 'border-indigo-500 dark:border-indigo-400 bg-indigo-500/5 dark:bg-indigo-500/10 shadow-[0_0_12px_rgba(99,102,241,0.1)]'
-                                : 'border-zinc-500/10 bg-zinc-950/5 dark:bg-zinc-950/20 hover:border-zinc-500/30'
-                        }`}
-                    >
-                        {/* Digital Preview */}
-                        <div className="h-14 w-full bg-zinc-950/25 dark:bg-zinc-900/30 border border-zinc-500/5 rounded flex items-center justify-center pointer-events-none">
-                            <span className="text-zinc-600 dark:text-zinc-300 text-sm font-bold font-sans tracking-tight">12:00</span>
-                        </div>
-                        <span className={`text-[10px] font-medium leading-tight ${
-                            clockType === 'digital' ? 'text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-zinc-500 dark:text-zinc-400'
-                        }`}>Digital</span>
-                    </button>
-
-                    {/* Classic Analog Option */}
-                    <button
-                        onClick={() => handleUpdate({ clockType: 'analog' })}
-                        className={`flex flex-col items-center gap-2 p-2 rounded-lg border text-center transition-all duration-200 ${
-                            clockType === 'analog'
-                                ? 'border-indigo-500 dark:border-indigo-400 bg-indigo-500/5 dark:bg-indigo-500/10 shadow-[0_0_12px_rgba(99,102,241,0.1)]'
-                                : 'border-zinc-500/10 bg-zinc-950/5 dark:bg-zinc-950/20 hover:border-zinc-500/30'
-                        }`}
-                    >
-                        {/* Classic Analog Preview */}
-                        <div className="h-14 w-full bg-zinc-950/25 dark:bg-zinc-900/30 border border-zinc-500/5 rounded flex items-center justify-center pointer-events-none p-1">
-                            <svg viewBox="0 0 40 40" className="w-9 h-9">
-                                <circle cx="20" cy="20" r="17" className="fill-none stroke-zinc-500/50 dark:stroke-zinc-400/50" strokeWidth="1.5" />
-                                <line x1="20" y1="20" x2="20" y2="9" className="stroke-zinc-500/80 dark:stroke-zinc-300" strokeWidth="2.2" strokeLinecap="round" />
-                                <line x1="20" y1="20" x2="28" y2="20" className="stroke-zinc-500/80 dark:stroke-zinc-300" strokeWidth="1.6" strokeLinecap="round" />
-                                <circle cx="20" cy="20" r="2.2" className="fill-zinc-600 dark:fill-zinc-200" />
-                            </svg>
-                        </div>
-                        <span className={`text-[10px] font-medium leading-tight ${
-                            clockType === 'analog' ? 'text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-zinc-500 dark:text-zinc-400'
-                        }`}>Classic</span>
-                    </button>
-
-                    {/* macOS Analog Option */}
-                    <button
-                        onClick={() => handleUpdate({ clockType: 'analog_macos' })}
-                        className={`flex flex-col items-center gap-2 p-2 rounded-lg border text-center transition-all duration-200 ${
-                            clockType === 'analog_macos'
-                                ? 'border-indigo-500 dark:border-indigo-400 bg-indigo-500/5 dark:bg-indigo-500/10 shadow-[0_0_12px_rgba(99,102,241,0.1)]'
-                                : 'border-zinc-500/10 bg-zinc-950/5 dark:bg-zinc-950/20 hover:border-zinc-500/30'
-                        }`}
-                    >
-                        {/* macOS Analog Preview */}
-                        <div className="h-14 w-full bg-zinc-950/25 dark:bg-zinc-900/30 border border-zinc-500/5 rounded flex items-center justify-center pointer-events-none p-1">
-                            <svg viewBox="0 0 40 40" className="w-9 h-9">
-                                {Array.from({ length: 12 }).map((_, h) => {
-                                    const isMajor = h % 3 === 0;
-                                    const angle = h * 30 * (Math.PI / 180);
-                                    const len = isMajor ? 3 : 1.5;
-                                    const x1 = 20 + (18 - len) * Math.sin(angle);
-                                    const y1 = 20 - (18 - len) * Math.cos(angle);
-                                    const x2 = 20 + 18 * Math.sin(angle);
-                                    const y2 = 20 - 18 * Math.cos(angle);
-                                    return (
-                                        <line 
-                                            key={h} 
-                                            x1={x1} y1={y1} x2={x2} y2={y2} 
-                                            className={isMajor ? "stroke-zinc-500/80 dark:stroke-zinc-300" : "stroke-zinc-500/30 dark:stroke-zinc-400/20"} 
-                                            strokeWidth={isMajor ? 1.2 : 0.8} 
-                                            strokeLinecap="round" 
-                                        />
-                                    );
-                                })}
-                                <line x1="20" y1="20" x2="20" y2="10" className="stroke-zinc-500/80 dark:stroke-zinc-300" strokeWidth="2.2" strokeLinecap="round" />
-                                <line x1="20" y1="20" x2="28" y2="20" className="stroke-zinc-500/80 dark:stroke-zinc-300" strokeWidth="1.6" strokeLinecap="round" />
-                                <circle cx="20" cy="20" r="1.8" className="fill-zinc-600 dark:fill-zinc-200" />
-                            </svg>
-                        </div>
-                        <span className={`text-[10px] font-medium leading-tight ${
-                            clockType === 'analog_macos' ? 'text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-zinc-500 dark:text-zinc-400'
-                        }`}>macOS</span>
-                    </button>
-                </div>
-            </div>
+            <VisualSelector
+                value={clockType}
+                onChange={(val) => handleUpdate({ clockType: val })}
+                options={clockTypeOptions}
+                label="Clock Type"
+                description="Choose between digital or analog displays"
+            />
 
             {/* Timezone */}
             <div className="flex flex-col gap-2 p-3.5 rounded-xl bg-white/50 dark:bg-zinc-900/10 border border-zinc-500/20 dark:border-zinc-500/20 shadow-sm transition-all hover:bg-white/80 dark:hover:bg-zinc-900/50">

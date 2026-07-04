@@ -55,6 +55,7 @@ export interface Monitor {
   is_disconnected?: boolean;
   isEditMode?: boolean;
   showMainWindowButton?: boolean;
+  barSeparator?: "none" | "line" | "dot";
 }
 
 export interface LayoutData {
