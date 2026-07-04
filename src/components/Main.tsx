@@ -21,6 +21,7 @@ import { Squircle } from "./ui/Squircle";
 import { TipCard } from "./ui/TipCard";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { CutoutProvider } from "./ui/CutoutProvider";
+import { Slider } from "./ui/slider";
 
 const FluentIconMap: Record<string, React.ComponentType<any>> = {
   ClockColor,
@@ -42,7 +43,7 @@ export default function Main() {
   const [activeTab, setActiveTab] = useState<"home" | "settings" | "layout" | "appearance" | "widgets_library">("layout");
   const [selectedMonitorId, setSelectedMonitorId] = useState<string | null>(null);
   const [settingsTab, setSettingsTab] = useState<"general" | "bar" | "widgets">("general");
-  const [addWidgetTarget, setAddWidgetTarget] = useState<"bar" | "widgetArea" | null>(null);
+  const [addWidgetTarget, setAddWidgetTarget] = useState<{ context: "bar"; sectionId: string } | { context: "widgetArea" } | null>(null);
   const [editingWidget, setEditingWidget] = useState<DesktopWidget | null>(null);
   const [hoveredWidgetId, setHoveredWidgetId] = useState<string | null>(null);
   const [layoutInnerTab, setLayoutInnerTab] = useState<"bar" | "widgets">("bar");
@@ -93,7 +94,7 @@ export default function Main() {
     }
   };
 
-  const handleAddWidget = (monitorId: string, type_name: string, context: "bar" | "widgetArea") => {
+  const handleAddWidget = (monitorId: string, type_name: string, target: { context: "bar", sectionId: string } | { context: "widgetArea" }) => {
     const newLayouts = { ...layouts };
     const monitorIndex = newLayouts[currentLayout].monitors.findIndex(m => m.id === monitorId);
     if (monitorIndex === -1) return;
@@ -101,8 +102,11 @@ export default function Main() {
     const widgetId = `widget_${Date.now()}`;
     const widgetType = registry[type_name];
 
-    if (context === "bar") {
-      newLayouts[currentLayout].monitors[monitorIndex].bar.push({ id: widgetId, type: type_name });
+    if (target.context === "bar") {
+      const section = newLayouts[currentLayout].monitors[monitorIndex].barSections?.find(s => s.id === target.sectionId);
+      if (section) {
+        section.widgets.push({ id: widgetId, type: type_name });
+      }
     } else {
       newLayouts[currentLayout].monitors[monitorIndex].widgetArea.push({
         id: widgetId,
@@ -116,16 +120,58 @@ export default function Main() {
     useLayoutStore.getState().setLayouts(newLayouts);
   };
 
-  const handleRemoveWidget = (monitorId: string, widgetId: string, context: "bar" | "widgetArea") => {
+  const handleRemoveWidget = (monitorId: string, widgetId: string, target: { context: "bar", sectionId: string } | { context: "widgetArea" }) => {
     const newLayouts = { ...layouts };
     const monitorIndex = newLayouts[currentLayout].monitors.findIndex(m => m.id === monitorId);
     if (monitorIndex === -1) return;
 
-    if (context === "bar") {
-      newLayouts[currentLayout].monitors[monitorIndex].bar = newLayouts[currentLayout].monitors[monitorIndex].bar.filter(w => w.id !== widgetId);
+    if (target.context === "bar") {
+      const section = newLayouts[currentLayout].monitors[monitorIndex].barSections?.find(s => s.id === target.sectionId);
+      if (section) {
+        section.widgets = section.widgets.filter(w => w.id !== widgetId);
+      }
     } else {
       newLayouts[currentLayout].monitors[monitorIndex].widgetArea = newLayouts[currentLayout].monitors[monitorIndex].widgetArea.filter(w => w.id !== widgetId);
     }
+    useLayoutStore.getState().setLayouts(newLayouts);
+  };
+
+  const handleAddSection = (monitorId: string) => {
+    const newLayouts = { ...layouts };
+    const monitorIndex = newLayouts[currentLayout].monitors.findIndex(m => m.id === monitorId);
+    if (monitorIndex === -1) return;
+
+    if (!newLayouts[currentLayout].monitors[monitorIndex].barSections) {
+      newLayouts[currentLayout].monitors[monitorIndex].barSections = [];
+    }
+    newLayouts[currentLayout].monitors[monitorIndex].barSections.push({
+      id: `section_${Date.now()}`,
+      name: `Section ${newLayouts[currentLayout].monitors[monitorIndex].barSections.length + 1}`,
+      widgets: []
+    });
+    useLayoutStore.getState().setLayouts(newLayouts);
+  };
+
+  const handleRemoveSection = (monitorId: string, sectionId: string) => {
+    const newLayouts = { ...layouts };
+    const monitorIndex = newLayouts[currentLayout].monitors.findIndex(m => m.id === monitorId);
+    if (monitorIndex === -1) return;
+
+    if (newLayouts[currentLayout].monitors[monitorIndex].barSections) {
+      newLayouts[currentLayout].monitors[monitorIndex].barSections = newLayouts[currentLayout].monitors[monitorIndex].barSections!.filter(s => s.id !== sectionId);
+    }
+    useLayoutStore.getState().setLayouts(newLayouts);
+  };
+
+  const handleUpdateBarConfig = (monitorId: string, updates: { barJustify?: any, barWidgetSpacing?: number }) => {
+    const newLayouts = { ...layouts };
+    const monitorIndex = newLayouts[currentLayout].monitors.findIndex(m => m.id === monitorId);
+    if (monitorIndex === -1) return;
+
+    newLayouts[currentLayout].monitors[monitorIndex] = {
+      ...newLayouts[currentLayout].monitors[monitorIndex],
+      ...updates
+    };
     useLayoutStore.getState().setLayouts(newLayouts);
   };
 
@@ -157,7 +203,7 @@ export default function Main() {
                   cornerRadius={24}
                   borderWidth={1}
                   borderClassName="text-zinc-500/25 dark:text-zinc-700/30"
-                  className="w-full bg-zinc-950/20 dark:bg-black/40 backdrop-blur-md text-white p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl shrink-0 overflow-hidden"
+                  className="w-full bg-zinc-200 dark:bg-zinc-800 text-white p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl shrink-0 overflow-hidden"
                 >
                   {/* Decorative Blur Circles for Mesh Gradient */}
                   <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
@@ -171,17 +217,17 @@ export default function Main() {
                     <h1 className="text-3xl font-extrabold tracking-tight">{t("bannerWelcome")}</h1>
                     <p className="text-sm text-zinc-300 leading-relaxed mt-1">{t("bannerDesc")}</p>
                   </div>
-                  <div className="shrink-0 p-4 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 shadow-inner relative z-10">
+                  <div className="shrink-0 p-4 bg-white/5 rounded-2xl border border-white/10 shadow-inner relative z-10">
                     <Logo className="w-20 h-20 drop-shadow-2xl brightness-110" />
                   </div>
                 </Squircle>
 
                 {/* Suggestions Section */}
-                <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 duration-350 delay-100">
+                <div className="flex flex-col gap-4">
                   <h2 className="text-lg font-bold text-zinc-800 dark:text-zinc-200 px-1">
                     {t("tipsSectionTitle")}
                   </h2>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <TipCard
                       icon={Compass}
@@ -219,7 +265,7 @@ export default function Main() {
             {activeTab === "widgets_library" && selectedWidgetType && (
               <GlobalWidgetSettingsPanel widgetType={selectedWidgetType} />
             )}
-            
+
             {activeTab === "widgets_library" && !selectedWidgetType && (
               <div className="flex flex-col items-center justify-center h-full text-zinc-500 dark:text-zinc-400 gap-4 animate-in fade-in zoom-in-95 duration-300">
                 <LayoutGrid className="w-16 h-16 opacity-30" />
@@ -324,9 +370,9 @@ export default function Main() {
 
             {activeTab === "layout" && selectedMonitorId && editingWidget ? (
               <div className="max-w-xl w-full self-center h-full overflow-y-auto custom-scrollbar ltr:pr-2 ltr:-mr-2 rtl:pl-2 rtl:-ml-2">
-                <WidgetSettingsPanel 
-                  widget={editingWidget} 
-                  onBack={() => setEditingWidget(null)} 
+                <WidgetSettingsPanel
+                  widget={editingWidget}
+                  onBack={() => setEditingWidget(null)}
                 />
               </div>
             ) : activeTab === "layout" && selectedMonitorId ? (
@@ -344,148 +390,240 @@ export default function Main() {
 
                   <div className="flex-1 overflow-y-auto custom-scrollbar ltr:pr-2 ltr:-mr-2 rtl:pl-2 rtl:-ml-2 pb-6">
                     <TabsContent value="bar" className="animate-in fade-in duration-200 space-y-3 mt-0">
-                    <SettingCard>
-                      <div>
-                        <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{t("enableBar")}</h3>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400">{t("enableBarDesc")}</p>
-                      </div>
-                      <Switch
-                        checked={monitors.find(m => m.id === selectedMonitorId)?.has_bar || false}
-                        disabled={monitors.find(m => m.id === selectedMonitorId)?.is_primary}
-                        onCheckedChange={(checked) => handleMonitorToggle(selectedMonitorId, "bar", checked)}
-                      />
-                    </SettingCard>
-
-                    {monitors.find(m => m.id === selectedMonitorId)?.has_bar && (
-                      <div className="space-y-3 pt-4 border-t border-zinc-500/20">
-                        <div className="flex items-center justify-between">
-                          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Bar Widgets</h3>
-                          <button
-                            onClick={() => setAddWidgetTarget("bar")}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs font-medium rounded-lg hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            Add Widget
-                          </button>
+                      <SettingCard>
+                        <div>
+                          <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{t("enableBar")}</h3>
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400">{t("enableBarDesc")}</p>
                         </div>
-                        <div className="flex flex-col gap-2">
-                          {monitors.find(m => m.id === selectedMonitorId)?.bar.map((widget, i) => {
-                            const wType = registry[widget.type];
-                            const IconComponent = wType ? (FluentIconMap[wType.icon] || LayoutGrid) : LayoutGrid;
-                            return (
-                              <div key={widget.id} className="flex items-center justify-between p-3 rounded-lg bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-500/20 transition-colors">
-                                <div className="flex items-center gap-3">
-                                  <div className="p-1.5 rounded-md bg-zinc-200/50 dark:bg-zinc-800">
-                                    <IconComponent className="w-4 h-4 text-zinc-600 dark:text-zinc-300" />
-                                  </div>
-                                  <div className="flex flex-col items-start">
-                                    <span className="text-sm font-medium text-zinc-900 dark:text-zinc-200 capitalize">{widget.type}</span>
-                                    <span className="text-[10px] text-zinc-500">Position: {i + 1}</span>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <button className="p-1.5 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded transition-colors" title="Settings (Coming soon)">
-                                    <SettingsIcon className="w-4 h-4" />
-                                  </button>
-                                  <button onClick={() => handleRemoveWidget(selectedMonitorId, widget.id, "bar")} className="p-1.5 text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded transition-colors" title="Delete">
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </div>
+                        <Switch
+                          checked={monitors.find(m => m.id === selectedMonitorId)?.has_bar || false}
+                          disabled={monitors.find(m => m.id === selectedMonitorId)?.is_primary}
+                          onCheckedChange={(checked) => handleMonitorToggle(selectedMonitorId, "bar", checked)}
+                        />
+                      </SettingCard>
+
+                      {monitors.find(m => m.id === selectedMonitorId)?.has_bar && (() => {
+                        const currentMon = monitors.find(m => m.id === selectedMonitorId)!;
+                        return (
+                          <div className="space-y-4 pt-4 border-t border-zinc-500/20">
+                            {/* Bar Configuration */}
+                            <SettingCardNoLayout>
+                              <h4 className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Layout Settings</h4>
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium">Justify Sections</span>
+                                <Select
+                                  value={currentMon.barJustify || "space-between"}
+                                  onValueChange={(val) => handleUpdateBarConfig(selectedMonitorId, { barJustify: val })}
+                                >
+                                  <SelectTrigger className="w-36 h-8 text-xs bg-transparent" dir={language === 'fa' ? 'rtl' : 'ltr'}>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent dir={language === 'fa' ? 'rtl' : 'ltr'}>
+                                    <SelectGroup>
+                                      <SelectItem value="start" className="text-xs">Start</SelectItem>
+                                      <SelectItem value="center" className="text-xs">Center</SelectItem>
+                                      <SelectItem value="end" className="text-xs">End</SelectItem>
+                                      <SelectItem value="space-between" className="text-xs">Space Between</SelectItem>
+                                      <SelectItem value="space-around" className="text-xs">Space Around</SelectItem>
+                                    </SelectGroup>
+                                  </SelectContent>
+                                </Select>
                               </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </TabsContent>
-
-                  <TabsContent value="widgets" className="animate-in fade-in duration-200 space-y-3 mt-0">
-                    <SettingCard>
-                      <div>
-                        <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{t("enableWidgetArea")}</h3>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400">{t("enableWidgetAreaDesc")}</p>
-                      </div>
-                      <Switch
-                        checked={monitors.find(m => m.id === selectedMonitorId)?.has_widget_area || false}
-                        onCheckedChange={(checked) => handleMonitorToggle(selectedMonitorId, "widgetArea", checked)}
-                      />
-                    </SettingCard>
-
-                    {monitors.find(m => m.id === selectedMonitorId)?.has_widget_area && (
-                      <div className="space-y-3 pt-4 border-t border-zinc-500/20">
-                        <SettingCard>
-                          <div>
-                            <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Edit Mode</h3>
-                            <p className="text-xs text-zinc-500 dark:text-zinc-400">Unlock widgets to move and resize them</p>
-                          </div>
-                          <Switch
-                            checked={monitors.find(m => m.id === selectedMonitorId)?.isEditMode || false}
-                            onCheckedChange={(checked) => {
-                              const newLayouts = { ...layouts };
-                              const mIndex = newLayouts[currentLayout].monitors.findIndex(m => m.id === selectedMonitorId);
-                              if (mIndex > -1) {
-                                newLayouts[currentLayout].monitors[mIndex].isEditMode = checked;
-                                useLayoutStore.getState().setLayouts(newLayouts);
-                              }
-                            }}
-                          />
-                        </SettingCard>
-                        
-                        {/* Monitor Mini Map */}
-                        <div className="w-full flex justify-center py-2">
-                          <div 
-                            className="relative bg-zinc-100 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden shadow-inner max-w-[280px] w-full"
-                            style={{ aspectRatio: `${monitors.find(m => m.id === selectedMonitorId)?.width} / ${monitors.find(m => m.id === selectedMonitorId)?.height}` }}
-                          >
-                            <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle, #888 1px, transparent 1px)', backgroundSize: '12px 12px' }}></div>
-                            {monitors.find(m => m.id === selectedMonitorId)?.widgetArea.map(w => {
-                              const isHovered = w.id === hoveredWidgetId;
-                              const currentMon = monitors.find(m => m.id === selectedMonitorId);
-                              if (!currentMon) return null;
-                              const scale = (currentMon.scale_factor || 1)  * window.devicePixelRatio;
-                              const mWidth = currentMon.width / scale;
-                              const mHeight = currentMon.height / scale;
-                              
-                              return (
-                                <div 
-                                  key={w.id}
-                                  className={`absolute rounded-[2px] transition-all duration-200 border border-zinc-500/30 ${isHovered ? 'bg-indigo-500/50 z-10 shadow-[0_0_8px_rgba(99,102,241,0.5)]' : 'bg-zinc-400/20 dark:bg-zinc-600/30'}`}
-                                  style={{ 
-                                    left: `${(w.x / mWidth) * 100}%`, 
-                                    top: `${(w.y / mHeight) * 100}%`, 
-                                    width: `${(w.width / mWidth) * 100}%`, 
-                                    height: `${(w.height / mHeight) * 100}%` 
-                                  }}
+                              <div className="flex flex-col gap-1.5 mt-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm font-medium">Widget Spacing</span>
+                                  <span className="text-xs text-zinc-500 font-mono">{currentMon.barWidgetSpacing ?? 8}px</span>
+                                </div>
+                                <Slider
+                                  value={[currentMon.barWidgetSpacing ?? 8]}
+                                  min={0}
+                                  max={64}
+                                  step={1}
+                                  onValueChange={(val) => handleUpdateBarConfig(selectedMonitorId, { barWidgetSpacing: val[0] })}
+                                  className="py-2"
                                 />
-                              );
-                            })}
-                          </div>
-                        </div>
+                              </div>
 
-                        <div className="flex items-center justify-between">
-                          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Desktop Widgets</h3>
-                          <button
-                            onClick={() => setAddWidgetTarget("widgetArea")}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs font-medium rounded-lg hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            Add Widget
-                          </button>
+                              {["start", "end", "center"].includes(currentMon.barJustify || "space-between") && (
+                                <div className="flex flex-col gap-1.5 mt-2 pt-2 border-t border-zinc-500/10">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-sm font-medium">Section Spacing</span>
+                                    <span className="text-xs text-zinc-500 font-mono">{currentMon.barSectionSpacing ?? 16}px</span>
+                                  </div>
+                                  <Slider
+                                    value={[currentMon.barSectionSpacing ?? 16]}
+                                    min={0}
+                                    max={128}
+                                    step={1}
+                                    onValueChange={(val) => handleUpdateBarConfig(selectedMonitorId, { barSectionSpacing: val[0] })}
+                                    className="py-2"
+                                  />
+                                </div>
+                              )}
+                            </SettingCardNoLayout>
+
+                            {/* Sections Header */}
+                            <div className="flex items-center justify-between pt-2">
+                              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Bar Sections</h3>
+                              <button
+                                onClick={() => handleAddSection(selectedMonitorId)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs font-medium rounded-lg hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors"
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                                Add Section
+                              </button>
+                            </div>
+
+                            {/* Sections List */}
+                            <div className="flex flex-col gap-4">
+                              {(currentMon.barSections || []).map((section, sIndex) => (
+                                <div key={section.id} className="border border-zinc-500/20 rounded-lg overflow-hidden flex flex-col bg-zinc-50/50 dark:bg-zinc-900/20">
+                                  <div className="flex items-center justify-between bg-zinc-100 dark:bg-zinc-900/60 p-2.5 border-b border-zinc-500/20">
+                                    <div className="flex flex-col">
+                                      <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{section.name}</span>
+                                      <span className="text-[10px] text-zinc-500">{section.widgets.length} widgets</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        onClick={() => setAddWidgetTarget({ context: "bar", sectionId: section.id })}
+                                        className="flex items-center gap-1 px-2 py-1 bg-zinc-200 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-xs font-medium rounded hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors"
+                                      >
+                                        <Plus className="w-3 h-3" />
+                                        Widget
+                                      </button>
+                                      <button onClick={() => handleRemoveSection(selectedMonitorId, section.id)} className="p-1.5 text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded transition-colors" title="Delete Section">
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <div className="p-2 flex flex-col gap-1.5">
+                                    {section.widgets.length === 0 ? (
+                                      <div className="text-center py-4 text-xs text-zinc-500">No widgets in this section</div>
+                                    ) : (
+                                      section.widgets.map((widget, i) => {
+                                        const wType = registry[widget.type];
+                                        const IconComponent = wType ? (FluentIconMap[wType.icon] || LayoutGrid) : LayoutGrid;
+                                        return (
+                                          <div key={widget.id} className="flex items-center justify-between p-2 rounded-md bg-white dark:bg-zinc-800/50 border border-zinc-500/10 shadow-sm transition-colors">
+                                            <div className="flex items-center gap-3">
+                                              <div className="shrink-0 flex items-center justify-center">
+                                                <IconComponent className="w-6 h-6 text-zinc-700 dark:text-zinc-200" />
+                                              </div>
+                                              <div className="flex flex-col items-start">
+                                                <span className="text-xs font-medium text-zinc-900 dark:text-zinc-200 capitalize">{widget.type}</span>
+                                                <span className="text-[10px] text-zinc-500">Pos: {i + 1}</span>
+                                              </div>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                              <button onClick={() => handleRemoveWidget(selectedMonitorId, widget.id, { context: "bar", sectionId: section.id })} className="p-1.5 text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded transition-colors" title="Delete">
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                              </button>
+                                            </div>
+                                          </div>
+                                        );
+                                      })
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                              {(currentMon.barSections?.length === 0 || !currentMon.barSections) && (
+                                <div className="text-center py-6 text-sm text-zinc-500 border border-dashed border-zinc-500/30 rounded-lg">
+                                  No sections added. Add a section first!
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </TabsContent>
+
+                    <TabsContent value="widgets" className="animate-in fade-in duration-200 space-y-3 mt-0">
+                      <SettingCard>
+                        <div>
+                          <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{t("enableWidgetArea")}</h3>
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400">{t("enableWidgetAreaDesc")}</p>
                         </div>
-                        <div className="flex flex-col gap-2">
-                          {monitors.find(m => m.id === selectedMonitorId)?.widgetArea.map(widget => {
-                            const wType = registry[widget.type];
-                            const IconComponent = wType ? (FluentIconMap[wType.icon] || LayoutGrid) : LayoutGrid;
-                            return (
-                                <div 
-                                  key={widget.id} 
+                        <Switch
+                          checked={monitors.find(m => m.id === selectedMonitorId)?.has_widget_area || false}
+                          onCheckedChange={(checked) => handleMonitorToggle(selectedMonitorId, "widgetArea", checked)}
+                        />
+                      </SettingCard>
+
+                      {monitors.find(m => m.id === selectedMonitorId)?.has_widget_area && (
+                        <div className="space-y-3 pt-4 border-t border-zinc-500/20">
+                          <SettingCard>
+                            <div>
+                              <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Edit Mode</h3>
+                              <p className="text-xs text-zinc-500 dark:text-zinc-400">Unlock widgets to move and resize them</p>
+                            </div>
+                            <Switch
+                              checked={monitors.find(m => m.id === selectedMonitorId)?.isEditMode || false}
+                              onCheckedChange={(checked) => {
+                                const newLayouts = { ...layouts };
+                                const mIndex = newLayouts[currentLayout].monitors.findIndex(m => m.id === selectedMonitorId);
+                                if (mIndex > -1) {
+                                  newLayouts[currentLayout].monitors[mIndex].isEditMode = checked;
+                                  useLayoutStore.getState().setLayouts(newLayouts);
+                                }
+                              }}
+                            />
+                          </SettingCard>
+
+                          {/* Monitor Mini Map */}
+                          <div className="w-full flex justify-center py-2">
+                            <div
+                              className="relative bg-zinc-100 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden shadow-inner max-w-[280px] w-full"
+                              style={{ aspectRatio: `${monitors.find(m => m.id === selectedMonitorId)?.width} / ${monitors.find(m => m.id === selectedMonitorId)?.height}` }}
+                            >
+                              <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle, #888 1px, transparent 1px)', backgroundSize: '12px 12px' }}></div>
+                              {monitors.find(m => m.id === selectedMonitorId)?.widgetArea.map(w => {
+                                const isHovered = w.id === hoveredWidgetId;
+                                const currentMon = monitors.find(m => m.id === selectedMonitorId);
+                                if (!currentMon) return null;
+                                const scale = (currentMon.scale_factor || 1) * window.devicePixelRatio;
+                                const mWidth = currentMon.width / scale;
+                                const mHeight = currentMon.height / scale;
+
+                                return (
+                                  <div
+                                    key={w.id}
+                                    className={`absolute rounded-[2px] transition-all duration-200 border border-zinc-500/30 ${isHovered ? 'bg-indigo-500/50 z-10 shadow-[0_0_8px_rgba(99,102,241,0.5)]' : 'bg-zinc-400/20 dark:bg-zinc-600/30'}`}
+                                    style={{
+                                      left: `${(w.x / mWidth) * 100}%`,
+                                      top: `${(w.y / mHeight) * 100}%`,
+                                      width: `${(w.width / mWidth) * 100}%`,
+                                      height: `${(w.height / mHeight) * 100}%`
+                                    }}
+                                  />
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Desktop Widgets</h3>
+                            <button
+                              onClick={() => setAddWidgetTarget({ context: "widgetArea" })}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs font-medium rounded-lg hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              Add Widget
+                            </button>
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            {monitors.find(m => m.id === selectedMonitorId)?.widgetArea.map(widget => {
+                              const wType = registry[widget.type];
+                              const IconComponent = wType ? (FluentIconMap[wType.icon] || LayoutGrid) : LayoutGrid;
+                              return (
+                                <div
+                                  key={widget.id}
                                   onMouseEnter={() => setHoveredWidgetId(widget.id)}
                                   onMouseLeave={() => setHoveredWidgetId(null)}
                                 >
                                   <SettingCard>
                                     <div className="flex items-center gap-3">
-                                      <div className="p-1.5 rounded-md bg-zinc-200/50 dark:bg-zinc-800">
-                                        <IconComponent className="w-4 h-4 text-zinc-600 dark:text-zinc-300" />
+                                      <div className="shrink-0 flex items-center justify-center">
+                                        <IconComponent className="w-8 h-8 text-zinc-700 dark:text-zinc-200" />
                                       </div>
                                       <div className="flex flex-col items-start">
                                         <span className="text-sm font-medium text-zinc-900 dark:text-zinc-200 capitalize">{widget.type}</span>
@@ -495,25 +633,25 @@ export default function Main() {
                                       </div>
                                     </div>
                                     <div className="flex items-center gap-1">
-                                      <button 
+                                      <button
                                         onClick={() => setEditingWidget(widget)}
-                                        className="p-1.5 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded transition-colors" 
+                                        className="p-1.5 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded transition-colors"
                                         title="Settings"
                                       >
                                         <SettingsIcon className="w-4 h-4" />
                                       </button>
-                                      <button onClick={() => handleRemoveWidget(selectedMonitorId, widget.id, "widgetArea")} className="p-1.5 text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded transition-colors" title="Delete">
+                                      <button onClick={() => handleRemoveWidget(selectedMonitorId, widget.id, { context: "widgetArea" })} className="p-1.5 text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded transition-colors" title="Delete">
                                         <Trash2 className="w-4 h-4" />
                                       </button>
                                     </div>
                                   </SettingCard>
                                 </div>
-                            );
-                          })}
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </TabsContent>
+                      )}
+                    </TabsContent>
                   </div>
                 </Tabs>
               </div>
@@ -526,7 +664,7 @@ export default function Main() {
       <AddWidgetModal
         isOpen={addWidgetTarget !== null}
         onClose={() => setAddWidgetTarget(null)}
-        context={addWidgetTarget || "widgetArea"}
+        context={addWidgetTarget?.context || "widgetArea"}
         onSelect={(typeName) => {
           if (addWidgetTarget && selectedMonitorId) {
             handleAddWidget(selectedMonitorId, typeName, addWidgetTarget);
@@ -542,6 +680,14 @@ export default function Main() {
 function SettingCard({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between p-3.5 rounded-xl bg-white/50 dark:bg-zinc-900/10 border border-zinc-500/20 dark:border-zinc-500/20 shadow-sm transition-all hover:bg-white/80 dark:hover:bg-zinc-900/50">
+      {children}
+    </div>
+  );
+}
+
+function SettingCardNoLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="p-3.5 rounded-xl bg-white/50 dark:bg-zinc-900/10 border border-zinc-500/20 dark:border-zinc-500/20 shadow-sm transition-all hover:bg-white/80 dark:hover:bg-zinc-900/50">
       {children}
     </div>
   );

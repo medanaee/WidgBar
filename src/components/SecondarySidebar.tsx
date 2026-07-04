@@ -61,7 +61,7 @@ function WidgetListItem({
         <IconComp fontSize={28} />
       </div>
       <div className="flex flex-col min-w-0 relative z-10">
-        <span className="font-semibold text-sm text-zinc-800 dark:text-zinc-200 capitalize leading-tight">{w.type_name}</span>
+        <span className="font-semibold text-xs text-zinc-800 dark:text-zinc-200 capitalize leading-tight">{w.type_name}</span>
         {w.description && (
           <span className="text-xs text-zinc-500 dark:text-zinc-400 leading-normal line-clamp-2 mt-0.5">{w.description}</span>
         )}
@@ -126,7 +126,7 @@ export default function SecondarySidebar({
 
   if (activeTab === "layout") {
     return (
-      <div className="w-48 flex flex-col bg-white/40 dark:bg-zinc-950/40 border-x border-zinc-200/50 dark:border-zinc-500/10 shrink-0 z-10 animate-in fade-in slide-in-from-left-4 duration-200">
+      <div className="w-48 flex flex-col bg-white/40 dark:bg-zinc-900/40 border-x border-zinc-200/50 dark:border-zinc-500/10 shrink-0 z-10 animate-in fade-in slide-in-from-left-4 duration-200">
         <div className="p-4 font-semibold text-sm text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">
           {t("monitors")}
         </div>

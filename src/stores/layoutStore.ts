@@ -78,6 +78,26 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
         try {
           const parsedJson = JSON.parse(jsonString);
           
+          if (parsedJson.monitors && Array.isArray(parsedJson.monitors)) {
+            parsedJson.monitors = parsedJson.monitors.map((m: any) => {
+              if (m.bar && !m.barSections) {
+                m.barSections = [
+                  {
+                    id: 'section_legacy',
+                    name: 'Main Section',
+                    widgets: m.bar
+                  }
+                ];
+                delete m.bar;
+              }
+              m.barJustify = m.barJustify || 'space-between';
+              m.barWidgetSpacing = m.barWidgetSpacing ?? 8;
+              m.barSectionSpacing = m.barSectionSpacing ?? 16;
+              if (!m.barSections) m.barSections = [];
+              return m;
+            });
+          }
+
           parsedLayouts[layoutName] = {
             monitors: parsedJson.monitors || []
           };

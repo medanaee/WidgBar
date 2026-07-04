@@ -21,6 +21,7 @@ export function TipCard({
     <Squircle
       cornerRadius={16}
       borderWidth={1}
+      cornerSmoothing={0.6}
       borderClassName="text-zinc-500/20"
       className="bg-white/40 dark:bg-zinc-900/40 p-5 flex gap-4 hover:bg-white/60 dark:hover:bg-zinc-900/60 transition-colors"
     >

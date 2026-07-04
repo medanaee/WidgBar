@@ -27,6 +27,14 @@ export interface DesktopWidget {
   y: number;
 }
 
+export type BarJustify = "start" | "end" | "center" | "space-between" | "space-around";
+
+export interface BarSection {
+  id: string;
+  name: string;
+  widgets: BarWidget[];
+}
+
 export interface Monitor {
   id: string;
   name: string;
@@ -38,7 +46,10 @@ export interface Monitor {
   scale_factor?: number;
   has_bar: boolean;
   has_widget_area: boolean;
-  bar: BarWidget[];
+  barSections?: BarSection[];
+  barJustify?: BarJustify;
+  barWidgetSpacing?: number;
+  barSectionSpacing?: number;
   widgetArea: DesktopWidget[];
   is_disconnected?: boolean;
   isEditMode?: boolean;
