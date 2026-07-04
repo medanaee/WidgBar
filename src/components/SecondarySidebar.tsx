@@ -2,8 +2,8 @@ import React from 'react';
 import { useTranslation } from '../lib/i18n';
 import { Monitor } from '../types/layout';
 import { useWidgetRegistryStore } from '../stores/widgetRegistryStore';
-import * as Icons from "@fluentui/react-icons";
 import { Squircle } from './ui/Squircle';
+import { CalendarColor, ClipboardTaskColor, ClockAlarmColor, ClockColor } from '@fluentui/react-icons';
 
 type ActiveTab = "home" | "settings" | "layout" | "appearance" | "widgets_library";
 
@@ -34,6 +34,14 @@ function SubMenuItem({ active, onClick, children }: { active: boolean, onClick: 
   );
 }
 
+const FluentIconMap: Record<string, React.ComponentType<any>> = {
+  ClockColor,
+  ClipboardTaskColor,
+  CalendarColor,
+  ClockAlarmColor
+};
+
+
 function WidgetListItem({ 
   w, 
   isSelected, 
@@ -43,7 +51,7 @@ function WidgetListItem({
   isSelected: boolean, 
   onClick: () => void 
 }) {
-  const IconComp = (Icons as any)[w.icon] || Icons.CodeRegular;
+  const IconComp = FluentIconMap[w.icon] || ClockColor;
   
   return (
     <Squircle
