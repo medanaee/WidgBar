@@ -187,7 +187,7 @@ fn main() {
         .setup(|app| {
             let handle = app.handle().clone();
             let _ = init_monitors(handle.clone());
-            // init_reserved_windows(handle.clone());
+            init_reserved_windows(handle.clone());
             tauri::async_runtime::block_on(async move {
                 init_main_window(handle).await;
             });

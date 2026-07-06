@@ -9,10 +9,13 @@ pub struct PoolWindow {
     label: String,
     is_busy: bool,
     close_on_blur: bool,
+    is_dynamic: bool,
 }
 pub struct PoolState {
     windows: Mutex<Vec<PoolWindow>>,
 }
+
+static DYNAMIC_WIN_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 const ANIMATION_DURATION:f64 = 150.0;
 const ANIMATION_OFFSET: f64 = 5.0;
@@ -89,10 +92,14 @@ pub fn init_reserved_windows(app: AppHandle) {
             }
         });
 
+        let js_command = "window.dispatchEvent(new CustomEvent('rust-navigation', { detail: { route: '/blank' } }));";
+        let _ = window.eval(js_command);
+
         pool_tracker.push(PoolWindow {
             label,
             is_busy: false,
             close_on_blur: false,
+            is_dynamic: false,
         });
     }
 
@@ -183,10 +190,12 @@ pub async fn request_popup(
     close_on_blur: bool,
     x_is_center: bool,
     animated: bool,
+    below_bar: bool,
+    center: bool,
 ) -> Result<String, String> {
     println!(
-        "Popup requested at ({}, {}) with size {}x{}, route: {}, close_on_blur: {}, x_is_center: {}, animated: {}",
-        x, y, width, height, route, close_on_blur, x_is_center, animated
+        "Popup requested at ({}, {}) with size {}x{}, route: {}, close_on_blur: {}, x_is_center: {}, animated: {}, below_bar: {}, center: {}",
+        x, y, width, height, route, close_on_blur, x_is_center, animated, below_bar, center
     );
     let mut selected_label = None;
     let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
@@ -209,18 +218,109 @@ pub async fn request_popup(
             l
         }
         None => {
-            println!("No available windows in pool! Consider increasing the pool size.");
-            return Err("No available windows in pool".into());
+            println!("No available windows in pool! Creating a dynamic one.");
+            let new_id = DYNAMIC_WIN_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            let new_label = format!("pool_win_dynamic_{}", new_id);
+
+            let new_window = tauri::WebviewWindowBuilder::new(&app, &new_label, tauri::WebviewUrl::App("index.html".into()))
+                .visible(false)
+                .decorations(false)
+                .always_on_top(false)
+                .no_redirection_bitmap(true)
+                .resizable(false)
+                .skip_taskbar(true)
+                .transparent(true)
+                .shadow(true)
+                .build()
+                .expect("Failed to build dynamic window");
+
+            #[cfg(target_os = "windows")]
+            {
+                if let Ok(hwnd_val) = new_window.hwnd() {
+                    use crate::windows_utils::{apply_persistent_acrylic, set_window_theme};
+                    let hwnd = windows::Win32::Foundation::HWND(hwnd_val.0 as _);
+                    set_window_theme(hwnd, false);
+                    apply_persistent_acrylic(hwnd);
+                }
+            }
+
+            new_window.on_window_event({
+                let app_handle = app.clone();
+                let label_clone = new_label.clone();
+                move |event| {
+                    if let tauri::WindowEvent::Focused(false) = event {
+                        let state = app_handle.state::<PoolState>();
+                        let mut pool = state.windows.lock().unwrap();
+                        let mut remove_idx = None;
+                        for (i, win) in pool.iter_mut().enumerate() {
+                            if win.label == label_clone {
+                                if win.is_busy && win.close_on_blur {
+                                    if let Some(w) = app_handle.get_webview_window(&label_clone) {
+                                        if win.is_dynamic {
+                                            let _ = w.close();
+                                            remove_idx = Some(i);
+                                        } else {
+                                            let _ = w.hide();
+                                            win.is_busy = false;
+                                        }
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                        if let Some(idx) = remove_idx {
+                            pool.remove(idx);
+                        }
+                    }
+                }
+            });
+
+            let mut pool = state.windows.lock().unwrap();
+            pool.push(PoolWindow {
+                label: new_label.clone(),
+                is_busy: true,
+                close_on_blur,
+                is_dynamic: true,
+            });
+            new_label
         }
     };
 
     let window = app.get_webview_window(&label).unwrap();
     let win_clone = window.clone();
 
-    let target_y = if y == 0.0 { 36.0 + 12.0 } else { y }; // If y is 0, position it just below the title bar (36px) with a small gap (12px)
+    let scale_factor = window.current_monitor().ok().flatten().map(|m| m.scale_factor()).unwrap_or(1.0);
+
+    let (final_x, target_y) = if center {
+        if let Ok(Some(monitor)) = window.current_monitor() {
+            let pos = monitor.position();
+            let size = monitor.size();
+            let cx = (pos.x as f64) + (size.width as f64 / 2.0);
+            let cy = (pos.y as f64) + (size.height as f64 / 2.0);
+            (cx - (width / 2.0), cy - (height / 2.0))
+        } else {
+            (x, y)
+        }
+    } else if below_bar {
+        let mut bar_height_logical = 36.0;
+        if let Ok(settings_json) = crate::database::load_global_settings(app.clone()).await {
+            if let Ok(settings) = serde_json::from_str::<serde_json::Value>(&settings_json) {
+                if let Some(bh) = settings.get("barHeight").and_then(|v| v.as_f64()) {
+                    bar_height_logical = bh;
+                }
+            }
+        }
+        let final_y = (bar_height_logical + 12.0) * scale_factor;
+        let fx = if x_is_center { x - (width / 2.0) } else { x };
+        (fx, final_y)
+    } else {
+        let final_y = if y == 0.0 { 36.0 + 12.0 } else { y };
+        let fx = if x_is_center { x - (width / 2.0) } else { x };
+        (fx, final_y)
+    };
+
     let offset = 5.0;
     let start_y = target_y + offset;
-    let final_x = if x_is_center { x - (width / 2.0) } else { x };
 
     let _ = window.set_size(tauri::PhysicalSize::new(width as u32, height as u32));
 
@@ -290,16 +390,42 @@ pub async fn request_popup(
 #[tauri::command]
 pub async fn hide_popup(
     window: tauri::WebviewWindow,
+    app: tauri::AppHandle,
     state: tauri::State<'_, PoolState>,
+    label: Option<String>,
+    self_close: bool,
 ) -> Result<(), String> {
-    window.hide().ok();
-    let label = window.label();
+    let target_label = if self_close {
+        window.label().to_string()
+    } else if let Some(l) = label {
+        l
+    } else {
+        return Err("Must provide a label or set self_close to true".into());
+    };
+
     let mut pool = state.windows.lock().unwrap();
-    for win in pool.iter_mut() {
-        if win.label == label {
-            win.is_busy = false;
+    let mut remove_idx = None;
+
+    for (i, win) in pool.iter_mut().enumerate() {
+        if win.label == target_label {
+            if win.is_dynamic {
+                remove_idx = Some(i);
+            } else {
+                win.is_busy = false;
+                if let Some(w) = app.get_webview_window(&target_label) {
+                    w.hide().ok();
+                }
+            }
             break;
         }
     }
+
+    if let Some(idx) = remove_idx {
+        pool.remove(idx);
+        if let Some(w) = app.get_webview_window(&target_label) {
+            w.close().ok();
+        }
+    }
+
     Ok(())
 }
