@@ -430,13 +430,16 @@ export default function WidgetAreaItem({
     };
 
     const isInteracting = action !== null;
+    const isDark = settings?.theme === 'dark' || 
+        (settings?.theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    const bgOpacity = (settings?.widgetBgOpacity ?? 80) / 100;
     
     return (
         <div
             ref={containerRef}
             className={`absolute flex items-center justify-center select-none overflow-hidden transition duration-150 ease-out border pointer-events-auto ${isInteracting 
                 ? 'border-zinc-500/30 dark:border-white/20 bg-white dark:bg-zinc-800 shadow-xl z-50' 
-                : 'border-zinc-500/10 dark:border-white/10 bg-white/70 dark:bg-zinc-900/70'
+                : 'border-zinc-500/10 dark:border-white/10'
             }`}
             style={{
                 left: `${widget.x}px`, 
@@ -446,7 +449,12 @@ export default function WidgetAreaItem({
                 borderRadius: `${BORDER_RADIUS}px`, 
                 touchAction: 'none', 
                 // Dynamically assign z-index based on global active state
-                zIndex: activeWidgetId === widget.id ? 9999 : index + 10
+                zIndex: activeWidgetId === widget.id ? 9999 : index + 10,
+                backgroundColor: isInteracting 
+                    ? undefined 
+                    : isDark 
+                        ? `rgba(24, 24, 27, ${bgOpacity})` 
+                        : `rgba(255, 255, 255, ${bgOpacity})`
             }}
         >
             <div className="w-full h-full pointer-events-auto">

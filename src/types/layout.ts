@@ -11,6 +11,7 @@ export interface Settings {
   barHeight: BarHeight;
   snapMargin?: number;
   barAnimate?: boolean;
+  widgetBgOpacity?: number;
 }
 
 export interface BarWidget {

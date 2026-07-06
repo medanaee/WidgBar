@@ -9,6 +9,7 @@ const DEFAULT_SETTINGS: Settings = {
   barHeight: BarHeight.Medium,
   snapMargin: 16,
   barAnimate: true,
+  widgetBgOpacity: 80,
 };
 
 interface SettingsState {

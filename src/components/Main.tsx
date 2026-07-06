@@ -24,6 +24,7 @@ import { CutoutProvider } from "./ui/CutoutProvider";
 import { NumberInput } from "./ui/NumberInput";
 import { SettingCard, SettingCardNoLayout } from "./ui/SettingCard";
 import LayoutSettings from "./LayoutSettings";
+import { Slider } from "./ui/slider";
 const FluentIconMap: Record<string, React.ComponentType<any>> = {
   ClockColor,
   ClipboardTaskColor,
@@ -370,6 +371,26 @@ export default function Main() {
                           </SelectGroup>
                         </SelectContent>
                       </Select>
+                    </SettingCard>
+
+                    <SettingCard>
+                      <div className="flex-grow">
+                        <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{t("widgetBgOpacity")}</h3>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">{t("widgetBgOpacityDesc")}</p>
+                        <div className="flex items-center gap-4 mt-3 w-full">
+                          <Slider
+                            value={[settings?.widgetBgOpacity ?? 80]}
+                            onValueChange={(val) => updateSettings({ widgetBgOpacity: val[0] })}
+                            min={0}
+                            max={100}
+                            step={1}
+                            className="flex-grow"
+                          />
+                          <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 w-10 text-right">
+                            {settings?.widgetBgOpacity ?? 80}%
+                          </span>
+                        </div>
+                      </div>
                     </SettingCard>
                   </div>
                 )}

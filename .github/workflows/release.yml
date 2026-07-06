@@ -4,10 +4,16 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch: # Allows manual triggering from GitHub Actions UI
 
 jobs:
   build-and-release:
     runs-on: windows-latest
+    # Only run if commit message contains [build] or [release], or if triggered manually
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.head_commit.message, '[build]') ||
+      contains(github.event.head_commit.message, '[release]')
     permissions:
       contents: write
 
