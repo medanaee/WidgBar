@@ -85,17 +85,21 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
                   {
                     id: 'section_legacy',
                     name: 'Main Section',
-                    widgets: m.bar
+                    widgets: m.bar,
+                    widgetSpacing: 8
                   }
                 ];
                 delete m.bar;
               }
               m.barJustify = m.barJustify || 'space-between';
-              m.barWidgetSpacing = m.barWidgetSpacing ?? 8;
               m.barSectionSpacing = m.barSectionSpacing ?? 16;
               m.showMainWindowButton = m.showMainWindowButton ?? true;
               m.barSeparator = m.barSeparator || 'none';
               if (!m.barSections) m.barSections = [];
+              m.barSections = m.barSections.map((s: any) => {
+                s.widgetSpacing = s.widgetSpacing ?? 8;
+                return s;
+              });
               return m;
             });
           }

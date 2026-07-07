@@ -5,6 +5,7 @@ import { Settings as SettingsIcon, LayoutGrid, Plus, Trash2 } from 'lucide-react
 import { SettingCard } from "./ui/SettingCard";
 import { useLayoutStore } from "../stores/layoutStore";
 import { ClockColor, ClipboardTaskColor, CalendarColor, ClockAlarmColor } from "@fluentui/react-icons";
+import { emit } from "@tauri-apps/api/event";
 
 const FluentIconMap: Record<string, React.ComponentType<any>> = {
   ClockColor,
@@ -108,8 +109,14 @@ export default function WidgetAreaSettingsTab({
                         return (
                           <div
                             key={widget.id}
-                            onMouseEnter={() => setHoveredWidgetId(widget.id)}
-                            onMouseLeave={() => setHoveredWidgetId(null)}
+                            onMouseEnter={() => {
+                              setHoveredWidgetId(widget.id);
+                              emit('widget-highlight', { widgetId: widget.id, isHighlighted: true }).catch(console.error);
+                            }}
+                            onMouseLeave={() => {
+                              setHoveredWidgetId(null);
+                              emit('widget-highlight', { widgetId: widget.id, isHighlighted: false }).catch(console.error);
+                            }}
                           >
                             <SettingCard>
                               <div className="flex items-center gap-3">
@@ -124,13 +131,13 @@ export default function WidgetAreaSettingsTab({
                                 </div>
                               </div>
                               <div className="flex items-center gap-1">
-                                <button
-                                  onClick={() => setEditingWidget({ widget, context: 'area' })}
-                                  className="p-1.5 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded transition-colors"
-                                  title="Settings"
-                                >
-                                  <SettingsIcon className="w-4 h-4" />
-                                </button>
+                                  <button
+                                    onClick={() => setEditingWidget({ widget, context: 'Area' })}
+                                    className="p-1.5 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded transition-colors"
+                                    title="Settings"
+                                  >
+                                    <SettingsIcon className="w-4 h-4" />
+                                  </button>
                                 <button onClick={() => handleRemoveWidget(selectedMonitorId, widget.id, { context: "widgetArea" })} className="p-1.5 text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded transition-colors" title="Delete">
                                   <Trash2 className="w-4 h-4" />
                                 </button>

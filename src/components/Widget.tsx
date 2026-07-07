@@ -4,7 +4,7 @@ import WidgetBarItem from './WidgetBarItem';
 import { DesktopWidget, BarWidget } from '../types/layout';
 
 interface Props {
-    context: 'bar' | 'area';
+    context: 'Bar' | 'Area';
     widget: DesktopWidget | BarWidget;
     index: number;
     allWidgets?: DesktopWidget[];
@@ -26,7 +26,7 @@ export default function Widget(props: Props) {
         }));
     }, [type, context]);
 
-    if (context === 'area') {
+    if (context === 'Area') {
         const areaProps = props as any;
         return (
             <WidgetAreaItem {...areaProps}>

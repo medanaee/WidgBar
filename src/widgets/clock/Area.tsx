@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useUpdateWidgetConstraints } from '../../stores/widgetConstraintsStore';
 import { useWidgetInstanceStore } from '../../stores/widgetInstanceStore';
+import Flag, { getFlagEmoji } from './Flag';
 
 export default function ClockArea({ widgetId }: { widgetId: string }) {
     const [time, setTime] = useState(new Date());
@@ -11,6 +12,10 @@ export default function ClockArea({ widgetId }: { widgetId: string }) {
     const showSeconds = config.showSeconds ?? false;
     const is24Hour = config.is24Hour ?? false;
     const clockType = config.clockType || 'digital';
+    const showTimezone = config.showTimezone ?? false;
+
+    const flag = getFlagEmoji(timeZone);
+    const tzName = timeZone.split('/').pop()?.replace('_', ' ') || timeZone;
 
     useEffect(() => {
         if (clockType === 'analog' || clockType === 'analog_macos') {
@@ -152,6 +157,18 @@ export default function ClockArea({ widgetId }: { widgetId: string }) {
                     {showSeconds && (
                         <circle cx="100" cy="100" r="1.5" className="fill-orange-500 dark:fill-orange-400" />
                     )}
+
+                    {showTimezone && (
+                        <text 
+                            x="100" 
+                            y="145" 
+                            textAnchor="middle" 
+                            className="fill-zinc-400 dark:fill-zinc-500 font-sans text-[11px] font-medium tracking-wide pointer-events-none select-none"
+                            style={{ fontFamily: '"Twemoji Country Flags", "Segoe UI Emoji", sans-serif' }}
+                        >
+                            {flag} {tzName}
+                        </text>
+                    )}
                 </svg>
             </div>
         );
@@ -233,6 +250,18 @@ export default function ClockArea({ widgetId }: { widgetId: string }) {
                     {showSeconds && (
                         <circle cx="100" cy="100" r="1.5" className="fill-orange-500 dark:fill-orange-400" />
                     )}
+
+                    {showTimezone && (
+                        <text 
+                            x="100" 
+                            y="145" 
+                            textAnchor="middle" 
+                            className="fill-zinc-400 dark:fill-zinc-500 font-sans text-[11px] font-medium tracking-wide pointer-events-none select-none"
+                            style={{ fontFamily: '"Twemoji Country Flags", "Segoe UI Emoji", sans-serif' }}
+                        >
+                            {flag} {tzName}
+                        </text>
+                    )}
                 </svg>
             </div>
         );
@@ -257,6 +286,12 @@ export default function ClockArea({ widgetId }: { widgetId: string }) {
                     day: 'numeric' 
                 })}
             </div>
+            {showTimezone && (
+                <div className="text-zinc-400 dark:text-zinc-500 text-xs mt-2 font-medium flex items-center gap-1.5 select-none">
+                    <Flag timezone={timeZone} className="text-sm" />
+                    <span>{tzName}</span>
+                </div>
+            )}
         </div>
     );
 }

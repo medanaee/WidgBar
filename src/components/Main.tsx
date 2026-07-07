@@ -161,7 +161,7 @@ export default function Main() {
     useLayoutStore.getState().setLayouts(newLayouts);
   };
 
-  const handleUpdateBarConfig = (monitorId: string, updates: { barJustify?: any, barWidgetSpacing?: number }) => {
+  const handleUpdateBarConfig = (monitorId: string, updates: any) => {
     const newLayouts = { ...layouts };
     const monitorIndex = newLayouts[currentLayout].monitors.findIndex(m => m.id === monitorId);
     if (monitorIndex === -1) return;

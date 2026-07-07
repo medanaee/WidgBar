@@ -212,10 +212,10 @@ function AppContent() {
                 requestAnimationFrame(() => {
                     setTimeout(async () => {
                         try {
-                            console.log("DOM settled, notifying Rust forttt:", location.pathname);
+                            console.log("DOM settled, notifying Rust forttt:", targetRoute);
                             const appWindow = getCurrentWebviewWindow();
                             await appWindow.emit('show_ready');
-                            console.log("DOM settled and notified Rust forrr:", location.pathname);
+                            console.log("DOM settled and notified Rust forrr:", targetRoute);
                         } catch (error) {
                             console.error("Failed to emit show_ready:", error);
                         }

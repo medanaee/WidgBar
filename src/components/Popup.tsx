@@ -6,7 +6,7 @@ export default function Popup() {
 
     const InnerComponent = useMemo(() => {
         if (!widgetType) return null;
-        return React.lazy(() => import(`../widgets/${widgetType}/area.tsx`).catch(() => {
+        return React.lazy(() => import(`../widgets/${widgetType}/Area.tsx`).catch(() => {
             return { default: () => <div className="text-red-500 text-xs p-4">Error loading {widgetType}</div> };
         }));
     }, [widgetType]);

@@ -13,7 +13,6 @@ export default function Bar() {
   const monitor = layouts[currentLayout]?.monitors.find(m => m.id === monitorId);
   const barSections = monitor?.barSections || [];
   const justify = monitor?.barJustify || "space-between";
-  const spacing = monitor?.barWidgetSpacing ?? 8;
   const sectionSpacing = monitor?.barSectionSpacing ?? 16;
   const isSpacingJustify = ["start", "end", "center"].includes(justify);
   const animate = settings?.barAnimate !== false;
@@ -49,14 +48,14 @@ export default function Bar() {
             )
           )}
           <div
-            className={`flex items-center shrink-0 ${animate ? 'transition-all duration-500 ease-in-out' : ''
+            className={`flex items-center shrink-0 h-4/5 ${animate ? 'transition-all duration-500 ease-in-out' : ''
               }`}
-            style={{ gap: `${spacing}px` }}
+            style={{ gap: `${section.widgetSpacing ?? 8}px` }}
           >
             {section.widgets.map((widget, index) => (
               <Widget
                 key={widget.id}
-                context="bar"
+                context="Bar"
                 index={index}
                 widget={widget}
               />

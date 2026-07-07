@@ -32,6 +32,36 @@ export const useWidgetRegistryStore = create<WidgetRegistryState>((set, get) => 
       default_config: {},
       default_width: 300,
       default_height: 150
+    },
+    todo: {
+      type_name: 'todo',
+      icon: 'ClipboardTaskColor',
+      description: 'A simple minimalist to-do list for testing.',
+      can_be_in_bar: true,
+      can_be_in_area: true,
+      default_config: {},
+      default_width: 250,
+      default_height: 300
+    },
+    calendar: {
+      type_name: 'calendar',
+      icon: 'CalendarColor',
+      description: 'A simple calendar grid for testing.',
+      can_be_in_bar: true,
+      can_be_in_area: true,
+      default_config: {},
+      default_width: 280,
+      default_height: 250
+    },
+    timer: {
+      type_name: 'timer',
+      icon: 'ClockAlarmColor',
+      description: 'A simple timer for testing.',
+      can_be_in_bar: true,
+      can_be_in_area: true,
+      default_config: {},
+      default_width: 200,
+      default_height: 150
     }
   },
   isLoading: false,

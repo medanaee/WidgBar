@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useLayoutStore } from '../stores/layoutStore';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { GripVertical, Plus, Trash2, LayoutGrid, Settings } from 'lucide-react';
+import { emit } from "@tauri-apps/api/event";
 import { Switch } from "@/components/ui/switch";
 import { TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -31,6 +32,8 @@ export default function BarSettingsTab({
 }: any) {
 
   const { layouts, currentLayout } = useLayoutStore();
+  const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
+  const [tempSectionName, setTempSectionName] = useState<string>("");
   
   const onDragEnd = (result: DropResult) => {
     const { source, destination } = result;
@@ -126,6 +129,37 @@ export default function BarSettingsTab({
     useLayoutStore.getState().setLayouts(newLayouts);
   };
 
+  const handleRenameSection = (monitorId: string, sectionId: string, newName: string) => {
+    if (!newName.trim()) return;
+    const newLayouts = { ...layouts };
+    const monitorIndex = newLayouts[currentLayout].monitors.findIndex(m => m.id === monitorId);
+    if (monitorIndex === -1) return;
+
+    const monitor = newLayouts[currentLayout].monitors[monitorIndex];
+    if (!monitor.barSections) return;
+
+    const section = monitor.barSections.find(s => s.id === sectionId);
+    if (section) {
+      section.name = newName;
+      useLayoutStore.getState().setLayouts(newLayouts);
+    }
+  };
+
+  const handleUpdateSectionSpacing = (monitorId: string, sectionId: string, spacing: number) => {
+    const newLayouts = { ...layouts };
+    const monitorIndex = newLayouts[currentLayout].monitors.findIndex(m => m.id === monitorId);
+    if (monitorIndex === -1) return;
+
+    const monitor = newLayouts[currentLayout].monitors[monitorIndex];
+    if (!monitor.barSections) return;
+
+    const section = monitor.barSections.find(s => s.id === sectionId);
+    if (section) {
+      section.widgetSpacing = spacing;
+      useLayoutStore.getState().setLayouts(newLayouts);
+    }
+  };
+
   return (
     <TabsContent value="bar" className="animate-in fade-in duration-200 space-y-3 mt-0">
                 <SettingCard>
@@ -166,15 +200,6 @@ export default function BarSettingsTab({
                               </SelectGroup>
                             </SelectContent>
                           </Select>
-                        </div>
-                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-zinc-500/10">
-                          <span className="text-sm font-medium">Widget Spacing (px)</span>
-                          <NumberInput
-                            value={currentMon.barWidgetSpacing ?? 8}
-                            min={0}
-                            max={64}
-                            onChange={(val) => handleUpdateBarConfig(selectedMonitorId, { barWidgetSpacing: val })}
-                          />
                         </div>
 
                          {["start", "end", "center"].includes(currentMon.barJustify || "space-between") && (
@@ -243,9 +268,55 @@ export default function BarSettingsTab({
                         {(currentMon.barSections || []).map((section, sIndex) => (
                           <div key={section.id} className="border border-zinc-500/20 rounded-lg overflow-hidden flex flex-col bg-zinc-50/50 dark:bg-zinc-900/20">
                             <div className="flex items-center justify-between bg-zinc-100 dark:bg-zinc-900/60 p-2.5 border-b border-zinc-500/20">
-                              <div className="flex flex-col">
-                                <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{section.name}</span>
-                                <span className="text-[10px] text-zinc-500">{section.widgets.length} widgets</span>
+                              <div className="flex flex-col flex-1 min-w-0 pr-2">
+                                {editingSectionId === section.id ? (
+                                  <input
+                                    type="text"
+                                    value={tempSectionName}
+                                    onChange={(e) => setTempSectionName(e.target.value)}
+                                    onBlur={() => {
+                                      handleRenameSection(selectedMonitorId, section.id, tempSectionName);
+                                      setEditingSectionId(null);
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        handleRenameSection(selectedMonitorId, section.id, tempSectionName);
+                                        setEditingSectionId(null);
+                                      } else if (e.key === 'Escape') {
+                                        setEditingSectionId(null);
+                                      }
+                                    }}
+                                    autoFocus
+                                    className="text-sm font-medium text-zinc-900 dark:text-zinc-100 bg-transparent border-b border-zinc-500/40 outline-none w-full max-w-[200px]"
+                                  />
+                                ) : (
+                                  <div className="flex items-center gap-1.5 group/title">
+                                    <span 
+                                      className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate cursor-pointer hover:underline"
+                                      title="Double click to rename"
+                                      onDoubleClick={() => {
+                                        setEditingSectionId(section.id);
+                                        setTempSectionName(section.name);
+                                      }}
+                                    >
+                                      {section.name}
+                                    </span>
+                                    <button
+                                      onClick={() => {
+                                        setEditingSectionId(section.id);
+                                        setTempSectionName(section.name);
+                                      }}
+                                      className="opacity-0 group-hover/title:opacity-100 p-0.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded transition-all"
+                                      title="Rename Section"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
+                                        <path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L6.75 6.774a2.75 2.75 0 0 0-.596.892l-.848 2.047a.75.75 0 0 0 .98.98l2.047-.848a2.75 2.75 0 0 0 .892-.596l4.261-4.262a1.75 1.75 0 0 0 0-2.474L13.488 2.513Z" />
+                                        <path d="M4.75 3.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h6.5c.69 0 1.25-.56 1.25-1.25V9A.75.75 0 0 1 15 9v2.25A2.75 2.75 0 0 1 12.25 14h-6.5A2.75 2.75 0 0 1 3 11.25v-6.5A2.75 2.75 0 0 1 5.75 2H8a.75.75 0 0 1 0 1.5H4.75Z" />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                )}
+                                <span className="text-[10px] text-zinc-500 mt-0.5">{section.widgets.length} widgets</span>
                               </div>
                               <div className="flex items-center gap-2">
                                 <div className="flex items-center gap-0.5 border-r border-zinc-500/20 dark:border-zinc-500/10 pr-2 mr-1">
@@ -278,6 +349,15 @@ export default function BarSettingsTab({
                                 </button>
                               </div>
                             </div>
+                            <div className="px-3 py-1.5 border-b border-zinc-500/10 bg-zinc-500/5 dark:bg-zinc-500/5 flex items-center justify-between">
+                              <span className="text-xs text-zinc-500 font-medium">Widget Spacing (px)</span>
+                              <NumberInput
+                                value={section.widgetSpacing ?? 8}
+                                min={0}
+                                max={64}
+                                onChange={(val) => handleUpdateSectionSpacing(selectedMonitorId, section.id, val)}
+                              />
+                            </div>
                             <Droppable droppableId={section.id}>
                               {(provided, snapshot) => (
                                 <div 
@@ -297,6 +377,12 @@ export default function BarSettingsTab({
                                             <div 
                                               ref={provided.innerRef}
                                               {...provided.draggableProps}
+                                              onMouseEnter={() => {
+                                                emit('widget-highlight', { widgetId: widget.id, isHighlighted: true }).catch(console.error);
+                                              }}
+                                              onMouseLeave={() => {
+                                                emit('widget-highlight', { widgetId: widget.id, isHighlighted: false }).catch(console.error);
+                                              }}
                                               className={`flex items-center justify-between p-2 rounded-md bg-white dark:bg-zinc-800/50 border shadow-sm transition-all ${snapshot.isDragging ? 'border-indigo-500 shadow-md rotate-1 z-50' : 'border-zinc-500/10'}`}
                                             >
                                               <div className="flex items-center gap-3">
@@ -317,7 +403,7 @@ export default function BarSettingsTab({
                                                 <button 
                                                   className="p-1.5 text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-50 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors" 
                                                   title="Settings"
-                                                  onClick={() => setEditingWidget({ widget, context: "bar" })}
+                                                  onClick={() => setEditingWidget({ widget, context: "Bar" })}
                                                 >
                                                   <Settings className="w-3.5 h-3.5" />
                                                 </button>

@@ -70,34 +70,33 @@ export default function AddWidgetPanel({ context, onBack, onSelect }: AddWidgetP
                 <button
                   key={w.type_name}
                   onClick={() => onSelect(w.type_name)}
-                  className="group relative flex flex-col items-center justify-center p-4 text-center cursor-pointer select-none outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-xl"
+                  className=""
                 >
                   <Squircle 
-                    cornerRadius={20} 
-                    cornerSmoothing={0.7}
+                    cornerRadius={16} 
+                    cornerSmoothing={0.6}
                     borderWidth={1}
-                    borderClassName="stroke-zinc-500/20 group-hover:stroke-primary/40 dark:group-hover:stroke-primary/50 transition-colors"
-                    className="absolute inset-0 bg-white/40 dark:bg-zinc-900/10 hover:bg-white/80 dark:hover:bg-zinc-900/50 shadow-sm transition-all group-hover:scale-[1.02] group-active:scale-[0.98]"
+                    borderClassName="stroke-zinc-500/20 transition-colors"
+                    className="flex flex-row items-center gap-3.5 p-3.5 w-full cursor-pointer select-none outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-xl text-left
+                    inset-0 bg-zinc-500/10 dark:bg-zinc-500/10 hover:bg-zinc-500/20 dark:hover:bg-zinc-500/20 transition-all"
                   >
-                    <div />
+                    <div className="relative z-10 shrink-0 flex items-center justify-center">
+                    <IconComponent className="w-8 h-8 text-zinc-700 dark:text-zinc-200 group-hover:text-primary transition-colors" />
+                  </div>
+                  
+                  <div className="relative z-10 flex flex-col min-w-0 text-left">
+                    <span className="font-semibold text-sm text-zinc-800 dark:text-zinc-100 capitalize truncate">
+                      {t(widgetNameKey)}
+                    </span>
+                    {w.description && (
+                      <span className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-0.5 line-clamp-2 leading-tight">
+                        {w.description}
+                      </span>
+                    )}
+                  </div>
                   </Squircle>
                   
-                  {/* Content on top of background squircle */}
-                  <div className="relative z-10 flex flex-col items-center gap-2.5">
-                    <div className="shrink-0 flex items-center justify-center p-2 bg-zinc-500/5 dark:bg-zinc-500/10 rounded-xl group-hover:bg-primary/10 transition-colors">
-                      <IconComponent className="w-9 h-9 text-zinc-700 dark:text-zinc-200 group-hover:text-primary transition-colors" />
-                    </div>
-                    <div className="flex flex-col items-center">
-                      <span className="font-semibold text-sm text-zinc-800 dark:text-zinc-100 capitalize">
-                        {t(widgetNameKey)}
-                      </span>
-                      {w.description && (
-                        <span className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1 max-w-[120px] line-clamp-2 leading-tight">
-                          {w.description}
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                  
                 </button>
               );
             })}

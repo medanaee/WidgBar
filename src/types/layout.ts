@@ -35,6 +35,7 @@ export interface BarSection {
   id: string;
   name: string;
   widgets: BarWidget[];
+  widgetSpacing?: number;
 }
 
 export interface Monitor {
@@ -50,7 +51,6 @@ export interface Monitor {
   has_widget_area: boolean;
   barSections?: BarSection[];
   barJustify?: BarJustify;
-  barWidgetSpacing?: number;
   barSectionSpacing?: number;
   widgetArea: DesktopWidget[];
   is_disconnected?: boolean;

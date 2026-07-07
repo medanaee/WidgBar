@@ -79,7 +79,7 @@ export default function WidgetsArea() {
             {widgetsForThisWindow.map((widget, index) => (
                 <Widget
                     key={widget.id}
-                    context="area"
+                    context="Area"
                     index={index}
                     widget={widget}
                     allWidgets={widgetsForThisWindow}

@@ -6,7 +6,7 @@ import { useTranslation } from '../lib/i18n';
 
 interface Props {
   widget: DesktopWidget | BarWidget;
-  context: 'bar' | 'area';
+  context: 'Bar' | 'Area';
   onBack: () => void;
 }
 
@@ -31,11 +31,11 @@ export default function WidgetSettingsPanel({ widget, context, onBack }: Props) 
       } catch (e) {}
 
       try {
-        const module = await import(`../widgets/${widget.type}/widgetSetting.tsx`);
+        const module = await import(`../widgets/${widget.type}/WidgetSetting.tsx`);
         loadedTabs.widget = module.default;
       } catch (e) {}
 
-      if (context === 'bar') {
+      if (context === 'Bar') {
         try {
           const module = await import(`../widgets/${widget.type}/BarSetting.tsx`);
           loadedTabs.bar = module.default;

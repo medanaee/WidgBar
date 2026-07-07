@@ -35,7 +35,7 @@ export default function LayoutSettings({ selectedMonitorId }: { selectedMonitorI
   const monitors = allMonitors.filter(m => !m.is_disconnected);
 
   const [addWidgetTarget, setAddWidgetTarget] = useState<{ context: "bar"; sectionId: string } | { context: "widgetArea" } | null>(null);
-  const [editingWidget, setEditingWidget] = useState<{ widget: any, context: 'bar' | 'area' } | null>(null);
+  const [editingWidget, setEditingWidget] = useState<{ widget: any, context: 'Bar' | 'Area' } | null>(null);
   const [hoveredWidgetId, setHoveredWidgetId] = useState<string | null>(null);
   const [layoutInnerTab, setLayoutInnerTab] = useState<"bar" | "widgets">("bar");
 

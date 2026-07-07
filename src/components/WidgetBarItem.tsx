@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { BarWidget } from '../types/layout';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useWidgetRegistryStore } from '../stores/widgetRegistryStore';
+import { listen } from '@tauri-apps/api/event';
 
 interface Props {
     widget: BarWidget;
@@ -12,6 +13,19 @@ interface Props {
 export default function WidgetBarItem({ widget, children }: Props) {
     const settings = useSettingsStore(state => state.settings);
     const animate = settings?.barAnimate !== false;
+    const [isHighlighted, setIsHighlighted] = useState(false);
+
+    useEffect(() => {
+        const unlisten = listen('widget-highlight', (event: any) => {
+            const { widgetId, isHighlighted: active } = event.payload;
+            if (widgetId === widget.id) {
+                setIsHighlighted(active);
+            }
+        });
+        return () => {
+            unlisten.then(f => f());
+        };
+    }, [widget.id]);
 
     const handleClick = async (e: React.MouseEvent<HTMLDivElement>) => {
         const rect = e.currentTarget.getBoundingClientRect();
@@ -49,7 +63,11 @@ export default function WidgetBarItem({ widget, children }: Props) {
     return (
         <div 
             onClick={handleClick}
-            className={`flex items-center justify-center h-full px-2 hover:bg-white/10 transition-colors rounded-md cursor-pointer select-none ${
+            className={`flex items-center justify-center h-full px-2 transition-colors rounded-md cursor-pointer select-none ${
+                isHighlighted 
+                    ? 'bg-primary/20 ring-1 ring-primary/50 shadow-sm'
+                    : 'hover:bg-white/10'
+            } ${
                 animate ? 'transition-all duration-300 ease-in-out animate-in fade-in zoom-in-95' : ''
             }`}
         >

@@ -19,6 +19,7 @@ export default function ClockWidgetSetting({ widgetId }: { widgetId: string }) {
     const clockType = config.clockType || 'digital';
     const showSeconds = config.showSeconds ?? false;
     const is24Hour = config.is24Hour ?? false;
+    const showTimezone = config.showTimezone ?? false;
 
     const handleUpdate = (updates: any) => {
         updateInstance(widgetId, { ...config, ...updates });
@@ -112,6 +113,18 @@ export default function ClockWidgetSetting({ widgetId }: { widgetId: string }) {
                     </SettingCard>
                 </div>
             )}
+
+            {/* Show Timezone */}
+            <SettingCard>
+                <div>
+                    <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Show Timezone</h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Display flag and name of selected timezone</p>
+                </div>
+                <Switch 
+                    checked={showTimezone} 
+                    onCheckedChange={(checked) => handleUpdate({ showTimezone: checked })} 
+                />
+            </SettingCard>
         </div>
     );
 }

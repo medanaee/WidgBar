@@ -16,6 +16,7 @@ export default function ClockBarSetting({ widgetId }: { widgetId: string }) {
 
     const barShowSeconds = config.barShowSeconds ?? false;
     const barIs24Hour = config.barIs24Hour ?? false;
+    const barShowTimezone = config.barShowTimezone ?? false;
 
     const handleUpdate = (updates: any) => {
         updateInstance(widgetId, { ...config, ...updates });
@@ -44,6 +45,18 @@ export default function ClockBarSetting({ widgetId }: { widgetId: string }) {
                 <Switch 
                     checked={barIs24Hour} 
                     onCheckedChange={(checked) => handleUpdate({ barIs24Hour: checked })} 
+                />
+            </SettingCard>
+
+            {/* Show Timezone in Bar */}
+            <SettingCard>
+                <div>
+                    <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Show Timezone in Bar</h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Display flag and name of selected timezone on the top bar clock</p>
+                </div>
+                <Switch 
+                    checked={barShowTimezone} 
+                    onCheckedChange={(checked) => handleUpdate({ barShowTimezone: checked })} 
                 />
             </SettingCard>
         </div>

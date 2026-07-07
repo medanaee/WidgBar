@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { DesktopWidget } from '../types/layout';
+import { listen } from '@tauri-apps/api/event';
 import { useWidgetConstraintsStore } from '../stores/widgetConstraintsStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useSnapStore } from '../stores/snapStore';
@@ -39,7 +40,20 @@ export default function WidgetAreaItem({
 
     // Track local interaction state for styling
     const [action, setAction] = useState<'drag' | 'resize' | null>(null);
+    const [isHighlighted, setIsHighlighted] = useState(false);
     const constraints = useWidgetConstraintsStore(state => state.constraints[widget.id]);
+
+    useEffect(() => {
+        const unlisten = listen('widget-highlight', (event: any) => {
+            const { widgetId, isHighlighted: active } = event.payload;
+            if (widgetId === widget.id) {
+                setIsHighlighted(active);
+            }
+        });
+        return () => {
+            unlisten.then(f => f());
+        };
+    }, [widget.id]);
 
     // Automatically adjust size if widget constraints update to define a new aspect ratio
     useEffect(() => {
@@ -439,7 +453,9 @@ export default function WidgetAreaItem({
             ref={containerRef}
             className={`absolute flex items-center justify-center select-none overflow-hidden transition duration-150 ease-out border pointer-events-auto ${isInteracting 
                 ? 'border-zinc-500/30 dark:border-white/20 bg-white dark:bg-zinc-800 shadow-xl z-50' 
-                : 'border-zinc-500/10 dark:border-white/10'
+                : isHighlighted
+                    ? 'border-3 border-primary shadow-lg shadow-primary/5 z-[9999] scale-[1.015]'
+                    : 'border-zinc-500/10 dark:border-white/10'
             }`}
             style={{
                 left: `${widget.x}px`, 
@@ -460,6 +476,14 @@ export default function WidgetAreaItem({
             <div className="w-full h-full pointer-events-auto">
                 {children}
             </div>
+            
+            {/* Inner Highlight Double Border Overlay */}
+            {isHighlighted && (
+                <div 
+                    className="absolute inset-[3px] border border-primary pointer-events-none z-[9998]"
+                    style={{ borderRadius: `${BORDER_RADIUS - 3}px` }}
+                />
+            )}
             
             {/* Edit Mode Handles */}
             {isEditMode && (
