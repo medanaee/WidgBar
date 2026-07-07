@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { invoke } from '@tauri-apps/api/core';
 import { emit, listen } from '@tauri-apps/api/event';
 
 export interface WidgetTypeConfig {
@@ -22,27 +21,23 @@ interface WidgetRegistryState {
 }
 
 export const useWidgetRegistryStore = create<WidgetRegistryState>((set, get) => ({
-  registry: {},
+  // Hardcoded built-in widget types initialized directly in memory
+  registry: {
+    clock: {
+      type_name: 'clock',
+      icon: 'ClockColor',
+      description: 'A simple minimalist digital clock with date.',
+      can_be_in_bar: true,
+      can_be_in_area: true,
+      default_config: {},
+      default_width: 300,
+      default_height: 150
+    }
+  },
   isLoading: false,
 
   fetchRegistry: async () => {
-    set({ isLoading: true });
-    try {
-      const rawData = await invoke<Record<string, string>>('load_widget_registry');
-      const parsed: Record<string, WidgetTypeConfig> = {};
-      
-      Object.entries(rawData).forEach(([typeName, jsonString]) => {
-        try {
-          parsed[typeName] = JSON.parse(jsonString);
-        } catch (e) {
-          console.error(`Failed to parse widget registry for ${typeName}`);
-        }
-      });
-      set({ registry: parsed, isLoading: false });
-    } catch (error) {
-      console.error('Failed to load widget registry:', error);
-      set({ isLoading: false });
-    }
+    // No-op: Registry is initialized in-memory on startup
   },
 
   registerWidgetType: (config, sync = true) => {
@@ -51,10 +46,6 @@ export const useWidgetRegistryStore = create<WidgetRegistryState>((set, get) => 
     }));
     
     if (sync) {
-      invoke('save_widget_type_settings', { 
-        typeName: config.type_name, 
-        data: JSON.stringify(config) 
-      }).catch(console.error);
       emit('widget-registry-sync', { config }).catch(console.error);
     }
   }

@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Settings as SettingsIcon, LayoutGrid, Plus, Trash2 } from 'lucide-react';
 import { ClockColor, ClipboardTaskColor, CalendarColor, ClockAlarmColor } from "@fluentui/react-icons";
 import WidgetSettingsPanel from "./WidgetSettingsPanel";
-import { AddWidgetModal } from "./AddWidgetModal";
+import AddWidgetPanel from "./AddWidgetPanel";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { NumberInput } from "./ui/NumberInput";
 import { SettingCard, SettingCardNoLayout } from "./ui/SettingCard";
@@ -35,7 +35,7 @@ export default function LayoutSettings({ selectedMonitorId }: { selectedMonitorI
   const monitors = allMonitors.filter(m => !m.is_disconnected);
 
   const [addWidgetTarget, setAddWidgetTarget] = useState<{ context: "bar"; sectionId: string } | { context: "widgetArea" } | null>(null);
-  const [editingWidget, setEditingWidget] = useState<DesktopWidget | null>(null);
+  const [editingWidget, setEditingWidget] = useState<{ widget: any, context: 'bar' | 'area' } | null>(null);
   const [hoveredWidgetId, setHoveredWidgetId] = useState<string | null>(null);
   const [layoutInnerTab, setLayoutInnerTab] = useState<"bar" | "widgets">("bar");
 
@@ -120,12 +120,25 @@ export default function LayoutSettings({ selectedMonitorId }: { selectedMonitorI
       {editingWidget ? (
         <div className="max-w-xl w-full self-center h-full overflow-y-auto custom-scrollbar ltr:pr-2 ltr:-mr-2 rtl:pl-2 rtl:-ml-2">
           <WidgetSettingsPanel
-            widget={editingWidget}
+            widget={editingWidget.widget}
+            context={editingWidget.context}
             onBack={() => setEditingWidget(null)}
           />
         </div>
-      ) :
-      (
+      ) : addWidgetTarget ? (
+        <div className="max-w-xl w-full self-center h-full overflow-y-auto custom-scrollbar ltr:pr-2 ltr:-mr-2 rtl:pl-2 rtl:-ml-2">
+          <AddWidgetPanel
+            context={addWidgetTarget.context === 'bar' ? 'bar' : 'widgetArea'}
+            onBack={() => setAddWidgetTarget(null)}
+            onSelect={(typeName) => {
+              if (selectedMonitorId) {
+                handleAddWidget(selectedMonitorId, typeName, addWidgetTarget);
+                setAddWidgetTarget(null);
+              }
+            }}
+          />
+        </div>
+      ) : (
         <div className="max-w-xl w-full self-center h-full flex flex-col min-h-0 animate-in fade-in zoom-in-95 duration-200">
           <Tabs value={layoutInnerTab} onValueChange={(v) => setLayoutInnerTab(v as "bar" | "widgets")} className="w-full flex-1 flex flex-col min-h-0" dir={language === 'fa' ? 'rtl' : 'ltr'}>
             <div className="shrink-0">
@@ -150,6 +163,7 @@ export default function LayoutSettings({ selectedMonitorId }: { selectedMonitorI
                 handleMonitorToggle={handleMonitorToggle}
                 setAddWidgetTarget={setAddWidgetTarget}
                 handleRemoveWidget={handleRemoveWidget}
+                setEditingWidget={setEditingWidget}
               />
               
               <WidgetAreaSettingsTab
@@ -171,17 +185,6 @@ export default function LayoutSettings({ selectedMonitorId }: { selectedMonitorI
           </Tabs>
         </div>
       )}
-
-      <AddWidgetModal
-        isOpen={addWidgetTarget !== null}
-        onClose={() => setAddWidgetTarget(null)}
-        context={addWidgetTarget?.context || "widgetArea"}
-        onSelect={(typeName) => {
-          if (addWidgetTarget && selectedMonitorId) {
-            handleAddWidget(selectedMonitorId, typeName, addWidgetTarget);
-          }
-        }}
-      />
     </>
   );
 }

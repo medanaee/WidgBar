@@ -42,6 +42,14 @@ export const translations = {
     tipDualPlacementDesc: "You can pin widgets either to the top narrow Bar or place them anywhere on the desktop area.",
     tipAestheticsTitle: "Aesthetics Settings",
     tipAestheticsDesc: "Change the application theme between dark and light modes in the settings tab.",
+    addBarWidget: "Add Bar Widget",
+    addDesktopWidget: "Add Desktop Widget",
+    selectWidgetDesc: "Select a widget to add to your layout",
+    widgetClock: "Clock",
+    widgetTodo: "Todo",
+    widgetCalendar: "Calendar",
+    widgetTimer: "Timer",
+    noWidgets: "No widgets available",
   },
   fa: {
     home: "خانه",
@@ -84,6 +92,14 @@ export const translations = {
     tipDualPlacementDesc: "هر ویجت را می‌توانید به انتخاب خود یا در نوار باریک بالایی (Bar) یا در صفحه اصلی دسکتاپ قرار دهید.",
     tipAestheticsTitle: "تنظیمات شخصی‌سازی",
     tipAestheticsDesc: "در تب تنظیمات می‌توانید بین لایت مود و دارک مود سوییچ کنید تا جلوه بصری با سلیقه شما هماهنگ شود.",
+    addBarWidget: "افزودن ابزارک نوار",
+    addDesktopWidget: "افزودن ابزارک دسکتاپ",
+    selectWidgetDesc: "یک ابزارک را برای اضافه کردن به صفحه انتخاب کنید",
+    widgetClock: "ساعت",
+    widgetTodo: "تسک‌ها",
+    widgetCalendar: "تقویم",
+    widgetTimer: "تایمر",
+    noWidgets: "هیچ ابزارکی در دسترس نیست",
   }
 } as const;
 

@@ -125,7 +125,7 @@ export default function WidgetAreaSettingsTab({
                               </div>
                               <div className="flex items-center gap-1">
                                 <button
-                                  onClick={() => setEditingWidget(widget)}
+                                  onClick={() => setEditingWidget({ widget, context: 'area' })}
                                   className="p-1.5 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded transition-colors"
                                   title="Settings"
                                 >

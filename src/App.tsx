@@ -56,18 +56,6 @@ function AppContent() {
         useSettingsStore.getState().fetchAndSyncSettings();
         useLayoutStore.getState().fetchAndSyncLayouts();
         useWidgetInstanceStore.getState().fetchInstances();
-        useWidgetRegistryStore.getState().fetchRegistry().then(() => {
-            useWidgetRegistryStore.getState().registerWidgetType({
-                type_name: 'clock',
-                icon: 'ClockColor',
-                description: 'A simple minimalist digital clock with date.',
-                can_be_in_bar: true,
-                can_be_in_area: true,
-                default_config: {},
-                default_width: 300,
-                default_height: 150
-            });
-        });
     }, []);
 
     useEffect(() => {

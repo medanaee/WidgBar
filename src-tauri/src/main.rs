@@ -177,8 +177,6 @@ fn main() {
             save_layout,
             load_global_settings,
             save_global_settings,
-            load_widget_registry,
-            save_widget_type_settings,
             load_widget_instances,
             save_widget_instance_settings,
             delete_widget_instance,

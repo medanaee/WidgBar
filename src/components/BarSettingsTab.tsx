@@ -27,6 +27,7 @@ export default function BarSettingsTab({
   handleMonitorToggle,
   setAddWidgetTarget,
   handleRemoveWidget,
+  setEditingWidget,
 }: any) {
 
   const { layouts, currentLayout } = useLayoutStore();
@@ -316,7 +317,7 @@ export default function BarSettingsTab({
                                                 <button 
                                                   className="p-1.5 text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-50 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded transition-colors" 
                                                   title="Settings"
-                                                  onClick={() => {}}
+                                                  onClick={() => setEditingWidget({ widget, context: "bar" })}
                                                 >
                                                   <Settings className="w-3.5 h-3.5" />
                                                 </button>
