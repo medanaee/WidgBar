@@ -7,6 +7,7 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import Main from "./components/Main";
 import WidgetsArea from "./components/WidgetsArea";
 import Bar from "./components/Bar";
+import Popup from "./components/Popup";
 import { useLayoutStore } from "./stores/layoutStore";
 import { useSettingsStore } from "./stores/settingsStore";
 import { useWidgetRegistryStore } from "./stores/widgetRegistryStore";
@@ -66,42 +67,16 @@ function AppContent() {
                 default_width: 300,
                 default_height: 150
             });
-            useWidgetRegistryStore.getState().registerWidgetType({
-                type_name: 'todo',
-                icon: 'ClipboardTaskColor',
-                description: 'A simple minimalist to-do list for testing.',
-                can_be_in_bar: true,
-                can_be_in_area: true,
-                default_config: {},
-                default_width: 250,
-                default_height: 300
-            });
-            useWidgetRegistryStore.getState().registerWidgetType({
-                type_name: 'calendar',
-                icon: 'CalendarColor',
-                description: 'A simple calendar grid for testing.',
-                can_be_in_bar: true,
-                can_be_in_area: true,
-                default_config: {},
-                default_width: 280,
-                default_height: 250
-            });
-            useWidgetRegistryStore.getState().registerWidgetType({
-                type_name: 'timer',
-                icon: 'ClockAlarmColor',
-                description: 'A simple timer for testing.',
-                can_be_in_bar: true,
-                can_be_in_area: true,
-                default_config: {},
-                default_width: 200,
-                default_height: 150
-            });
         });
     }, []);
 
     useEffect(() => {
         const init = async () => {
             if (initRan.current || location.pathname !== '/') return;
+            
+            const appWindow = getCurrentWebviewWindow();
+            if (appWindow.label !== 'main') return;
+            
             initRan.current = true;
             
             await fetchAndSyncSettings();
@@ -249,9 +224,10 @@ function AppContent() {
                 requestAnimationFrame(() => {
                     setTimeout(async () => {
                         try {
+                            console.log("DOM settled, notifying Rust forttt:", location.pathname);
                             const appWindow = getCurrentWebviewWindow();
                             await appWindow.emit('show_ready');
-                            console.log("DOM settled and notified Rust for:", location.pathname);
+                            console.log("DOM settled and notified Rust forrr:", location.pathname);
                         } catch (error) {
                             console.error("Failed to emit show_ready:", error);
                         }
@@ -264,12 +240,10 @@ function AppContent() {
 
         const appWindow = getCurrentWebviewWindow();
 
-        const unlisten = appWindow.listen('rust-navigation', handleRustNav);
+        window.addEventListener('rust-navigation', handleRustNav);
+        return () => window.removeEventListener('rust-navigation', handleRustNav);
 
-        return () => {
-            unlisten.then(f => f());
-        };
-    }, [navigate, location.pathname]);
+    }, []);
 
     useEffect(() => {
         const notifyRust = async () => {
@@ -291,6 +265,8 @@ function AppContent() {
             <Route path="/" element={<Main />} />
             <Route path="/bar/:monitorId" element={<Bar />} />
             <Route path="/widget_area/:monitorId" element={<WidgetsArea />} />
+            <Route path="/popup/:widgetType/:widgetId" element={<Popup />} />
+            <Route path="/blank" element={<div />} />
         </Routes>
     );
 }

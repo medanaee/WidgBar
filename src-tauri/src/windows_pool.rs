@@ -49,8 +49,8 @@ pub fn init_reserved_windows(app: AppHandle) {
     let mut pool_tracker = Vec::new();
     for i in 0..num_window_reserved {
         let label = format!("pool_win_{}", i);
-        let window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App("index.html".into()))
-            .visible(i == 0)
+        let window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App("index.html#/blank".into()))
+            .visible(false)
             .decorations(false)
             .always_on_top(false)
             .no_redirection_bitmap(true)
@@ -91,9 +91,6 @@ pub fn init_reserved_windows(app: AppHandle) {
                 }
             }
         });
-
-        let js_command = "window.dispatchEvent(new CustomEvent('rust-navigation', { detail: { route: '/blank' } }));";
-        let _ = window.eval(js_command);
 
         pool_tracker.push(PoolWindow {
             label,
@@ -222,7 +219,8 @@ pub async fn request_popup(
             let new_id = DYNAMIC_WIN_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             let new_label = format!("pool_win_dynamic_{}", new_id);
 
-            let new_window = tauri::WebviewWindowBuilder::new(&app, &new_label, tauri::WebviewUrl::App("index.html".into()))
+            let initial_url = format!("index.html#{}", route);
+            let new_window = tauri::WebviewWindowBuilder::new(&app, &new_label, tauri::WebviewUrl::App(initial_url.into()))
                 .visible(false)
                 .decorations(false)
                 .always_on_top(false)
@@ -275,13 +273,16 @@ pub async fn request_popup(
                 }
             });
 
-            let mut pool = state.windows.lock().unwrap();
-            pool.push(PoolWindow {
-                label: new_label.clone(),
-                is_busy: true,
-                close_on_blur,
-                is_dynamic: true,
-            });
+            {
+                let mut pool = state.windows.lock().unwrap();
+                pool.push(PoolWindow {
+                    label: new_label.clone(),
+                    is_busy: true,
+                    close_on_blur,
+                    is_dynamic: true,
+                });
+            }
+            
             new_label
         }
     };

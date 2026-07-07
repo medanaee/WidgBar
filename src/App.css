@@ -3,7 +3,7 @@ html {
 }
 
 html.dark {
-  background-color: color-mix(in oklab, var(--color-zinc-900) 90%, transparent);
+  background-color: color-mix(in oklab, var(--color-zinc-900) 85%, transparent);
 }
 @import "tailwindcss";
 @import "tw-animate-css";
