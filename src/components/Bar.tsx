@@ -34,7 +34,7 @@ export default function Bar() {
 
   return (
     <div
-      className={`w-full h-screen flex items-center pl-4 ${showButton ? 'pr-8' : 'pr-4'} shadow-[inset_0_-2px_0_0_rgba(255,255,255,0.05)] select-none overflow-hidden relative ${justifyClass} ${animate ? 'transition-all duration-500 ease-in-out' : ''
+      className={`w-full h-screen flex items-center pl-1 ${showButton ? 'pr-8' : 'pr-1'} shadow-[inset_0_-2px_0_0_rgba(255,255,255,0.05)] select-none overflow-hidden relative ${justifyClass} ${animate ? 'transition-all duration-500 ease-in-out' : ''
         }`}
       style={{ gap: isSpacingJustify ? `${sectionSpacing}px` : undefined }}
     >
@@ -48,7 +48,7 @@ export default function Bar() {
             )
           )}
           <div
-            className={`flex items-center shrink-0 h-4/5 ${animate ? 'transition-all duration-500 ease-in-out' : ''
+            className={`flex items-center shrink-0 h-[calc(100%-10px)] ${animate ? 'transition-all duration-500 ease-in-out' : ''
               }`}
             style={{ gap: `${section.widgetSpacing ?? 8}px` }}
           >

@@ -105,10 +105,7 @@ pub fn set_os_window_animation(hwnd: HWND, enable_animation: bool) {
 
 #[cfg(target_os = "windows")]
 pub fn set_window_theme(hwnd: HWND, is_dark: bool) -> () {
-    println!(
-        "Setting window theme: {}",
-        if is_dark { "Dark" } else { "Light" }
-    );
+
     let theme_value = if is_dark { 1i32 } else { 0i32 };
 
     unsafe {
