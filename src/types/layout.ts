@@ -12,6 +12,7 @@ export interface Settings {
   snapMargin?: number;
   barAnimate?: boolean;
   widgetBgOpacity?: number;
+  barBgOpacity?: number;
 }
 
 export interface BarWidget {

@@ -189,10 +189,17 @@ pub async fn request_popup(
     animated: bool,
     below_bar: bool,
     center: bool,
+    resizable: Option<bool>,
+    skip_taskbar: Option<bool>,
+    always_on_top: Option<bool>,
 ) -> Result<String, String> {
+    let resizable = resizable.unwrap_or(false);
+    let skip_taskbar = skip_taskbar.unwrap_or(true);
+    let always_on_top = always_on_top.unwrap_or(false);
+
     println!(
-        "Popup requested at ({}, {}) with size {}x{}, route: {}, close_on_blur: {}, x_is_center: {}, animated: {}, below_bar: {}, center: {}",
-        x, y, width, height, route, close_on_blur, x_is_center, animated, below_bar, center
+        "Popup requested at ({}, {}) with size {}x{}, route: {}, close_on_blur: {}, x_is_center: {}, animated: {}, below_bar: {}, center: {}, resizable: {}, skip_taskbar: {}, always_on_top: {}",
+        x, y, width, height, route, close_on_blur, x_is_center, animated, below_bar, center, resizable, skip_taskbar, always_on_top
     );
     let mut selected_label = None;
     let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
@@ -323,6 +330,9 @@ pub async fn request_popup(
     let offset = 5.0;
     let start_y = target_y + offset;
 
+    let _ = window.set_resizable(resizable);
+    let _ = window.set_skip_taskbar(skip_taskbar);
+    let _ = window.set_always_on_top(always_on_top);
     let _ = window.set_size(tauri::PhysicalSize::new(width as u32, height as u32));
 
     let js_command = format!(

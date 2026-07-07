@@ -8,6 +8,7 @@ import Main from "./components/Main";
 import WidgetsArea from "./components/WidgetsArea";
 import Bar from "./components/Bar";
 import Popup from "./components/Popup";
+import Tooltip from "./components/Tooltip";
 import { useLayoutStore } from "./stores/layoutStore";
 import { useSettingsStore } from "./stores/settingsStore";
 import { useWidgetRegistryStore } from "./stores/widgetRegistryStore";
@@ -254,6 +255,7 @@ function AppContent() {
             <Route path="/bar/:monitorId" element={<Bar />} />
             <Route path="/widget_area/:monitorId" element={<WidgetsArea />} />
             <Route path="/popup/:widgetType/:widgetId" element={<Popup />} />
+            <Route path="/tooltip/:text" element={<Tooltip />} />
             <Route path="/blank" element={<div />} />
         </Routes>
     );

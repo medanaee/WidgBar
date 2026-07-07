@@ -10,6 +10,7 @@ const DEFAULT_SETTINGS: Settings = {
   snapMargin: 16,
   barAnimate: true,
   widgetBgOpacity: 80,
+  barBgOpacity: 80,
 };
 
 interface SettingsState {

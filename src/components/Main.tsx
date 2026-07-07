@@ -344,6 +344,26 @@ export default function Main() {
                         onCheckedChange={(checked) => updateSettings({ barAnimate: checked })}
                       />
                     </SettingCard>
+
+                    <SettingCard>
+                      <div className="flex-grow">
+                        <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{t("barBgOpacity")}</h3>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">{t("barBgOpacityDesc")}</p>
+                        <div className="flex items-center gap-4 mt-3 w-full">
+                          <Slider
+                            value={[settings?.barBgOpacity ?? 80]}
+                            onValueChange={(val) => updateSettings({ barBgOpacity: val[0] })}
+                            min={0}
+                            max={100}
+                            step={1}
+                            className="flex-grow"
+                          />
+                          <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 w-10 text-right">
+                            {settings?.barBgOpacity ?? 80}%
+                          </span>
+                        </div>
+                      </div>
+                    </SettingCard>
                   </div>
                 )}
 

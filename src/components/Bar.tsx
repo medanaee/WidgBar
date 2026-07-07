@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useLayoutStore } from '../stores/layoutStore';
 import { useSettingsStore } from '../stores/settingsStore';
@@ -20,6 +20,65 @@ export default function Bar() {
   const separator = monitor?.barSeparator || "none";
   const showSeparator = isSpacingJustify && separator !== "none";
 
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const activePopupLabelRef = useRef<string | null>(null);
+
+  React.useEffect(() => {
+    document.documentElement.style.backgroundColor = 'transparent';
+    document.body.style.backgroundColor = 'transparent';
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+      if (activePopupLabelRef.current) {
+        invoke('hide_popup', { label: activePopupLabelRef.current, selfClose: false }).catch(console.error);
+      }
+    };
+  }, []);
+
+  const handleMouseEnter = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.bottom;
+    
+    hoverTimeoutRef.current = setTimeout(async () => {
+      try {
+        const label = await invoke<string>('request_popup', {
+          x,
+          y,
+          width: 110,
+          height: 34,
+          route: `/tooltip/${encodeURIComponent("Show Settings")}`,
+          closeOnBlur: false,
+          xIsCenter: true,
+          animated: false,
+          belowBar: true,
+          center: false,
+          resizable: false,
+          skipTaskbar: true,
+          alwaysOnTop: true
+        });
+        activePopupLabelRef.current = label;
+      } catch (error) {
+        console.error(error);
+      }
+    }, 400);
+  };
+
+  const handleMouseLeave = async () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    if (activePopupLabelRef.current) {
+      const label = activePopupLabelRef.current;
+      activePopupLabelRef.current = null;
+      await invoke('hide_popup', { label, selfClose: false }).catch(console.error);
+    }
+  };
+
   const justifyClass = {
     "start": "justify-start",
     "end": "justify-end",
@@ -29,14 +88,26 @@ export default function Bar() {
   }[justify] || "justify-between";
 
   const handleOpenMain = () => {
+    handleMouseLeave();
     invoke('show_window', { label: 'main' }).catch(console.error);
   };
 
+  const bgOpacity = settings?.barBgOpacity ?? 80;
+  const isDark = settings?.theme === 'dark' || 
+    (settings?.theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+  const backgroundStyle = isDark 
+    ? `color-mix(in oklab, var(--color-zinc-900) ${bgOpacity}%, transparent)` 
+    : `color-mix(in oklab, var(--color-zinc-100) ${bgOpacity}%, transparent)`;
+
   return (
     <div
-      className={`w-full h-screen flex items-center pl-1 ${showButton ? 'pr-8' : 'pr-1'} shadow-[inset_0_-2px_0_0_rgba(255,255,255,0.05)] select-none overflow-hidden relative ${justifyClass} ${animate ? 'transition-all duration-500 ease-in-out' : ''
+      className={`w-full h-screen flex items-center pl-1 ${showButton ? 'pr-8' : 'pr-1'} shadow-[inset_0_-2px_0_0_rgba(255,255,255,0.05)] select-none overflow-hidden relative ${justifyClass} ${animate ? 'transition-[width,height,gap,padding,transform] duration-500 ease-in-out' : ''
         }`}
-      style={{ gap: isSpacingJustify ? `${sectionSpacing}px` : undefined }}
+      style={{ 
+        gap: isSpacingJustify ? `${sectionSpacing}px` : undefined,
+        backgroundColor: backgroundStyle
+      }}
     >
       {barSections.map((section, sIndex) => (
         <React.Fragment key={section.id}>
@@ -48,7 +119,7 @@ export default function Bar() {
             )
           )}
           <div
-            className={`flex items-center shrink-0 h-[calc(100%-10px)] ${animate ? 'transition-all duration-500 ease-in-out' : ''
+            className={`flex items-center shrink-0 h-4/5 ${animate ? 'transition-all duration-500 ease-in-out' : ''
               }`}
             style={{ gap: `${section.widgetSpacing ?? 8}px` }}
           >
@@ -67,8 +138,9 @@ export default function Bar() {
       {showButton && (
         <button
           onClick={handleOpenMain}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
           className="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded-lg hover:bg-white/10 text-white/70 hover:text-white transition-all cursor-pointer z-50 flex items-center justify-center"
-          title="Show Settings Window"
         >
           <SettingsRegular />
         </button>
