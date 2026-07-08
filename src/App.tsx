@@ -1,14 +1,14 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import "./App.css"
 import { invoke } from "@tauri-apps/api/core";
 import { HashRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 
-import Main from "./components/Main";
-import WidgetsArea from "./components/WidgetsArea";
-import Bar from "./components/Bar";
-import Popup from "./components/Popup";
-import Tooltip from "./components/Tooltip";
+const Main = lazy(() => import("./components/Main"));
+const WidgetsArea = lazy(() => import("./components/WidgetsArea"));
+const Bar = lazy(() => import("./components/Bar"));
+const Popup = lazy(() => import("./components/Popup"));
+const Tooltip = lazy(() => import("./components/Tooltip"));
 import { useLayoutStore } from "./stores/layoutStore";
 import { useSettingsStore } from "./stores/settingsStore";
 import { useWidgetRegistryStore } from "./stores/widgetRegistryStore";
@@ -250,14 +250,16 @@ function AppContent() {
 
 
     return (
-        <Routes>
-            <Route path="/" element={<Main />} />
-            <Route path="/bar/:monitorId" element={<Bar />} />
-            <Route path="/widget_area/:monitorId" element={<WidgetsArea />} />
-            <Route path="/popup/:widgetType/:widgetId" element={<Popup />} />
-            <Route path="/tooltip/:text" element={<Tooltip />} />
-            <Route path="/blank" element={<div />} />
-        </Routes>
+        <Suspense fallback={<div className="w-full h-screen bg-transparent" />}>
+            <Routes>
+                <Route path="/" element={<Main />} />
+                <Route path="/bar/:monitorId" element={<Bar />} />
+                <Route path="/widget_area/:monitorId" element={<WidgetsArea />} />
+                <Route path="/popup/:widgetType/:widgetId" element={<Popup />} />
+                <Route path="/tooltip/:text" element={<Tooltip />} />
+                <Route path="/blank" element={<div />} />
+            </Routes>
+        </Suspense>
     );
 }
 

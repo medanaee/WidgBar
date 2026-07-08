@@ -105,7 +105,7 @@ export default function Bar() {
       className={`w-full h-screen flex items-center pl-1 ${showButton ? 'pr-8' : 'pr-1'} shadow-[inset_0_-2px_0_0_rgba(255,255,255,0.05)] select-none overflow-hidden relative ${justifyClass} ${animate ? 'transition-[width,height,gap,padding,transform] duration-500 ease-in-out' : ''
         }`}
       style={{ 
-        gap: isSpacingJustify ? `${sectionSpacing}px` : undefined,
+        gap: isSpacingJustify ? `${showSeparator ? sectionSpacing / 2 : sectionSpacing}px` : undefined,
         backgroundColor: backgroundStyle
       }}
     >
