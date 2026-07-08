@@ -1,30 +1,17 @@
-import BarSettingsTab from './BarSettingsTab';
-import WidgetAreaSettingsTab from './WidgetAreaSettingsTab';
-import React, { useState } from "react";
+import BarSettingsTab from '../BarSettingsTab';
+import WidgetAreaSettingsTab from '../WidgetAreaSettingsTab';
+import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { useLayoutStore } from "../stores/layoutStore";
-import { useSettingsStore } from "../stores/settingsStore";
-import { useWidgetRegistryStore } from "../stores/widgetRegistryStore";
-import { BarHeight, DesktopWidget } from "../types/layout";
-import { useTranslation } from "../lib/i18n";
-import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings as SettingsIcon, LayoutGrid, Plus, Trash2 } from 'lucide-react';
-import { ClockColor, ClipboardTaskColor, CalendarColor, ClockAlarmColor } from "@fluentui/react-icons";
-import WidgetSettingsPanel from "./WidgetSettingsPanel";
-import AddWidgetPanel from "./AddWidgetPanel";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { NumberInput } from "./ui/NumberInput";
-import { SettingCard, SettingCardNoLayout } from "./ui/SettingCard";
+import { useLayoutStore } from "../../stores/layoutStore";
+import { useSettingsStore } from "../../stores/settingsStore";
+import { useWidgetRegistryStore } from "../../stores/widgetRegistryStore";
+import { BarHeight } from "../../types/layout";
+import { useTranslation } from "../../lib/i18n";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import WidgetSettingsPanel from "../WidgetSettingsPanel";
+import AddWidgetPanel from "../AddWidgetPanel";
 
-const FluentIconMap: Record<string, React.ComponentType<any>> = {
-  ClockColor,
-  ClipboardTaskColor,
-  CalendarColor,
-  ClockAlarmColor
-};
-
-export default function LayoutSettings({ selectedMonitorId }: { selectedMonitorId: string | null }) {
+export default function LayoutSettingsTab({ selectedMonitorId }: { selectedMonitorId: string | null }) {
   const { layouts, currentLayout } = useLayoutStore();
   const { settings } = useSettingsStore();
   const { registry } = useWidgetRegistryStore();
@@ -111,9 +98,6 @@ export default function LayoutSettings({ selectedMonitorId }: { selectedMonitorI
     }
     useLayoutStore.getState().setLayouts(newLayouts);
   };
-
-
-
 
   return (
     <>

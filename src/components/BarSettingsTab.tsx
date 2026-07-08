@@ -34,6 +34,16 @@ export default function BarSettingsTab({
   const { layouts, currentLayout } = useLayoutStore();
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
   const [tempSectionName, setTempSectionName] = useState<string>("");
+
+  const [hoveredWidgetId, setHoveredWidgetId] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      if (hoveredWidgetId) {
+        emit('widget-highlight', { widgetId: hoveredWidgetId, isHighlighted: false }).catch(console.error);
+      }
+    };
+  }, [hoveredWidgetId]);
   
   const onDragEnd = (result: DropResult) => {
     const { source, destination } = result;
@@ -378,9 +388,11 @@ export default function BarSettingsTab({
                                               ref={provided.innerRef}
                                               {...provided.draggableProps}
                                               onMouseEnter={() => {
+                                                setHoveredWidgetId(widget.id);
                                                 emit('widget-highlight', { widgetId: widget.id, isHighlighted: true }).catch(console.error);
                                               }}
                                               onMouseLeave={() => {
+                                                setHoveredWidgetId(null);
                                                 emit('widget-highlight', { widgetId: widget.id, isHighlighted: false }).catch(console.error);
                                               }}
                                               className={`flex items-center justify-between p-2 rounded-md bg-white dark:bg-zinc-800/50 border shadow-sm transition-all ${snapshot.isDragging ? 'border-indigo-500 shadow-md rotate-1 z-50' : 'border-zinc-500/10'}`}

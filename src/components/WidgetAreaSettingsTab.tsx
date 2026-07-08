@@ -28,6 +28,15 @@ export default function WidgetAreaSettingsTab({
   setEditingWidget,
   handleRemoveWidget
 }: any) {
+  React.useEffect(() => {
+    return () => {
+      if (hoveredWidgetId) {
+        setHoveredWidgetId(null);
+        emit('widget-highlight', { widgetId: hoveredWidgetId, isHighlighted: false }).catch(console.error);
+      }
+    };
+  }, [hoveredWidgetId, setHoveredWidgetId]);
+
   return (
     <TabsContent value="widgets" className="animate-in fade-in duration-200 space-y-3 mt-0">
                 <SettingCard>
