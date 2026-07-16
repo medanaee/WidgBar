@@ -24,9 +24,13 @@ export const Titlebar: React.FC = () => {
 
   const handleHide = async () => {
     try {
-      await invoke('hide_window');
+      if (appWindow.label === 'main') {
+        await invoke('hide_window');
+      } else {
+        await invoke('hide_popup', { selfClose: true });
+      }
     } catch (error) {
-      console.error("Failed to hide window via Rust command:", error);
+      console.error("Failed to close/hide window via Rust command:", error);
     }
   };
 

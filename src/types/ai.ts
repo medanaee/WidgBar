@@ -13,6 +13,8 @@ export interface AiServiceInstance {
   providerId: string;
   name: string;
   apiKey?: string;
+  model?: string;
+  temperature?: number;
   createdAt: number;
 }
 

@@ -11,6 +11,8 @@ import { CutoutProvider } from "./ui/CutoutProvider";
 import { useTranslation, TranslationKey } from "../lib/i18n";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { BotSparkleColor, PersonRegular, SendRegular, AddRegular, DeleteRegular } from '@fluentui/react-icons';
+import EditAiServicePanel from "./tabs/EditAiServicePanel";
+import { Settings as SettingsIcon } from "lucide-react";
 
 export default function AiChatRoute() {
   const { instanceId } = useParams<{ instanceId: string }>();
@@ -25,6 +27,7 @@ export default function AiChatRoute() {
   const [isSending, setIsSending] = useState(false);
   const [models, setModels] = useState<string[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
+  const [isEditingSettings, setIsEditingSettings] = useState(false);
 
   // Default session logic
   useEffect(() => {
@@ -126,10 +129,31 @@ export default function AiChatRoute() {
   };
 
   const handleModelChange = (modelName: string) => {
+    useAiServicesStore.getState().updateInstance(instance.id, { model: modelName });
     if (activeSession) {
       useAiServicesStore.getState().updateSession(activeSession.id, { model: modelName });
     }
   };
+
+  if (isEditingSettings) {
+    return (
+      <CutoutProvider>
+        <div className="flex flex-col h-screen bg-zinc-50 dark:bg-zinc-950 font-sans text-zinc-900 dark:text-zinc-100 overflow-hidden" dir={language === 'fa' ? 'rtl' : 'ltr'}>
+          <Titlebar title={`Service Settings - ${instance.name}`} />
+          <div className="flex-1 p-8 overflow-y-auto">
+            <EditAiServicePanel
+              instance={instance}
+              onBack={() => setIsEditingSettings(false)}
+              onSave={(updatedFields) => {
+                useAiServicesStore.getState().updateInstance(instance.id, updatedFields);
+                setIsEditingSettings(false);
+              }}
+            />
+          </div>
+        </div>
+      </CutoutProvider>
+    );
+  }
 
   const currentSession = data.sessions.find(s => s.id === activeSession?.id);
   const defaultModel = instance.providerId === 'nvidia-api' 
@@ -185,36 +209,18 @@ export default function AiChatRoute() {
 
           {/* 2. Main Chat Window */}
           <div className="flex-grow flex flex-col min-h-0 overflow-hidden bg-transparent">
-            {/* Model Selector Bar */}
+            {/* Header bar with Settings Button */}
             <div className="px-4 py-2 border-b border-zinc-500/10 dark:border-white/5 flex items-center justify-between shrink-0 bg-white/20 dark:bg-zinc-900/10 backdrop-blur-md">
               <div className="text-xs font-semibold text-zinc-500">
                 Chatting with {instance.name}
               </div>
-              
-              {isLoadingModels ? (
-                <span className="text-[10px] text-zinc-400 animate-pulse">Loading Models...</span>
-              ) : models.length > 0 ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-zinc-400">Model:</span>
-                  <Select
-                    value={currentSession?.model || defaultModel}
-                    onValueChange={handleModelChange}
-                  >
-                    <SelectTrigger className="w-48 h-7 text-[10px] bg-transparent border-zinc-500/20 text-zinc-700 dark:text-zinc-300">
-                      <SelectValue placeholder="Select Model" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {models.map(m => (
-                          <SelectItem key={m} value={m} className="text-[10px] truncate max-w-[200px]">
-                            {m.split('/').pop()}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </div>
-              ) : null}
+              <button
+                onClick={() => setIsEditingSettings(true)}
+                className="p-1.5 hover:bg-zinc-500/10 dark:hover:bg-white/10 rounded transition-colors text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+                title="Instance Settings"
+              >
+                <SettingsIcon className="w-4 h-4" />
+              </button>
             </div>
 
             {/* Messages Scroll View */}
@@ -234,7 +240,7 @@ export default function AiChatRoute() {
                     </div>
                   )}
                   <div 
-                    className={`max-w-[80%] px-4 py-2.5 text-xs leading-relaxed border ${
+                    className={`max-w-[80%] px-4 py-1 text-xs leading-relaxed border ${
                       msg.role === 'user' 
                         ? 'bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-900 border-zinc-700 dark:border-zinc-300' 
                         : 'bg-white/40 dark:bg-zinc-900/40 border-zinc-500/10 dark:border-white/5'
@@ -266,8 +272,30 @@ export default function AiChatRoute() {
               )}
             </div>
 
-            {/* Message Input Panel */}
-            <div className="p-3 bg-white/30 dark:bg-zinc-900/30 backdrop-blur-md border-t border-zinc-500/15 dark:border-white/5 flex gap-2">
+            {/* Message Input Panel with Model Selector */}
+            <div className="p-3 bg-white/30 dark:bg-zinc-900/30 backdrop-blur-md border-t border-zinc-500/15 dark:border-white/5 flex items-center gap-2 shrink-0">
+              {isLoadingModels ? (
+                <span className="text-[10px] text-zinc-400 animate-pulse w-32 text-center">Loading models...</span>
+              ) : models.length > 0 ? (
+                <Select
+                  value={instance.model || currentSession?.model || defaultModel}
+                  onValueChange={handleModelChange}
+                >
+                  <SelectTrigger className="w-40 h-9 text-[10px] bg-white/20 dark:bg-zinc-900/20 border-zinc-500/20 text-zinc-700 dark:text-zinc-300">
+                    <SelectValue placeholder="Select Model" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {models.map(m => (
+                        <SelectItem key={m} value={m} className="text-[10px] truncate max-w-[200px]">
+                          {m.split('/').pop()}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              ) : null}
+
               <Input 
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -275,14 +303,14 @@ export default function AiChatRoute() {
                   if (e.key === 'Enter') handleSend();
                 }}
                 placeholder="Type a message..."
-                className="flex-1 bg-white/20 dark:bg-zinc-900/20 border-zinc-500/20 dark:border-white/10 text-xs focus-visible:ring-0 focus-visible:ring-offset-0 focus:border-zinc-500/50"
+                className="flex-1 bg-white/20 dark:bg-zinc-900/20 border-zinc-500/20 dark:border-white/10 text-xs focus-visible:ring-0 focus-visible:ring-offset-0 focus:border-zinc-500/50 h-9"
                 disabled={isSending}
               />
               <Button 
                 size="icon" 
                 onClick={handleSend} 
                 disabled={!input.trim() || isSending}
-                className="bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-100 flex items-center justify-center rounded-lg"
+                className="bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-100 flex items-center justify-center rounded-lg h-9 w-9 shrink-0"
               >
                 <SendRegular fontSize={16} />
               </Button>

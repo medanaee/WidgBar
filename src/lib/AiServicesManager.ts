@@ -6,11 +6,15 @@ class AiServicesManager {
   
   // Create a new chat session for a given instance
   public createSession(instanceId: string, title: string = "New Chat"): ChatSession {
+    const store = useAiServicesStore.getState();
+    const instance = store.data.instances.find(i => i.id === instanceId);
+    
     const session: ChatSession = {
       id: crypto.randomUUID(),
       instanceId,
       title,
       messages: [],
+      model: instance?.model,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -49,7 +53,13 @@ class AiServicesManager {
     let aiResponseContent = "";
 
     try {
-      aiResponseContent = await this.callApiProvider(provider.id, instance.apiKey, updatedMessages, session.model);
+      aiResponseContent = await this.callApiProvider(
+        provider.id, 
+        instance.apiKey, 
+        updatedMessages, 
+        session.model,
+        instance.temperature
+      );
     } catch (e: any) {
       aiResponseContent = `Error: ${e.message}`;
     }
@@ -103,7 +113,8 @@ class AiServicesManager {
     providerId: string, 
     apiKey: string | undefined, 
     messages: ChatMessage[],
-    model?: string
+    model?: string,
+    temperature?: number
   ): Promise<string> {
     if (!apiKey) throw new Error("API Key is missing");
 
@@ -117,9 +128,13 @@ class AiServicesManager {
         },
         body: {
           model: model || 'gpt-4o',
-          messages: messages.map(m => ({ role: m.role, content: m.content }))
+          messages: messages.map(m => ({ role: m.role, content: m.content })),
+          temperature: temperature ?? 0.7
         }
       });
+      if (!data?.choices?.[0]?.message) {
+        throw new Error(data?.error?.message || "Invalid response structure from OpenAI API");
+      }
       return data.choices[0].message.content;
     } 
     
@@ -129,6 +144,12 @@ class AiServicesManager {
         parts: [{ text: m.content }]
       }));
       const geminiModel = model || 'gemini-1.5-flash';
+      
+      const generationConfig: any = {};
+      if (temperature !== undefined) {
+        generationConfig.temperature = temperature;
+      }
+      
       const data = await invoke<any>('proxy_request', {
         url: `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`,
         method: 'POST',
@@ -136,9 +157,13 @@ class AiServicesManager {
           'Content-Type': 'application/json'
         },
         body: {
-          contents: formattedContents
+          contents: formattedContents,
+          generationConfig
         }
       });
+      if (!data?.candidates?.[0]?.content?.parts?.[0]?.text) {
+        throw new Error(data?.error?.message || "Invalid response structure from Gemini API");
+      }
       return data.candidates[0].content.parts[0].text;
     }
 
@@ -152,9 +177,13 @@ class AiServicesManager {
         },
         body: {
           model: model || 'deepseek-chat',
-          messages: messages.map(m => ({ role: m.role, content: m.content }))
+          messages: messages.map(m => ({ role: m.role, content: m.content })),
+          temperature: temperature ?? 0.7
         }
       });
+      if (!data?.choices?.[0]?.message) {
+        throw new Error(data?.error?.message || "Invalid response structure from DeepSeek API");
+      }
       return data.choices[0].message.content;
     }
 
@@ -168,9 +197,13 @@ class AiServicesManager {
         },
         body: {
           model: model || 'meta/llama-3.1-8b-instruct',
-          messages: messages.map(m => ({ role: m.role, content: m.content }))
+          messages: messages.map(m => ({ role: m.role, content: m.content })),
+          temperature: temperature ?? 0.7
         }
       });
+      if (!data?.choices?.[0]?.message) {
+        throw new Error(data?.error?.message || "Invalid response structure from NVIDIA NIM. Check model requirements.");
+      }
       return data.choices[0].message.content;
     }
     

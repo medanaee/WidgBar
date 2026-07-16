@@ -1,6 +1,6 @@
 use std::sync::{atomic::AtomicUsize, Mutex};
 
-use tauri::{App, AppHandle, Listener, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use tauri::{App, AppHandle, Listener, Manager, State, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 use window_vibrancy::{apply_acrylic, apply_blur};
 
 use crate::windows_utils::{apply_persistent_acrylic, ease_out_cubic};
@@ -250,11 +250,15 @@ pub async fn request_popup(
                 }
             }
 
+            let creation_time = std::time::Instant::now();
             new_window.on_window_event({
                 let app_handle = app.clone();
                 let label_clone = new_label.clone();
                 move |event| {
                     if let tauri::WindowEvent::Focused(false) = event {
+                        if creation_time.elapsed().as_millis() < 1000 {
+                            return;
+                        }
                         let state = app_handle.state::<PoolState>();
                         let mut pool = state.windows.lock().unwrap();
                         let mut remove_idx = None;

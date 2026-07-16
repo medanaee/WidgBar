@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useAiServicesStore } from "../../stores/aiServicesStore";
-import { AiProvider, AI_PROVIDERS, AiServiceInstance } from "../../types/ai";
+import { AI_PROVIDERS, AiServiceInstance } from "../../types/ai";
 import { Button } from "../ui/button";
-import { Input } from "../ui/input";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { Plus, Trash2, Webhook, Link as LinkIcon, MessageCircle, Pencil } from "lucide-react";
-import { SettingCard, SettingCardNoLayout } from "../ui/SettingCard";
+import { Plus, Trash2, Webhook, Settings, MessageSquare } from "lucide-react";
+import { SettingCard } from "../ui/SettingCard";
+import AddAiServicePanel from "./AddAiServicePanel";
+import EditAiServicePanel from "./EditAiServicePanel";
 import { invoke } from "@tauri-apps/api/core";
 
 export default function AiServicesTab() {
@@ -13,32 +13,54 @@ export default function AiServicesTab() {
   const instances = data?.instances || [];
   
   const [isAdding, setIsAdding] = useState(false);
-  const [newProviderId, setNewProviderId] = useState<string>("");
-  const [newName, setNewName] = useState<string>("");
-  const [newApiKey, setNewApiKey] = useState<string>("");
+  const [editingInstance, setEditingInstance] = useState<AiServiceInstance | null>(null);
 
-  const handleAdd = () => {
-    if (!newProviderId || !newName) return;
-    const provider = AI_PROVIDERS.find(p => p.id === newProviderId);
-    if (!provider) return;
-
-    const newInstance: AiServiceInstance = {
-      id: crypto.randomUUID(),
-      providerId: newProviderId,
-      name: newName,
-      createdAt: Date.now(),
-    };
-
-    if (provider.type === 'api') {
-      newInstance.apiKey = newApiKey;
-    }
-
-    addInstance(newInstance);
-    setIsAdding(false);
-    setNewProviderId("");
-    setNewName("");
-    setNewApiKey("");
+  const openFullChat = (instanceId: string) => {
+    invoke('request_popup', {
+      x: window.screenX + 100,
+      y: window.screenY + 100,
+      width: 800,
+      height: 600,
+      route: `/ai-chat/${instanceId}`,
+      closeOnBlur: false,
+      xIsCenter: false,
+      animated: true,
+      belowBar: false,
+      center: true,
+      resizable: true,
+      skipTaskbar: false,
+      alwaysOnTop: false
+    }).catch(console.error);
   };
+
+  if (isAdding) {
+    return (
+      <div className="flex-1 h-full overflow-y-auto p-8 relative flex flex-col justify-start">
+        <AddAiServicePanel 
+          onBack={() => setIsAdding(false)} 
+          onSave={(newInstance) => {
+            addInstance(newInstance);
+            setIsAdding(false);
+          }}
+        />
+      </div>
+    );
+  }
+
+  if (editingInstance) {
+    return (
+      <div className="flex-1 h-full overflow-y-auto p-8 relative flex flex-col justify-start">
+        <EditAiServicePanel
+          instance={editingInstance}
+          onBack={() => setEditingInstance(null)}
+          onSave={(updatedFields) => {
+            updateInstance(editingInstance.id, updatedFields);
+            setEditingInstance(null);
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 h-full overflow-y-auto p-8 relative">
@@ -50,64 +72,11 @@ export default function AiServicesTab() {
               Configure AI providers to use across your widgets.
             </p>
           </div>
-          <Button onClick={() => setIsAdding(!isAdding)} variant={isAdding ? "secondary" : "default"}>
+          <Button onClick={() => setIsAdding(true)} variant="default">
             <Plus className="w-4 h-4 mr-2" />
             Add AI Service
           </Button>
         </div>
-
-        {isAdding && (
-          <SettingCardNoLayout className="border-primary/50 border bg-primary/5 flex flex-col content-end">
-            <h3 className="text-sm font-medium mb-4">Add New Service</h3>
-            <div className="space-y-4 w-full">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs text-zinc-500">Provider</label>
-                  <Select value={newProviderId} onValueChange={setNewProviderId}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select a Provider" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {AI_PROVIDERS.map(p => (
-                          <SelectItem key={p.id} value={p.id}>
-                            <div className="flex items-center gap-2">
-                              <Webhook className="w-3 h-3 text-blue-500" />
-                              {p.name}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs text-zinc-500">Custom Name (e.g. My ChatGPT)</label>
-                  <Input 
-                    placeholder="Name" 
-                    value={newName} 
-                    onChange={e => setNewName(e.target.value)} 
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs text-zinc-500">API Key</label>
-                <Input 
-                  type="password"
-                  placeholder="sk-..." 
-                  value={newApiKey} 
-                  onChange={e => setNewApiKey(e.target.value)} 
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <Button variant="ghost" onClick={() => setIsAdding(false)}>Cancel</Button>
-                <Button onClick={handleAdd} disabled={!newProviderId || !newName}>Save Service</Button>
-              </div>
-            </div>
-          </SettingCardNoLayout>
-        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
           {instances.map(instance => {
@@ -115,8 +84,8 @@ export default function AiServicesTab() {
             return (
               <SettingCard 
                 key={instance.id} 
-                className="flex flex-col relative group h-40"
-                style={{ borderRadius: '24px', cornerShape: 'superellipse(1.5)' } as React.CSSProperties}
+                className="flex flex-col relative group h-44"
+                style={{ borderRadius: '24px', cornerShape: 'squircle' } as React.CSSProperties}
               >
                 <div className="flex justify-between items-start mb-4 w-full">
                   <div className="flex items-center gap-3">
@@ -133,10 +102,19 @@ export default function AiServicesTab() {
                       variant="ghost" 
                       size="icon"
                       className="text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 h-7 w-7"
-                      onClick={() => console.log("Edit not implemented yet")}
-                      title="Edit Service"
+                      onClick={() => openFullChat(instance.id)}
+                      title="Open Chat"
                     >
-                      <Pencil className="w-4 h-4" />
+                      <MessageSquare className="w-4 h-4" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      className="text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 h-7 w-7"
+                      onClick={() => setEditingInstance(instance)}
+                      title="Settings"
+                    >
+                      <Settings className="w-4 h-4" />
                     </Button>
                     <Button 
                       variant="ghost" 
@@ -149,18 +127,25 @@ export default function AiServicesTab() {
                     </Button>
                   </div>
                 </div>
-                <div className="mt-auto pt-4 border-t border-zinc-100 dark:border-zinc-800/50 w-full">
-                  <div className="text-xs text-zinc-500 flex items-center justify-between">
+                
+                <div className="mt-auto border-t border-zinc-100 dark:border-zinc-800/50 w-full pt-3 space-y-1.5 text-xs text-zinc-500">
+                  <div className="flex items-center justify-between">
                     <span>API Key</span>
-                    <span className="font-mono bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded-md text-[10px]">
+                    <span className="font-mono bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-md text-[10px]">
                       {instance.apiKey ? `...${instance.apiKey.slice(-4)}` : 'Not Set'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Model</span>
+                    <span className="font-mono bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-md text-[10px] truncate max-w-[140px]">
+                      {instance.model ? instance.model.split('/').pop() : 'Default'}
                     </span>
                   </div>
                 </div>
               </SettingCard>
             );
           })}
-          {instances.length === 0 && !isAdding && (
+          {instances.length === 0 && (
             <div className="col-span-full py-12 text-center border border-dashed rounded-xl border-zinc-300 dark:border-zinc-700">
               <p className="text-zinc-500 mb-2">No AI Services configured yet.</p>
               <Button variant="link" onClick={() => setIsAdding(true)}>Add your first service</Button>
