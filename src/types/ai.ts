@@ -15,6 +15,7 @@ export interface AiServiceInstance {
   apiKey?: string;
   model?: string;
   temperature?: number;
+  systemPrompt?: string;
   createdAt: number;
 }
 
@@ -23,6 +24,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: number;
+  typing?: boolean;
 }
 
 export interface ChatSession {

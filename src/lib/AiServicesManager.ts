@@ -2,6 +2,12 @@ import { invoke } from '@tauri-apps/api/core';
 import { useAiServicesStore } from '../stores/aiServicesStore';
 import { AI_PROVIDERS, AiServiceInstance, ChatMessage, ChatSession } from '../types/ai';
 
+export const DEFAULT_SYSTEM_PROMPT = 
+  "You are a helpful assistant. Respond using well-formatted Markdown. " +
+  "For mathematical equations, always use LaTeX syntax: use $...$ for inline math (e.g. $E=mc^2$) " +
+  "and $$...$$ for block display equations on separate lines (e.g. $$\\sum_{i=1}^n i = \\frac{n(n+1)}{2}$$). " +
+  "Always keep code blocks and math LTR.";
+
 class AiServicesManager {
   
   // Create a new chat session for a given instance
@@ -58,55 +64,42 @@ class AiServicesManager {
         instance.apiKey, 
         updatedMessages, 
         session.model,
-        instance.temperature
+        instance.temperature,
+        instance.systemPrompt || DEFAULT_SYSTEM_PROMPT
       );
     } catch (e: any) {
       aiResponseContent = `Error: ${e.message}`;
     }
 
-    // 3. Simulate streaming/typewriter by writing to the store word by word
+    // 3. Save the full completed message immediately with typing: true
     const aiMessageId = crypto.randomUUID();
     const aiMessage: ChatMessage = {
       id: aiMessageId,
       role: 'assistant',
-      content: '',
+      content: aiResponseContent,
       timestamp: Date.now(),
+      typing: !aiResponseContent.startsWith('Error:'), // Only animate if it's not an error
     };
 
-    // Add empty message first
-    const messagesWithEmptyAi = [...updatedMessages, aiMessage];
+    const finalMessages = [...updatedMessages, aiMessage];
     store.updateSession(sessionId, { 
-      messages: messagesWithEmptyAi, 
+      messages: finalMessages, 
       updatedAt: Date.now() 
     });
 
-    if (aiResponseContent.startsWith('Error:')) {
-      const updatedWithError = messagesWithEmptyAi.map(m => 
-        m.id === aiMessageId ? { ...m, content: aiResponseContent } : m
-      );
-      store.updateSession(sessionId, { messages: updatedWithError });
-      aiMessage.content = aiResponseContent;
-      return aiMessage;
-    }
-
-    const words = aiResponseContent.split(' ');
-    let currentText = '';
-    
-    for (let i = 0; i < words.length; i++) {
-        currentText += (i === 0 ? '' : ' ') + words[i];
-        
-        const currentSessionState = useAiServicesStore.getState().data.sessions.find(s => s.id === sessionId);
-        if (currentSessionState) {
-            const updatedWithTokens = currentSessionState.messages.map(m => 
-                m.id === aiMessageId ? { ...m, content: currentText } : m
-            );
-            store.updateSession(sessionId, { messages: updatedWithTokens });
-        }
-        await new Promise(resolve => setTimeout(resolve, 20));
-    }
-
-    aiMessage.content = aiResponseContent;
     return aiMessage;
+  }
+
+  // Set typing: false after animation finishes
+  public finishTyping(sessionId: string, messageId: string) {
+    const store = useAiServicesStore.getState();
+    const session = store.data.sessions.find(s => s.id === sessionId);
+    if (!session) return;
+    
+    const updated = session.messages.map(m => 
+      m.id === messageId ? { ...m, typing: false } : m
+    );
+    store.updateSession(sessionId, { messages: updated });
   }
 
   private async callApiProvider(
@@ -114,9 +107,15 @@ class AiServicesManager {
     apiKey: string | undefined, 
     messages: ChatMessage[],
     model?: string,
-    temperature?: number
+    temperature?: number,
+    systemPrompt?: string
   ): Promise<string> {
     if (!apiKey) throw new Error("API Key is missing");
+
+    const requestMessages = [
+      ...(systemPrompt ? [{ role: 'system' as const, content: systemPrompt }] : []),
+      ...messages.map(m => ({ role: m.role, content: m.content }))
+    ];
 
     if (providerId === 'openai-api') {
       const data = await invoke<any>('proxy_request', {
@@ -128,7 +127,7 @@ class AiServicesManager {
         },
         body: {
           model: model || 'gpt-4o',
-          messages: messages.map(m => ({ role: m.role, content: m.content })),
+          messages: requestMessages,
           temperature: temperature ?? 0.7
         }
       });
@@ -150,16 +149,24 @@ class AiServicesManager {
         generationConfig.temperature = temperature;
       }
       
+      const requestBody: any = {
+        contents: formattedContents,
+        generationConfig
+      };
+
+      if (systemPrompt) {
+        requestBody.systemInstruction = {
+          parts: [{ text: systemPrompt }]
+        };
+      }
+      
       const data = await invoke<any>('proxy_request', {
         url: `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`,
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: {
-          contents: formattedContents,
-          generationConfig
-        }
+        body: requestBody
       });
       if (!data?.candidates?.[0]?.content?.parts?.[0]?.text) {
         throw new Error(data?.error?.message || "Invalid response structure from Gemini API");
@@ -177,7 +184,7 @@ class AiServicesManager {
         },
         body: {
           model: model || 'deepseek-chat',
-          messages: messages.map(m => ({ role: m.role, content: m.content })),
+          messages: requestMessages,
           temperature: temperature ?? 0.7
         }
       });
@@ -197,7 +204,7 @@ class AiServicesManager {
         },
         body: {
           model: model || 'meta/llama-3.1-8b-instruct',
-          messages: messages.map(m => ({ role: m.role, content: m.content })),
+          messages: requestMessages,
           temperature: temperature ?? 0.7
         }
       });

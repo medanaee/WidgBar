@@ -1,18 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { aiManager } from '../../lib/AiServicesManager';
 import { useAiServicesStore } from '../../stores/aiServicesStore';
 import { useWidgetInstanceStore } from '../../stores/widgetInstanceStore';
-import { BotSparkleColor, SendRegular, OpenRegular, PersonRegular } from '@fluentui/react-icons';
+import { BotSparkleColor, SendRegular, OpenRegular, PersonRegular, AddRegular } from '@fluentui/react-icons';
 import { invoke } from '@tauri-apps/api/core';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import remarkMath from 'remark-math';
-import rehypeKatex from 'rehype-katex';
-import 'katex/dist/katex.min.css';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+import MarkdownChatContent from '../../components/MarkdownChatContent';
+
+function AreaInput({ onSend, isSending }: { onSend: (msg: string) => void; isSending: boolean }) {
+    const [val, setVal] = useState('');
+    const handleSend = () => {
+        if (!val.trim()) return;
+        onSend(val);
+        setVal('');
+    };
+    return (
+        <div className="flex gap-2">
+            <input 
+                type="text" 
+                value={val}
+                dir= "auto"
+                onChange={e => setVal(e.target.value)}
+                className="flex-1 bg-zinc-500/5 dark:bg-white/5 border border-zinc-500/20 dark:border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-zinc-500/40 dark:text-white"
+                placeholder="Type a message..."
+                disabled={isSending}
+                onKeyDown={e => e.key === 'Enter' && !isSending && handleSend()}
+            />
+            <button 
+                onClick={handleSend}
+                disabled={isSending || !val.trim()}
+                className="bg-zinc-500/10 hover:bg-zinc-500/20 dark:bg-white/10 dark:hover:bg-white/20 disabled:opacity-40 text-zinc-800 dark:text-white rounded-lg p-2 flex items-center justify-center transition-colors border border-zinc-500/10 dark:border-white/10"
+            >
+                <SendRegular fontSize={16} />
+            </button>
+        </div>
+    );
+}
 
 export default function AiArea({ widgetId }: { widgetId: string }) {
-    const [message, setMessage] = useState('');
     const [isSending, setIsSending] = useState(false);
+    const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const widgetConfig = useWidgetInstanceStore(state => state.instances[widgetId]) || {};
     const selectedInstanceId = widgetConfig.selectedInstanceId;
@@ -43,23 +71,26 @@ export default function AiArea({ widgetId }: { widgetId: string }) {
         }).catch(console.error);
     };
 
-    // Find the active session for the active instance
-    const currentSession = instance 
-        ? aiData.sessions.find(s => s.instanceId === instance.id) 
-        : null;
+    const instanceSessions = instance ? aiData.sessions.filter(s => s.instanceId === instance.id) : [];
+    let currentSession = instanceSessions.find(s => s.id === activeSessionId);
+    if (!currentSession && instanceSessions.length > 0) {
+        currentSession = instanceSessions[0];
+    }
 
-    const handleSend = async () => {
-        if (!message.trim()) return;
+    // Auto-scroll to bottom
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [currentSession?.messages, isSending]);
+
+    const handleSend = async (msgToSend: string) => {
         if (!instance) return;
         
-        const store = useAiServicesStore.getState();
-        let session = store.data.sessions.find(s => s.instanceId === instance.id);
+        let session = currentSession;
         if (!session) {
             session = aiManager.createSession(instance.id, 'Widget Chat');
+            setActiveSessionId(session.id);
         }
 
-        const msgToSend = message;
-        setMessage('');
         setIsSending(true);
         try {
             await aiManager.sendMessage(instance.id, session.id, msgToSend);
@@ -79,9 +110,35 @@ export default function AiArea({ widgetId }: { widgetId: string }) {
                 </div>
                 <div className="flex items-center gap-1.5 min-w-0">
                     {instance && (
-                        <span className="text-[10px] text-zinc-500 font-mono bg-zinc-500/5 px-1.5 py-0.5 rounded truncate max-w-[100px]" title={instance.name}>
-                            {instance.name}
-                        </span>
+                        <>
+                            <Select 
+                                value={currentSession?.id || ''} 
+                                onValueChange={setActiveSessionId}
+                            >
+                                <SelectTrigger className="h-6 px-2 text-[10px] bg-zinc-500/5 border-none shadow-none focus:ring-0 gap-1 w-auto max-w-[90px]">
+                                    <SelectValue placeholder="Session" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectGroup>
+                                        {instanceSessions.map(s => (
+                                            <SelectItem key={s.id} value={s.id} className="text-[10px]">
+                                                {s.title || 'Chat'}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectGroup>
+                                </SelectContent>
+                            </Select>
+                            <button
+                                onClick={() => {
+                                    const newS = aiManager.createSession(instance.id, `Widget Chat ${instanceSessions.length + 1}`);
+                                    setActiveSessionId(newS.id);
+                                }}
+                                className="p-1 hover:bg-zinc-500/10 dark:hover:bg-white/10 rounded transition-colors text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 shrink-0"
+                                title="New Chat"
+                            >
+                                <AddRegular fontSize={14} />
+                            </button>
+                        </>
                     )}
                     <button
                         onClick={openFullChat}
@@ -93,65 +150,30 @@ export default function AiArea({ widgetId }: { widgetId: string }) {
                 </div>
             </h2>
             
-            <div className="flex-1 bg-zinc-500/5 dark:bg-black/20 border border-zinc-500/10 dark:border-white/5 rounded-xl p-3 mb-3 overflow-y-auto text-xs font-sans leading-relaxed scrollbar-thin flex flex-col gap-2">
+            <div className="flex-1 bg-zinc-500/5 dark:bg-black/20 border border-zinc-500/10 dark:border-white/5 rounded-xl p-3 mb-3 overflow-y-auto text-xs font-sans leading-relaxed flex flex-col gap-2">
                 {!currentSession || currentSession.messages.length === 0 ? (
                     <div className="text-zinc-400 dark:text-zinc-500 text-center my-auto">Ask me anything...</div>
                 ) : (
                     currentSession.messages.map((msg, idx) => (
                         <div key={msg.id} className="w-full">
                             {idx > 0 && <hr className="border-zinc-500/10 dark:border-white/5 my-3" />}
-                            <div className="flex flex-col gap-1">
+                            <div className={`flex flex-col gap-1 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                                 <div className="text-[10px] font-semibold text-zinc-400 flex items-center gap-1.5">
                                     {msg.role === 'user' ? <PersonRegular fontSize={12} /> : <BotSparkleColor fontSize={12} />}
                                     <span>{msg.role === 'user' ? 'You' : 'Assistant'}</span>
                                 </div>
-                                <div className="text-zinc-700 dark:text-zinc-300 leading-normal pl-4 overflow-hidden">
+                                <div className="text-zinc-700 dark:text-zinc-300 leading-normal overflow-hidden w-full px-2">
                                     <div className="flex flex-col gap-1.5 overflow-x-auto">
-                                        <ReactMarkdown
-                                            remarkPlugins={[remarkGfm, remarkMath]}
-                                            rehypePlugins={[rehypeKatex]}
-                                            components={{
-                                                p: ({node, ...props}) => <p className="mb-1 last:mb-0" {...props} />,
-                                                a: ({node, ...props}) => <a className="text-blue-500 hover:underline" target="_blank" rel="noreferrer" {...props} />,
-                                                ul: ({node, ...props}) => <ul className="list-disc pl-4 mb-1 last:mb-0" {...props} />,
-                                                ol: ({node, ...props}) => <ol className="list-decimal pl-4 mb-1 last:mb-0" {...props} />,
-                                                li: ({node, ...props}) => <li className="mb-0.5" {...props} />,
-                                                h1: ({node, ...props}) => <h1 className="text-[13px] font-bold mt-2 mb-1" {...props} />,
-                                                h2: ({node, ...props}) => <h2 className="text-[12px] font-bold mt-2 mb-1" {...props} />,
-                                                h3: ({node, ...props}) => <h3 className="text-[11px] font-bold mt-1.5 mb-1" {...props} />,
-                                                code: ({node, className, children, ...props}: any) => {
-                                                    const match = /language-(\w+)/.exec(className || '');
-                                                    const isInline = !match && !className?.includes('language-');
-                                                    return isInline ? (
-                                                        <code className="bg-zinc-500/10 dark:bg-white/10 rounded px-1 py-0.5 font-mono text-[9px]" {...props}>
-                                                            {children}
-                                                        </code>
-                                                    ) : (
-                                                        <div className="relative my-1.5 rounded border border-zinc-500/10 overflow-hidden bg-zinc-100 dark:bg-black/30">
-                                                            <div className="flex items-center justify-between px-2 py-1 bg-zinc-200 dark:bg-white/5 border-b border-zinc-500/10">
-                                                                <span className="text-[8px] font-mono text-zinc-500 dark:text-zinc-400 uppercase">{match?.[1] || 'Code'}</span>
-                                                            </div>
-                                                            <pre className="p-2 overflow-x-auto text-[9px] text-zinc-800 dark:text-zinc-300 font-mono scrollbar-thin">
-                                                                <code className={className} {...props}>
-                                                                    {children}
-                                                                </code>
-                                                            </pre>
-                                                        </div>
-                                                    )
-                                                },
-                                                table: ({node, ...props}) => (
-                                                    <div className="overflow-x-auto my-1.5 rounded border border-zinc-500/10">
-                                                        <table className="min-w-full divide-y divide-zinc-500/10" {...props} />
-                                                    </div>
-                                                ),
-                                                thead: ({node, ...props}) => <thead className="bg-zinc-500/5 dark:bg-white/5" {...props} />,
-                                                th: ({node, ...props}) => <th className="px-2 py-1 text-left text-[9px] font-semibold tracking-wider" {...props} />,
-                                                td: ({node, ...props}) => <td className="px-2 py-1 text-[9px] border-t border-zinc-500/10" {...props} />,
-                                                blockquote: ({node, ...props}) => <blockquote className="border-l-2 border-zinc-500/30 pl-2 italic opacity-80 my-1" {...props} />,
+                                        <MarkdownChatContent
+                                            content={msg.content}
+                                            typing={msg.typing}
+                                            messageId={msg.id}
+                                            sessionId={currentSession?.id || ''}
+                                            isWidget={true}
+                                            onScrollToBottom={() => {
+                                                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
                                             }}
-                                        >
-                                            {msg.content}
-                                        </ReactMarkdown>
+                                        />
                                     </div>
                                 </div>
                             </div>
@@ -161,37 +183,26 @@ export default function AiArea({ widgetId }: { widgetId: string }) {
                 {isSending && (
                     <div className="w-full">
                         <hr className="border-zinc-500/10 dark:border-white/5 my-3" />
-                        <div className="flex flex-col gap-1 animate-pulse">
+                        <div className="flex flex-col gap-1 items-start">
                             <div className="text-[10px] font-semibold text-zinc-400 flex items-center gap-1.5">
-                                <BotSparkleColor fontSize={12} />
+                                <BotSparkleColor fontSize={12} className="animate-pulse" />
                                 <span>Assistant</span>
                             </div>
-                            <div className="text-zinc-500 leading-normal pl-4">
-                                Thinking...
+                            <div className="text-zinc-500 text-[10px] leading-normal pl-4 flex items-center gap-2">
+                                <span className="animate-pulse">Thinking</span>
+                                <div className="flex gap-0.5">
+                                    <div className="w-0.5 h-0.5 rounded-full bg-zinc-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+                                    <div className="w-0.5 h-0.5 rounded-full bg-zinc-500 animate-bounce" style={{ animationDelay: '150ms' }} />
+                                    <div className="w-0.5 h-0.5 rounded-full bg-zinc-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+                                </div>
                             </div>
                         </div>
                     </div>
                 )}
+                <div ref={messagesEndRef} />
             </div>
 
-            <div className="flex gap-2">
-                <input 
-                    type="text" 
-                    value={message}
-                    onChange={e => setMessage(e.target.value)}
-                    className="flex-1 bg-zinc-500/5 dark:bg-white/5 border border-zinc-500/20 dark:border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-zinc-500/40 dark:text-white"
-                    placeholder="Type a message..."
-                    disabled={isSending}
-                    onKeyDown={e => e.key === 'Enter' && !isSending && handleSend()}
-                />
-                <button 
-                    onClick={handleSend}
-                    disabled={isSending || !message.trim()}
-                    className="bg-zinc-500/10 hover:bg-zinc-500/20 dark:bg-white/10 dark:hover:bg-white/20 disabled:opacity-40 text-zinc-800 dark:text-white rounded-lg p-2 flex items-center justify-center transition-colors border border-zinc-500/10 dark:border-white/10"
-                >
-                    <SendRegular fontSize={16} />
-                </button>
-            </div>
+            <AreaInput onSend={handleSend} isSending={isSending} />
         </div>
     );
 }

@@ -1,6 +1,6 @@
 import { useParams } from "react-router-dom";
 import { useAiServicesStore } from "../stores/aiServicesStore";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { aiManager } from "../lib/AiServicesManager";
 import { invoke } from "@tauri-apps/api/core";
 import { ChatSession } from "../types/ai";
@@ -12,14 +12,81 @@ import { useTranslation, TranslationKey } from "../lib/i18n";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { BotSparkleColor, PersonRegular, SendRegular, AddRegular, DeleteRegular } from '@fluentui/react-icons';
 import EditAiServicePanel from "./tabs/EditAiServicePanel";
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import remarkMath from 'remark-math';
-import rehypeKatex from 'rehype-katex';
-import 'katex/dist/katex.min.css';
+import MarkdownChatContent from "./MarkdownChatContent";
 import { Settings as SettingsIcon } from "lucide-react";
 
+interface ChatInputProps {
+  onSend: (text: string) => void;
+  isSending: boolean;
+  isLoadingModels: boolean;
+  models: string[];
+  currentModel: string;
+  onModelChange: (model: string) => void;
+}
+
+function ChatInput({
+  onSend,
+  isSending,
+  isLoadingModels,
+  models,
+  currentModel,
+  onModelChange
+}: ChatInputProps) {
+  const [val, setVal] = useState("");
+  const handleSend = () => {
+    if (!val.trim()) return;
+    onSend(val);
+    setVal("");
+  };
+
+  return (
+    <div className="p-3 bg-white/30 dark:bg-zinc-900/30 border-t border-zinc-500/15 dark:border-white/5 flex items-center gap-2 shrink-0">
+      {isLoadingModels ? (
+        <span className="text-[10px] text-zinc-400 animate-pulse w-32 text-center">Loading models...</span>
+      ) : models.length > 0 ? (
+        <Select
+          value={currentModel}
+          onValueChange={onModelChange}
+        >
+          <SelectTrigger className="w-40 h-9 text-[10px] bg-white/20 dark:bg-zinc-900/20 border-zinc-500/20 text-zinc-700 dark:text-zinc-300">
+            <SelectValue placeholder="Select Model" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {models.map(m => (
+                <SelectItem key={m} value={m} className="text-[10px] truncate max-w-[200px]">
+                  {m.split('/').pop()}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      ) : null}
+
+      <Input 
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') handleSend();
+        }}
+        placeholder="Type a message..."
+        className="flex-1 bg-white/20 dark:bg-zinc-900/20 border-zinc-500/20 dark:border-white/10 text-xs focus-visible:ring-0 focus-visible:ring-offset-0 focus:border-zinc-500/50 h-9"
+        disabled={isSending}
+      />
+      <Button 
+        size="icon" 
+        onClick={handleSend} 
+        disabled={!val.trim() || isSending}
+        className="bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-100 flex items-center justify-center rounded-lg h-9 w-9 shrink-0"
+      >
+        <SendRegular fontSize={16} />
+      </Button>
+    </div>
+  );
+}
+
 export default function AiChatRoute() {
+  console.log("Rendering AiChatRoute");
   const { instanceId } = useParams<{ instanceId: string }>();
   const { data, removeSession } = useAiServicesStore();
   const { language, t } = useTranslation();
@@ -28,8 +95,14 @@ export default function AiChatRoute() {
   const sessions = data.sessions.filter(s => s.instanceId === instanceId);
   
   const [activeSession, setActiveSession] = useState<ChatSession | null>(null);
-  const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to bottom whenever messages change or we start sending
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [activeSession?.messages, isSending]);
+
   const [models, setModels] = useState<string[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [isEditingSettings, setIsEditingSettings] = useState(false);
@@ -106,10 +179,8 @@ export default function AiChatRoute() {
     return <div className="p-8 text-center text-red-500">AI Service Instance not found.</div>;
   }
 
-  const handleSend = async () => {
-    if (!input.trim() || !activeSession) return;
-    const msg = input;
-    setInput("");
+  const handleSend = async (msg: string) => {
+    if (!activeSession) return;
     setIsSending(true);
     try {
       await aiManager.sendMessage(instance.id, activeSession.id, msg);
@@ -143,7 +214,7 @@ export default function AiChatRoute() {
   if (isEditingSettings) {
     return (
       <CutoutProvider>
-        <div className="flex flex-col h-screen bg-zinc-50 dark:bg-zinc-950 font-sans text-zinc-900 dark:text-zinc-100 overflow-hidden" dir={language === 'fa' ? 'rtl' : 'ltr'}>
+        <div className="flex flex-col h-screen bg-zinc-50/70 dark:bg-zinc-950/70 font-sans text-zinc-900 dark:text-zinc-100 overflow-hidden" dir={language === 'fa' ? 'rtl' : 'ltr'}>
           <Titlebar title={`Service Settings - ${instance.name}`} />
           <div className="flex-1 p-8 overflow-y-auto">
             <EditAiServicePanel
@@ -171,7 +242,7 @@ export default function AiChatRoute() {
 
   return (
     <CutoutProvider>
-      <div className="flex flex-col h-screen bg-zinc-50 dark:bg-zinc-950 font-sans text-zinc-900 dark:text-zinc-100 overflow-hidden" dir={language === 'fa' ? 'rtl' : 'ltr'}>
+      <div className="flex flex-col h-screen font-sans text-zinc-900 dark:text-zinc-100 overflow-hidden" dir={language === 'fa' ? 'rtl' : 'ltr'}>
         <Titlebar title={`AI Chat - ${instance.name}`} />
         
         <div className="flex flex-1 min-h-0 overflow-hidden relative">
@@ -185,11 +256,11 @@ export default function AiChatRoute() {
               <span>New Chat</span>
             </button>
             
-            <div className="flex-grow overflow-y-auto space-y-1.5 py-4 pr-1 scrollbar-thin">
+            <div className="flex-grow overflow-y-auto py-4 pr-1">
               {sessions.map(s => (
                 <div 
                   key={s.id}
-                  className={`group flex items-center justify-between p-2.5 rounded-lg text-xs cursor-pointer transition-colors ${
+                  className={`group flex items-center justify-between px-3 py-2 rounded-lg text-xs cursor-pointer transition-colors ${
                     activeSession?.id === s.id 
                       ? 'bg-zinc-500/10 dark:bg-white/5 font-semibold text-zinc-900 dark:text-zinc-100' 
                       : 'text-zinc-500 hover:bg-zinc-500/5 hover:text-zinc-800 dark:hover:text-zinc-300'
@@ -215,7 +286,7 @@ export default function AiChatRoute() {
           {/* 2. Main Chat Window */}
           <div className="flex-grow flex flex-col min-h-0 overflow-hidden bg-transparent">
             {/* Header bar with Settings Button */}
-            <div className="px-4 py-2 border-b border-zinc-500/10 dark:border-white/5 flex items-center justify-between shrink-0 bg-white/20 dark:bg-zinc-900/10 backdrop-blur-md">
+            <div className="px-4 py-2 border-b border-zinc-500/10 dark:border-white/5 flex items-center justify-between shrink-0 bg-white/20 dark:bg-zinc-900/10">
               <div className="text-xs font-semibold text-zinc-500">
                 Chatting with {instance.name}
               </div>
@@ -229,7 +300,7 @@ export default function AiChatRoute() {
             </div>
 
             {/* Messages Scroll View */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-zinc-100/10 dark:bg-zinc-950/20 backdrop-blur-md scrollbar-thin">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-zinc-100/10 dark:bg-zinc-950/20">
               {currentSession?.messages.length === 0 && (
                 <div className="h-full flex flex-col items-center justify-center opacity-40">
                   <BotSparkleColor fontSize={48} className="mb-4" />
@@ -251,53 +322,18 @@ export default function AiChatRoute() {
                         : 'bg-white/40 dark:bg-zinc-900/40 border-zinc-500/10 dark:border-white/5'
                     }`}
                     style={{ borderRadius: '16px', cornerShape: 'squircle' } as React.CSSProperties}
+                    
                   >
                     <div className="flex flex-col gap-2 overflow-x-auto">
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm, remarkMath]}
-                        rehypePlugins={[rehypeKatex]}
-                        components={{
-                          p: ({node, ...props}) => <p className="mb-1 last:mb-0" {...props} />,
-                          a: ({node, ...props}) => <a className="text-blue-500 hover:underline" target="_blank" rel="noreferrer" {...props} />,
-                          ul: ({node, ...props}) => <ul className="list-disc pl-4 mb-1 last:mb-0" {...props} />,
-                          ol: ({node, ...props}) => <ol className="list-decimal pl-4 mb-1 last:mb-0" {...props} />,
-                          li: ({node, ...props}) => <li className="mb-0.5" {...props} />,
-                          h1: ({node, ...props}) => <h1 className="text-lg font-bold mt-2 mb-1" {...props} />,
-                          h2: ({node, ...props}) => <h2 className="text-base font-bold mt-2 mb-1" {...props} />,
-                          h3: ({node, ...props}) => <h3 className="text-sm font-bold mt-1.5 mb-1" {...props} />,
-                          code: ({node, className, children, ...props}: any) => {
-                            const match = /language-(\w+)/.exec(className || '');
-                            const isInline = !match && !className?.includes('language-');
-                            return isInline ? (
-                              <code className="bg-zinc-500/20 dark:bg-white/20 rounded px-1.5 py-0.5 font-mono text-[10px]" {...props}>
-                                {children}
-                              </code>
-                            ) : (
-                              <div className="relative my-2 rounded-lg overflow-hidden bg-zinc-900 dark:bg-black/40 border border-zinc-500/20">
-                                <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-800/50 dark:bg-white/5 border-b border-zinc-500/20">
-                                  <span className="text-[9px] font-mono text-zinc-400 uppercase">{match?.[1] || 'Code'}</span>
-                                </div>
-                                <pre className="p-3 overflow-x-auto text-[10px] text-zinc-300 font-mono scrollbar-thin">
-                                  <code className={className} {...props}>
-                                    {children}
-                                  </code>
-                                </pre>
-                              </div>
-                            )
-                          },
-                          table: ({node, ...props}) => (
-                            <div className="overflow-x-auto my-2 rounded border border-zinc-500/20">
-                              <table className="min-w-full divide-y divide-zinc-500/20" {...props} />
-                            </div>
-                          ),
-                          thead: ({node, ...props}) => <thead className="bg-zinc-500/10 dark:bg-white/5" {...props} />,
-                          th: ({node, ...props}) => <th className="px-3 py-2 text-left text-[10px] font-semibold tracking-wider" {...props} />,
-                          td: ({node, ...props}) => <td className="px-3 py-2 text-[10px] border-t border-zinc-500/10" {...props} />,
-                          blockquote: ({node, ...props}) => <blockquote className="border-l-2 border-zinc-500/40 pl-3 italic opacity-80 my-1" {...props} />,
+                      <MarkdownChatContent
+                        content={msg.content}
+                        typing={msg.typing}
+                        messageId={msg.id}
+                        sessionId={currentSession?.id || ''}
+                        onScrollToBottom={() => {
+                          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
                         }}
-                      >
-                        {msg.content}
-                      </ReactMarkdown>
+                      />
                     </div>
                   </div>
                   {msg.role === 'user' && (
@@ -310,62 +346,34 @@ export default function AiChatRoute() {
               
               {isSending && (
                 <div className="flex gap-3 justify-start">
-                  <div className="w-8 h-8 rounded-full bg-zinc-500/10 dark:bg-white/10 flex items-center justify-center shrink-0 animate-pulse border border-zinc-500/10 dark:border-white/10">
-                    <BotSparkleColor fontSize={18} />
+                  <div className="w-8 h-8 rounded-full bg-zinc-500/10 dark:bg-white/10 flex items-center justify-center shrink-0 border border-zinc-500/10 dark:border-white/10">
+                    <BotSparkleColor fontSize={18} className="animate-pulse" />
                   </div>
                   <div 
-                    className="max-w-[80%] px-4 py-2.5 text-xs bg-white/30 dark:bg-zinc-900/30 border border-zinc-500/5 dark:border-white/5 animate-pulse"
+                    className="px-4 py-2 text-[11px] bg-white/40 dark:bg-zinc-900/40 border border-zinc-500/10 dark:border-white/5 flex items-center gap-2"
                     style={{ borderRadius: '16px', cornerShape: 'squircle' } as React.CSSProperties}
                   >
-                    Thinking...
+                    <span className="animate-pulse">Thinking</span>
+                    <div className="flex gap-1">
+                      <div className="w-1 h-1 rounded-full bg-zinc-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <div className="w-1 h-1 rounded-full bg-zinc-500 animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <div className="w-1 h-1 rounded-full bg-zinc-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </div>
                   </div>
                 </div>
               )}
+              
+              <div ref={messagesEndRef} />
             </div>
 
-            {/* Message Input Panel with Model Selector */}
-            <div className="p-3 bg-white/30 dark:bg-zinc-900/30 backdrop-blur-md border-t border-zinc-500/15 dark:border-white/5 flex items-center gap-2 shrink-0">
-              {isLoadingModels ? (
-                <span className="text-[10px] text-zinc-400 animate-pulse w-32 text-center">Loading models...</span>
-              ) : models.length > 0 ? (
-                <Select
-                  value={instance.model || currentSession?.model || defaultModel}
-                  onValueChange={handleModelChange}
-                >
-                  <SelectTrigger className="w-40 h-9 text-[10px] bg-white/20 dark:bg-zinc-900/20 border-zinc-500/20 text-zinc-700 dark:text-zinc-300">
-                    <SelectValue placeholder="Select Model" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {models.map(m => (
-                        <SelectItem key={m} value={m} className="text-[10px] truncate max-w-[200px]">
-                          {m.split('/').pop()}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              ) : null}
-
-              <Input 
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleSend();
-                }}
-                placeholder="Type a message..."
-                className="flex-1 bg-white/20 dark:bg-zinc-900/20 border-zinc-500/20 dark:border-white/10 text-xs focus-visible:ring-0 focus-visible:ring-offset-0 focus:border-zinc-500/50 h-9"
-                disabled={isSending}
-              />
-              <Button 
-                size="icon" 
-                onClick={handleSend} 
-                disabled={!input.trim() || isSending}
-                className="bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-100 flex items-center justify-center rounded-lg h-9 w-9 shrink-0"
-              >
-                <SendRegular fontSize={16} />
-              </Button>
-            </div>
+            <ChatInput 
+              onSend={handleSend}
+              isSending={isSending}
+              isLoadingModels={isLoadingModels}
+              models={models}
+              currentModel={instance.model || currentSession?.model || defaultModel}
+              onModelChange={handleModelChange}
+            />
           </div>
         </div>
       </div>

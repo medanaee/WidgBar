@@ -4,6 +4,7 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { ArrowLeft, Webhook } from "lucide-react";
+import { DEFAULT_SYSTEM_PROMPT } from "../../lib/AiServicesManager";
 
 interface AddAiServicePanelProps {
   onBack: () => void;
@@ -14,6 +15,7 @@ export default function AddAiServicePanel({ onBack, onSave }: AddAiServicePanelP
   const [providerId, setProviderId] = useState<string>("");
   const [name, setName] = useState<string>("");
   const [apiKey, setApiKey] = useState<string>("");
+  const [systemPrompt, setSystemPrompt] = useState<string>(DEFAULT_SYSTEM_PROMPT);
 
   const handleAdd = () => {
     if (!providerId || !name) return;
@@ -24,6 +26,7 @@ export default function AddAiServicePanel({ onBack, onSave }: AddAiServicePanelP
       id: crypto.randomUUID(),
       providerId,
       name,
+      systemPrompt,
       createdAt: Date.now(),
     };
 
@@ -90,6 +93,19 @@ export default function AddAiServicePanel({ onBack, onSave }: AddAiServicePanelP
             onChange={e => setApiKey(e.target.value)} 
             className="bg-transparent border-zinc-500/20"
           />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-xs text-zinc-500 font-medium">System Prompt</label>
+          <textarea
+            placeholder="You are a helpful assistant..."
+            value={systemPrompt}
+            onChange={e => setSystemPrompt(e.target.value)}
+            className="w-full min-h-[120px] bg-transparent border border-zinc-500/20 dark:border-white/10 rounded-md p-2.5 text-xs focus:outline-none focus:border-zinc-500/40 dark:text-white font-sans scrollbar-thin resize-y"
+          />
+          <p className="text-[10px] text-zinc-500">
+            System prompts define the assistant's personality, rules, or formatting preferences.
+          </p>
         </div>
       </div>
 

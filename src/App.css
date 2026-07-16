@@ -165,3 +165,20 @@ html.dark {
   transition-property: width, height, background-color, transform;
   /* Specifically exclude clip-path from CSS transitions */
 }
+
+/* Force KaTeX math and Code blocks to always render LTR */
+.katex-display, pre {
+  direction: ltr !important;
+  text-align: left !important;
+}
+
+.katex {
+  direction: ltr !important;
+  display: inline-block !important;
+  unicode-bidi: isolate !important;
+}
+
+code {
+  direction: ltr !important;
+  unicode-bidi: embed;
+}
