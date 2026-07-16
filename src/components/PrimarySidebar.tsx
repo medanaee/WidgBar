@@ -5,7 +5,8 @@ import {
   BoardRegular, 
   AppsRegular, 
   PowerRegular,
-  Navigation20Regular
+  Navigation20Regular,
+  BotSparkleRegular
 } from "@fluentui/react-icons";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "../lib/i18n";
@@ -115,7 +116,7 @@ export default function PrimarySidebar({ activeTab, setActiveTab }: PrimarySideb
         isExpanded={isExpanded}
       />
       <SidebarItem
-        icon={<AppsRegular fontSize={20} />} // Use a different icon for AI if you want, but Apps is fine, or we can use another icon like Sparkle. Wait, let's use a generic icon from fluent UI.
+        icon={<BotSparkleRegular fontSize={20} />}
         label={t("AI Services") || "AI Services"}
         active={activeTab === "ai_services"}
         onClick={() => setActiveTab("ai_services")}

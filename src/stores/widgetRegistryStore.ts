@@ -62,6 +62,16 @@ export const useWidgetRegistryStore = create<WidgetRegistryState>((set, get) => 
       default_config: {},
       default_width: 200,
       default_height: 150
+    },
+    ai: {
+      type_name: 'ai',
+      icon: 'MagicWandColor',
+      description: 'AI chat widget.',
+      can_be_in_bar: true,
+      can_be_in_area: true,
+      default_config: {},
+      default_width: 350,
+      default_height: 400
     }
   },
   isLoading: false,

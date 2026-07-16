@@ -4,7 +4,7 @@ import { AiProvider, AI_PROVIDERS, AiServiceInstance } from "../../types/ai";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { Plus, Trash2, Webhook, Link as LinkIcon, MessageCircle } from "lucide-react";
+import { Plus, Trash2, Webhook, Link as LinkIcon, MessageCircle, Pencil } from "lucide-react";
 import { SettingCard } from "../ui/SettingCard";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -72,7 +72,7 @@ export default function AiServicesTab() {
                         {AI_PROVIDERS.map(p => (
                           <SelectItem key={p.id} value={p.id}>
                             <div className="flex items-center gap-2">
-                              {p.type === 'api' ? <Webhook className="w-3 h-3 text-blue-500" /> : <LinkIcon className="w-3 h-3 text-green-500" />}
+                              <Webhook className="w-3 h-3 text-blue-500" />
                               {p.name}
                             </div>
                           </SelectItem>
@@ -91,23 +91,15 @@ export default function AiServicesTab() {
                 </div>
               </div>
 
-              {newProviderId && AI_PROVIDERS.find(p => p.id === newProviderId)?.type === 'api' && (
-                <div className="space-y-1.5">
-                  <label className="text-xs text-zinc-500">API Key</label>
-                  <Input 
-                    type="password"
-                    placeholder="sk-..." 
-                    value={newApiKey} 
-                    onChange={e => setNewApiKey(e.target.value)} 
-                  />
-                </div>
-              )}
-
-              {newProviderId && AI_PROVIDERS.find(p => p.id === newProviderId)?.type === 'web' && (
-                <div className="p-3 bg-zinc-100 dark:bg-zinc-800 rounded text-xs text-zinc-600 dark:text-zinc-400">
-                  Web-based providers don't require an API key. A hidden browser window will be used to interact with the service automatically.
-                </div>
-              )}
+              <div className="space-y-1.5">
+                <label className="text-xs text-zinc-500">API Key</label>
+                <Input 
+                  type="password"
+                  placeholder="sk-..." 
+                  value={newApiKey} 
+                  onChange={e => setNewApiKey(e.target.value)} 
+                />
+              </div>
 
               <div className="flex justify-end gap-2 pt-2">
                 <Button variant="ghost" onClick={() => setIsAdding(false)}>Cancel</Button>
@@ -117,90 +109,54 @@ export default function AiServicesTab() {
           </SettingCard>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {instances.map(instance => {
             const provider = AI_PROVIDERS.find(p => p.id === instance.providerId);
             return (
-              <SettingCard key={instance.id} className="flex flex-col relative group">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
-                      {provider?.type === 'api' ? <Webhook className="w-4 h-4 text-blue-500" /> : <LinkIcon className="w-4 h-4 text-green-500" />}
+              <SettingCard 
+                key={instance.id} 
+                className="flex flex-col relative group h-40"
+                style={{ borderRadius: '36px', cornerShape: 'superellipse(1.5)' } as React.CSSProperties}
+              >
+                <div className="flex justify-between items-start mb-4 w-full">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center shadow-sm">
+                      <Webhook className="w-5 h-5 text-blue-500" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-sm">{instance.name}</h3>
+                      <h3 className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">{instance.name}</h3>
                       <p className="text-xs text-zinc-500">{provider?.name}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Button 
-                      variant="secondary" 
-                      size="sm"
-                      className="h-7 px-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={async () => {
-                        if (provider?.type === 'web') {
-                          try {
-                            const url = provider.url || 'https://google.com';
-                            await invoke('create_locked_popup', { id: instance.id, url });
-                            await invoke('show_locked_popup', {
-                              id: instance.id,
-                              x: window.screenX + 50,
-                              y: window.screenY + 50,
-                              width: 800,
-                              height: 600,
-                            });
-                          } catch (e) {
-                            console.error("Failed to open locked popup:", e);
-                          }
-                        } else {
-                          invoke('request_popup', {
-                            x: window.screenX + 100,
-                            y: window.screenY + 100,
-                            width: 450,
-                            height: 600,
-                            route: `/ai-chat/${instance.id}`,
-                            closeOnBlur: false,
-                            xIsCenter: false,
-                            animated: true,
-                            belowBar: false,
-                            center: true,
-                            resizable: true,
-                            skipTaskbar: false,
-                            alwaysOnTop: false
-                          }).catch(console.error);
-                        }
-                      }}
+                      variant="ghost" 
+                      size="icon"
+                      className="text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 h-7 w-7"
+                      onClick={() => console.log("Edit not implemented yet")}
+                      title="Edit Service"
                     >
-                      <MessageCircle className="w-3.5 h-3.5 mr-1" />
-                      Chat
+                      <Pencil className="w-4 h-4" />
                     </Button>
                     <Button 
                       variant="ghost" 
                       size="icon"
-                      className="text-red-500  h-7 w-7"
+                      className="text-red-500 hover:text-red-600 hover:bg-red-500/10 h-7 w-7"
                       onClick={() => removeInstance(instance.id)}
+                      title="Delete Service"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
                 </div>
-                
-                {provider?.type === 'api' ? (
-                  <div className="mt-auto pt-4 border-t border-zinc-100 dark:border-zinc-800">
-                    <div className="text-xs text-zinc-500 flex items-center justify-between">
-                      <span>API Key</span>
-                      <span className="font-mono bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">
-                        {instance.apiKey ? `...${instance.apiKey.slice(-4)}` : 'Not Set'}
-                      </span>
-                    </div>
+                <div className="mt-auto pt-4 border-t border-zinc-100 dark:border-zinc-800/50 w-full">
+                  <div className="text-xs text-zinc-500 flex items-center justify-between">
+                    <span>API Key</span>
+                    <span className="font-mono bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded-md text-[10px]">
+                      {instance.apiKey ? `...${instance.apiKey.slice(-4)}` : 'Not Set'}
+                    </span>
                   </div>
-                ) : (
-                  <div className="mt-auto pt-4 border-t border-zinc-100 dark:border-zinc-800">
-                    <div className="text-xs text-zinc-500">
-                      Web automation enabled.
-                    </div>
-                  </div>
-                )}
+                </div>
               </SettingCard>
             );
           })}
