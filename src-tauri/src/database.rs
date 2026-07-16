@@ -43,6 +43,15 @@ fn init_database(app: &AppHandle) -> std::result::Result<(), String> {
     .map_err(|e| format!("Failed to create table global_settings: {}", e))?;
 
     conn.execute(
+        "CREATE TABLE IF NOT EXISTS ai_data (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            data TEXT
+         )",
+        [],
+    )
+    .map_err(|e| format!("Failed to create table ai_data: {}", e))?;
+
+    conn.execute(
         "CREATE TABLE IF NOT EXISTS widget_registry (
             type_name TEXT PRIMARY KEY,
             data TEXT
@@ -161,6 +170,33 @@ pub async fn save_global_settings(app: AppHandle, data: String) -> std::result::
         rusqlite::params![data],
     )
     .map_err(|e| format!("Failed to update global settings: {}", e))?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn load_ai_data(app: AppHandle) -> std::result::Result<String, String> {
+    init_database(&app)?;
+    let conn = get_db_connection(&app)?;
+
+    let data = conn
+        .query_row(
+            "SELECT data FROM ai_data WHERE id = 1",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .unwrap_or_else(|_| "{}".to_string());
+
+    Ok(data)
+}
+
+#[tauri::command]
+pub async fn save_ai_data(app: AppHandle, data: String) -> std::result::Result<(), String> {
+    let conn = get_db_connection(&app)?;
+    conn.execute(
+        "INSERT OR REPLACE INTO ai_data (id, data) VALUES (1, ?1)",
+        rusqlite::params![data],
+    )
+    .map_err(|e| format!("Failed to update ai data: {}", e))?;
     Ok(())
 }
 

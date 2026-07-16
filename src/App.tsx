@@ -13,6 +13,8 @@ import { useLayoutStore } from "./stores/layoutStore";
 import { useSettingsStore } from "./stores/settingsStore";
 import { useWidgetRegistryStore } from "./stores/widgetRegistryStore";
 import { useWidgetInstanceStore } from "./stores/widgetInstanceStore";
+import { useAiServicesStore } from "./stores/aiServicesStore";
+import AiChatRoute from "./components/AiChatRoute";
 
 interface BackendMonitorInfo {
   id: string;
@@ -57,6 +59,7 @@ function AppContent() {
         useSettingsStore.getState().fetchAndSyncSettings();
         useLayoutStore.getState().fetchAndSyncLayouts();
         useWidgetInstanceStore.getState().fetchInstances();
+        useAiServicesStore.getState().fetchAndSyncData();
     }, []);
 
     useEffect(() => {
@@ -257,6 +260,7 @@ function AppContent() {
                 <Route path="/widget_area/:monitorId" element={<WidgetsArea />} />
                 <Route path="/popup/:widgetType/:widgetId" element={<Popup />} />
                 <Route path="/tooltip/:text" element={<Tooltip />} />
+                <Route path="/ai-chat/:instanceId" element={<AiChatRoute />} />
                 <Route path="/blank" element={<div />} />
             </Routes>
         </Suspense>

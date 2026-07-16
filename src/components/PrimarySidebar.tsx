@@ -11,7 +11,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "../lib/i18n";
 import { cn } from "../lib/utils";
 
-type ActiveTab = "home" | "settings" | "layout" | "appearance" | "widgets_library";
+type ActiveTab = "home" | "settings" | "layout" | "appearance" | "widgets_library" | "ai_services";
 
 interface PrimarySidebarProps {
   activeTab: ActiveTab;
@@ -112,6 +112,13 @@ export default function PrimarySidebar({ activeTab, setActiveTab }: PrimarySideb
         label={t("settings")}
         active={activeTab === "settings"}
         onClick={() => setActiveTab("settings")}
+        isExpanded={isExpanded}
+      />
+      <SidebarItem
+        icon={<AppsRegular fontSize={20} />} // Use a different icon for AI if you want, but Apps is fine, or we can use another icon like Sparkle. Wait, let's use a generic icon from fluent UI.
+        label={t("AI Services") || "AI Services"}
+        active={activeTab === "ai_services"}
+        onClick={() => setActiveTab("ai_services")}
         isExpanded={isExpanded}
       />
       <div className="flex-grow" />

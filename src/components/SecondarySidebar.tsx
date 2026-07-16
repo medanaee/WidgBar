@@ -5,7 +5,7 @@ import { useWidgetRegistryStore } from '../stores/widgetRegistryStore';
 import { Squircle } from './ui/Squircle';
 import { CalendarColor, ClipboardTaskColor, ClockAlarmColor, ClockColor } from '@fluentui/react-icons';
 
-type ActiveTab = "home" | "settings" | "layout" | "appearance" | "widgets_library";
+type ActiveTab = "home" | "settings" | "layout" | "appearance" | "widgets_library" | "ai_services";
 
 interface SecondarySidebarProps {
   activeTab: ActiveTab;

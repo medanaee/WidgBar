@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { CutoutProvider } from "./ui/CutoutProvider";
 import { SettingCard } from "./ui/SettingCard";
 import LayoutSettingsTab from "./tabs/LayoutSettingsTab";
+import AiServicesTab from "./tabs/AiServicesTab";
 import { Slider } from "./ui/slider";
 
 
@@ -221,6 +222,7 @@ export default function Main() {
             )}
 
             {activeTab === "layout" && <LayoutSettingsTab selectedMonitorId={selectedMonitorId} />}
+            {activeTab === "ai_services" && <AiServicesTab />}
           </div>
         </div>
       </div>

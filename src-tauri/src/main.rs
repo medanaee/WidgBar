@@ -25,6 +25,9 @@ use crate::windows_pool::*;
 mod database;
 use crate::database::*;
 
+mod locked_popups;
+use crate::locked_popups::*;
+
 static WINDOW_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 
@@ -153,6 +156,9 @@ fn exit_app() {
 
 fn main() {
     tauri::Builder::default()
+        .manage(LockedPopupsState {
+            windows: Mutex::new(Vec::new()),
+        })
         .plugin(tauri_plugin_single_instance::init(|app, _args, _new_instance_label| {
             if let Some(main_window) = app.get_webview_window("main") {
                 let _ = main_window.show();
@@ -184,9 +190,16 @@ fn main() {
             save_layout,
             load_global_settings,
             save_global_settings,
+            load_ai_data,
+            save_ai_data,
             load_widget_instances,
             save_widget_instance_settings,
             delete_widget_instance,
+            create_locked_popup,
+            show_locked_popup,
+            hide_locked_popup,
+            close_locked_popup,
+            execute_js_in_popup,
             exit_app
         ])
         .setup(|app| {
