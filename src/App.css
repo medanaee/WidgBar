@@ -1,9 +1,11 @@
 html {
   background-color: color-mix(in oklab, var(--color-zinc-100) 80%, transparent);
+  overscroll-behavior: none;
 }
 
 html.dark {
   background-color: color-mix(in oklab, var(--color-zinc-900) 85%, transparent);
+  overscroll-behavior: none;
 }
 @import "tailwindcss";
 @import "tw-animate-css";

@@ -178,6 +178,7 @@ pub async fn hide_window(window: WebviewWindow) {
 #[tauri::command]
 pub async fn request_popup(
     app: tauri::AppHandle,
+    caller: tauri::WebviewWindow,
     state: tauri::State<'_, PoolState>,
     x: f64,
     y: f64,
@@ -297,17 +298,20 @@ pub async fn request_popup(
     let window = app.get_webview_window(&label).unwrap();
     let win_clone = window.clone();
 
-    let scale_factor = window.current_monitor().ok().flatten().map(|m| m.scale_factor()).unwrap_or(1.0);
+    let caller_pos = caller.outer_position().unwrap_or(tauri::PhysicalPosition::new(0, 0));
+    let scale_factor = caller.current_monitor().ok().flatten().map(|m| m.scale_factor()).unwrap_or(1.0);
 
-    let (final_x, target_y) = if center {
-        if let Ok(Some(monitor)) = window.current_monitor() {
+    let (mut physical_x, mut physical_y) = if center {
+        if let Ok(Some(monitor)) = caller.current_monitor() {
             let pos = monitor.position();
             let size = monitor.size();
             let cx = (pos.x as f64) + (size.width as f64 / 2.0);
             let cy = (pos.y as f64) + (size.height as f64 / 2.0);
-            (cx - (width / 2.0), cy - (height / 2.0))
+            let pw = width * scale_factor;
+            let ph = height * scale_factor;
+            (cx - (pw / 2.0), cy - (ph / 2.0))
         } else {
-            (x, y)
+            (caller_pos.x as f64 + x * scale_factor, caller_pos.y as f64 + y * scale_factor)
         }
     } else if below_bar {
         let mut bar_height_logical = 36.0;
@@ -318,22 +322,50 @@ pub async fn request_popup(
                 }
             }
         }
-        let final_y = (bar_height_logical + 12.0) * scale_factor;
+        let final_y = caller_pos.y as f64 + (bar_height_logical + 12.0) * scale_factor;
         let fx = if x_is_center { x - (width / 2.0) } else { x };
-        (fx, final_y)
+        let final_x = caller_pos.x as f64 + fx * scale_factor;
+        (final_x, final_y)
     } else {
-        let final_y = if y == 0.0 { 36.0 + 12.0 } else { y };
+        let local_y = if y == 0.0 { 36.0 + 12.0 } else { y };
+        let final_y = caller_pos.y as f64 + local_y * scale_factor;
         let fx = if x_is_center { x - (width / 2.0) } else { x };
-        (fx, final_y)
+        let final_x = caller_pos.x as f64 + fx * scale_factor;
+        (final_x, final_y)
     };
 
-    let offset = 5.0;
-    let start_y = target_y + offset;
+    let physical_width = width * scale_factor;
+    let physical_height = height * scale_factor;
+
+    if let Ok(Some(monitor)) = caller.current_monitor() {
+        let monitor_pos = monitor.position();
+        let monitor_size = monitor.size();
+
+        let monitor_left = monitor_pos.x as f64;
+        let monitor_right = (monitor_pos.x + monitor_size.width as i32) as f64;
+        let monitor_top = monitor_pos.y as f64;
+        let monitor_bottom = (monitor_pos.y + monitor_size.height as i32) as f64;
+
+        if physical_x < monitor_left {
+            physical_x = monitor_left;
+        } else if physical_x + physical_width > monitor_right {
+            physical_x = monitor_right - physical_width;
+        }
+
+        if physical_y < monitor_top {
+            physical_y = monitor_top;
+        } else if physical_y + physical_height > monitor_bottom {
+            physical_y = monitor_bottom - physical_height;
+        }
+    }
+
+    let physical_offset = 5.0 * scale_factor;
+    let start_y = physical_y + physical_offset;
 
     let _ = window.set_resizable(resizable);
     let _ = window.set_skip_taskbar(skip_taskbar);
     let _ = window.set_always_on_top(always_on_top);
-    let _ = window.set_size(tauri::PhysicalSize::new(width as u32, height as u32));
+    let _ = window.set_size(tauri::PhysicalSize::new(physical_width as u32, physical_height as u32));
 
     let js_command = format!(
     "window.dispatchEvent(new CustomEvent('rust-navigation', {{ detail: {{ route: '{}' }} }}));", 
@@ -360,11 +392,11 @@ pub async fn request_popup(
     let _ = tokio::time::timeout(std::time::Duration::from_millis(1000), rx.recv()).await;
 
     if animated {
-        let _ = window.set_position(tauri::PhysicalPosition::new(final_x as i32, start_y as i32));
+        let _ = window.set_position(tauri::PhysicalPosition::new(physical_x as i32, start_y as i32));
     } else {
         let _ = window.set_position(tauri::PhysicalPosition::new(
-            final_x as i32,
-            target_y as i32,
+            physical_x as i32,
+            physical_y as i32,
         ));
     }
     window.show().ok();
@@ -382,16 +414,16 @@ pub async fn request_popup(
         for i in 0..=steps {
             let t = i as f64 / steps as f64;
             let eased_t = ease_out_cubic(t);
-            let current_y = start_y - (offset * eased_t);
+            let current_y = start_y - (physical_offset * eased_t);
             let _ = win_clone.set_position(tauri::PhysicalPosition::new(
-                final_x as i32,
+                physical_x as i32,
                 current_y as i32,
             ));
             tokio::time::sleep(sleep_time).await;
         }
         let _ = win_clone.set_position(tauri::PhysicalPosition::new(
-            final_x as i32,
-            target_y as i32,
+            physical_x as i32,
+            physical_y as i32,
         ));
     });
 
