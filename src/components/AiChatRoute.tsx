@@ -3,6 +3,7 @@ import { useAiServicesStore } from "../stores/aiServicesStore";
 import { useEffect, useState, useRef } from "react";
 import { aiManager } from "../lib/AiServicesManager";
 import { invoke } from "@tauri-apps/api/core";
+import { emit } from "@tauri-apps/api/event";
 import { ChatSession } from "../types/ai";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -10,7 +11,7 @@ import { Titlebar } from "./Titlebar";
 import { CutoutProvider } from "./ui/CutoutProvider";
 import { useTranslation, TranslationKey } from "../lib/i18n";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { BotSparkleColor, PersonRegular, SendRegular, AddRegular, DeleteRegular } from '@fluentui/react-icons';
+import { BotSparkleColor, PersonRegular, SendRegular, AddRegular, DeleteRegular, StopRegular } from '@fluentui/react-icons';
 import EditAiServicePanel from "./tabs/EditAiServicePanel";
 import MarkdownChatContent from "./MarkdownChatContent";
 import { Settings as SettingsIcon } from "lucide-react";
@@ -33,53 +34,73 @@ function ChatInput({
   onModelChange
 }: ChatInputProps) {
   const [val, setVal] = useState("");
+
   const handleSend = () => {
     if (!val.trim()) return;
     onSend(val);
     setVal("");
   };
 
+
+
   return (
-    <div className="p-3 bg-white/30 dark:bg-zinc-900/30 border-t border-zinc-500/15 dark:border-white/5 flex items-center gap-2 shrink-0">
+    <div className="p-3 bg-white/30 dark:bg-zinc-900/30 border-t border-zinc-500/15 dark:border-white/5 flex items-end gap-2 shrink-0">
       {isLoadingModels ? (
-        <span className="text-[10px] text-zinc-400 animate-pulse w-32 text-center">Loading models...</span>
+        <span className="text-[10px] text-zinc-400 animate-pulse w-32 text-center mb-2">Loading models...</span>
       ) : models.length > 0 ? (
-        <Select
-          value={currentModel}
-          onValueChange={onModelChange}
-        >
-          <SelectTrigger className="w-40 h-9 text-[10px] bg-white/20 dark:bg-zinc-900/20 border-zinc-500/20 text-zinc-700 dark:text-zinc-300">
-            <SelectValue placeholder="Select Model" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              {models.map(m => (
-                <SelectItem key={m} value={m} className="text-[10px] truncate max-w-[200px]">
-                  {m.split('/').pop()}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
+        <div className="mb-0.5">
+          <Select
+            value={currentModel}
+            onValueChange={onModelChange}
+          >
+            <SelectTrigger className="w-40 h-9 text-[10px] bg-white/20 dark:bg-zinc-900/20 border-zinc-500/20 text-zinc-700 dark:text-zinc-300">
+              <SelectValue placeholder="Select Model" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {models.map(m => (
+                  <SelectItem key={m} value={m} className="text-[10px] truncate max-w-[200px]">
+                    {m.split('/').pop()}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
       ) : null}
 
-      <Input 
+      <textarea 
         value={val}
+        dir = "auto"
         onChange={(e) => setVal(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') handleSend();
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSend();
+          }
         }}
         placeholder="Type a message..."
-        className="flex-1 bg-white/20 dark:bg-zinc-900/20 border-zinc-500/20 dark:border-white/10 text-xs focus-visible:ring-0 focus-visible:ring-offset-0 focus:border-zinc-500/50 h-9"
+        rows={1}
+        className="flex-1 bg-white/20 dark:bg-zinc-900/20 border border-zinc-500/20 dark:border-white/10 text-xs focus:outline-none focus:border-zinc-500/50 rounded-lg px-3 py-2 resize-none [field-sizing:content] min-h-[36px] max-h-[120px] leading-relaxed dark:text-white"
         disabled={isSending}
       />
       <Button 
         size="icon" 
-        onClick={handleSend} 
-        disabled={!val.trim() || isSending}
-        className="bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-100 flex items-center justify-center rounded-lg h-9 w-9 shrink-0"
+        onClick={() => {
+          if (isSending) {
+            emit('ai-abort-stream').catch(console.error);
+          } else {
+            handleSend();
+          }
+        }} 
+        disabled={!isSending && !val.trim()}
+        className={`flex items-center justify-center rounded-lg h-9 w-9 shrink-0 ${
+          isSending 
+            ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20' 
+            : 'bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-100'
+        }`}
       >
-        <SendRegular fontSize={16} />
+        {isSending ? <StopRegular fontSize={16} /> : <SendRegular fontSize={16} />}
       </Button>
     </div>
   );
@@ -164,6 +185,22 @@ export default function AiChatRoute() {
       })
       .catch(err => console.error("Error fetching OpenAI models:", err))
       .finally(() => setIsLoadingModels(false));
+    } else if (providerId === 'groq-api') {
+      invoke<any>('proxy_request', {
+        url: 'https://api.groq.com/openai/v1/models',
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${instance.apiKey}` }
+      })
+      .then(resData => {
+        if (resData && Array.isArray(resData.data)) {
+          const chatModels = resData.data
+            .map((m: any) => m.id)
+            .filter((id: string) => !id.includes('whisper'));
+          setModels(chatModels);
+        }
+      })
+      .catch(err => console.error("Error fetching Groq models:", err))
+      .finally(() => setIsLoadingModels(false));
     } else if (providerId === 'deepseek-api') {
       setModels(['deepseek-chat', 'deepseek-reasoner']);
       setIsLoadingModels(false);
@@ -214,9 +251,9 @@ export default function AiChatRoute() {
   if (isEditingSettings) {
     return (
       <CutoutProvider>
-        <div className="flex flex-col h-screen bg-zinc-50/70 dark:bg-zinc-950/70 font-sans text-zinc-900 dark:text-zinc-100 overflow-hidden" dir={language === 'fa' ? 'rtl' : 'ltr'}>
+        <div className="flex flex-col h-screen font-sans text-zinc-900 dark:text-zinc-100 overflow-hidden" dir={language === 'fa' ? 'rtl' : 'ltr'}>
           <Titlebar title={`Service Settings - ${instance.name}`} />
-          <div className="flex-1 p-8 overflow-y-auto">
+          <div className="flex-1 p-8 overflow-y-auto flex items-center justify-center">
             <EditAiServicePanel
               instance={instance}
               onBack={() => setIsEditingSettings(false)}
@@ -238,7 +275,9 @@ export default function AiChatRoute() {
       ? 'gpt-4o'
       : instance.providerId === 'deepseek-api'
         ? 'deepseek-chat'
-        : 'gemini-1.5-flash';
+        : instance.providerId === 'groq-api'
+          ? 'llama-3.3-70b-specdec'
+          : 'gemini-1.5-flash';
 
   return (
     <CutoutProvider>
@@ -316,15 +355,15 @@ export default function AiChatRoute() {
                     </div>
                   )}
                   <div 
-                    className={`max-w-[80%] px-4 py-1 text-[11px] leading-relaxed border overflow-hidden ${
+                    className={`max-w-[80%] text-[11px] leading-relaxed border overflow-hidden ${
                       msg.role === 'user' 
-                        ? 'bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-900 border-zinc-700 dark:border-zinc-300' 
-                        : 'bg-white/40 dark:bg-zinc-900/40 border-zinc-500/10 dark:border-white/5'
+                        ? 'px-4 py-1 bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-900 border-zinc-700 dark:border-zinc-300' 
+                        : 'px-4 py-3 bg-white/40 dark:bg-zinc-900/40 border-zinc-500/10 dark:border-white/5'
                     }`}
                     style={{ borderRadius: '16px', cornerShape: 'squircle' } as React.CSSProperties}
                     
                   >
-                    <div className="flex flex-col gap-2 overflow-x-auto">
+                    <div className="flex flex-col gap-2 overflow-x-auto overflow-y-hidden break-words">
                       <MarkdownChatContent
                         content={msg.content}
                         streamingEventId={msg.streamingEventId}
@@ -342,24 +381,7 @@ export default function AiChatRoute() {
                 </div>
               ))}
               
-              {isSending && (
-                <div className="flex gap-3 justify-start">
-                  <div className="w-8 h-8 rounded-full bg-zinc-500/10 dark:bg-white/10 flex items-center justify-center shrink-0 border border-zinc-500/10 dark:border-white/10">
-                    <BotSparkleColor fontSize={18} className="animate-pulse" />
-                  </div>
-                  <div 
-                    className="px-4 py-2 text-[11px] bg-white/40 dark:bg-zinc-900/40 border border-zinc-500/10 dark:border-white/5 flex items-center gap-2"
-                    style={{ borderRadius: '16px', cornerShape: 'squircle' } as React.CSSProperties}
-                  >
-                    <span className="animate-pulse">Thinking</span>
-                    <div className="flex gap-1">
-                      <div className="w-1 h-1 rounded-full bg-zinc-500 animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <div className="w-1 h-1 rounded-full bg-zinc-500 animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <div className="w-1 h-1 rounded-full bg-zinc-500 animate-bounce" style={{ animationDelay: '300ms' }} />
-                    </div>
-                  </div>
-                </div>
-              )}
+
               
               <div ref={messagesEndRef} />
             </div>

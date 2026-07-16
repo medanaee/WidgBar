@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import { listen, UnlistenFn } from '@tauri-apps/api/event';
+import { listen, emit, UnlistenFn } from '@tauri-apps/api/event';
 import { useAiServicesStore } from '../stores/aiServicesStore';
 import { AI_PROVIDERS, AiServiceInstance, ChatMessage, ChatSession } from '../types/ai';
 
@@ -132,10 +132,12 @@ class AiServicesManager {
     return new Promise((resolve, reject) => {
       let unlistenChunk: UnlistenFn;
       let unlistenClose: UnlistenFn;
+      let unlistenAbort: UnlistenFn;
 
       const cleanup = () => {
         if (unlistenChunk) unlistenChunk();
         if (unlistenClose) unlistenClose();
+        if (unlistenAbort) unlistenAbort();
       };
 
       const onChunk = (payload: any) => {
@@ -160,7 +162,7 @@ class AiServicesManager {
 
         if (textPart) {
           fullText += textPart;
-          window.dispatchEvent(new CustomEvent(`ai-text-${eventId}`, { detail: textPart }));
+          emit(`ai-text-${eventId}`, textPart).catch(console.error);
         }
       };
 
@@ -169,6 +171,10 @@ class AiServicesManager {
         cleanup();
         resolve(fullText);
       }).then(u => unlistenClose = u);
+      listen('ai-abort-stream', () => {
+        cleanup();
+        resolve(fullText);
+      }).then(u => unlistenAbort = u);
 
       let promise;
       if (providerId === 'openai-api') {
@@ -219,6 +225,22 @@ class AiServicesManager {
           },
           body: {
             model: model || 'deepseek-chat',
+            messages: requestMessages,
+            temperature: temperature ?? 0.7,
+            stream: true
+          },
+          eventId
+        });
+      } else if (providerId === 'groq-api') {
+        promise = invoke('stream_ai_request', {
+          url: 'https://api.groq.com/openai/v1/chat/completions',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: {
+            model: model || 'llama-3.3-70b-specdec',
             messages: requestMessages,
             temperature: temperature ?? 0.7,
             stream: true

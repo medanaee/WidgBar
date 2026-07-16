@@ -3,7 +3,7 @@ import { AiProvider, AI_PROVIDERS, AiServiceInstance } from "../../types/ai";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { ArrowLeft, Webhook } from "lucide-react";
+import { ArrowLeftRegular, CloudRegular, EyeRegular, EyeOffRegular } from '@fluentui/react-icons';
 import { DEFAULT_SYSTEM_PROMPT } from "../../lib/AiServicesManager";
 
 interface AddAiServicePanelProps {
@@ -16,6 +16,7 @@ export default function AddAiServicePanel({ onBack, onSave }: AddAiServicePanelP
   const [name, setName] = useState<string>("");
   const [apiKey, setApiKey] = useState<string>("");
   const [systemPrompt, setSystemPrompt] = useState<string>(DEFAULT_SYSTEM_PROMPT);
+  const [showApiKey, setShowApiKey] = useState(false);
 
   const handleAdd = () => {
     if (!providerId || !name) return;
@@ -42,9 +43,9 @@ export default function AddAiServicePanel({ onBack, onSave }: AddAiServicePanelP
       <div className="flex items-center gap-3 mb-6">
         <button 
           onClick={onBack}
-          className="p-1.5 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-500/10 rounded-md transition-colors"
+          className="flex items-center justify-cente p-1.5 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-500/10 rounded-md transition-colors"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeftRegular fontSize={20} />
         </button>
         <div>
           <h2 className="text-xl font-semibold text-zinc-800 dark:text-zinc-100">Add AI Service</h2>
@@ -52,7 +53,7 @@ export default function AddAiServicePanel({ onBack, onSave }: AddAiServicePanelP
         </div>
       </div>
 
-      <div className="flex-grow overflow-y-auto pr-2 custom-scrollbar pb-6 space-y-5 text-zinc-800 dark:text-zinc-200">
+      <div className="flex-grow pr-2 custom-scrollbar pb-6 space-y-5 text-zinc-800 dark:text-zinc-200">
         <div className="space-y-1.5">
           <label className="text-xs text-zinc-500 font-medium">Provider</label>
           <Select value={providerId} onValueChange={setProviderId}>
@@ -64,7 +65,7 @@ export default function AddAiServicePanel({ onBack, onSave }: AddAiServicePanelP
                 {AI_PROVIDERS.map(p => (
                   <SelectItem key={p.id} value={p.id}>
                     <div className="flex items-center gap-2">
-                      <Webhook className="w-3.5 h-3.5 text-blue-500" />
+                      <CloudRegular fontSize={14} className="text-blue-500" />
                       {p.name}
                     </div>
                   </SelectItem>
@@ -86,13 +87,22 @@ export default function AddAiServicePanel({ onBack, onSave }: AddAiServicePanelP
 
         <div className="space-y-1.5">
           <label className="text-xs text-zinc-500 font-medium">API Key</label>
-          <Input 
-            type="password"
-            placeholder="sk-..." 
-            value={apiKey} 
-            onChange={e => setApiKey(e.target.value)} 
-            className="bg-transparent border-zinc-500/20"
-          />
+          <div className="relative">
+            <Input 
+              type={showApiKey ? "text" : "password"}
+              placeholder="sk-..." 
+              value={apiKey} 
+              onChange={e => setApiKey(e.target.value)} 
+              className="bg-transparent border-zinc-500/20 pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => setShowApiKey(!showApiKey)}
+              className="flex items-center justify-cente absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors"
+            >
+              {showApiKey ? <EyeOffRegular fontSize={16} /> : <EyeRegular fontSize={16} />}
+            </button>
+          </div>
         </div>
 
         <div className="space-y-1.5">

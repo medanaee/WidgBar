@@ -4,12 +4,29 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
+import { listen, UnlistenFn } from '@tauri-apps/api/event';
 
 interface MarkdownChatContentProps {
   content: string;
   streamingEventId?: string;
   isWidget?: boolean;
   onScrollToBottom?: () => void;
+}
+
+function preprocessMarkdown(text: string): string {
+  if (!text) return text;
+  
+  // 1. Process lines that start with optional indentation, followed by $$equation$$
+  let processed = text.replace(/^([ \t]*)\$\$([^\n\$]+)\$\$/gm, (_, indent, eq) => {
+    return `${indent}$$\n${indent}${eq.trim()}\n${indent}$$`;
+  });
+  
+  // 2. Process any remaining inline $$equation$$ that are inside other text
+  processed = processed.replace(/\$\$([^\n\$]+)\$\$/g, (_, eq) => {
+    return `\n$$\n${eq.trim()}\n$$\n`;
+  });
+  
+  return processed;
 }
 
 function MarkdownChatContent({
@@ -29,20 +46,42 @@ function MarkdownChatContent({
   useEffect(() => {
     if (streamingEventId) {
       setDisplayText(""); // Start empty for the stream
-      const handleChunk = (e: any) => {
-        setDisplayText(prev => prev + e.detail);
+      
+      let unlisten: UnlistenFn | undefined;
+      let isCleanedUp = false;
+      
+      listen(`ai-text-${streamingEventId}`, (e: any) => {
+        setDisplayText(prev => prev + (e.payload as string));
         if (scrollRef.current) scrollRef.current();
-      };
+      }).then(u => {
+        if (isCleanedUp) {
+          u();
+        } else {
+          unlisten = u;
+        }
+      });
 
-      const eventName = `ai-text-${streamingEventId}`;
-      window.addEventListener(eventName, handleChunk);
       return () => {
-        window.removeEventListener(eventName, handleChunk);
+        isCleanedUp = true;
+        if (unlisten) unlisten();
       };
     } else {
       setDisplayText(content);
     }
   }, [streamingEventId, content]);
+
+  if (streamingEventId && !displayText) {
+    return (
+      <div className="flex items-center gap-2 text-zinc-500 py-1">
+        <span className="animate-pulse">Thinking</span>
+        <div className="flex gap-1">
+          <div className="w-1.5 h-1.5 rounded-full bg-zinc-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+          <div className="w-1.5 h-1.5 rounded-full bg-zinc-500 animate-bounce" style={{ animationDelay: '150ms' }} />
+          <div className="w-1.5 h-1.5 rounded-full bg-zinc-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+        </div>
+      </div>
+    );
+  }
 
   // Adjust font sizes and paddings based on isWidget flag
   const h1Class = isWidget ? "text-[13px] font-bold mt-2 mb-1" : "text-lg font-bold mt-2 mb-1";
@@ -52,18 +91,20 @@ function MarkdownChatContent({
   const codeBlockContainerClass = isWidget ? "relative my-1.5 rounded border border-zinc-500/10 overflow-hidden bg-zinc-100 dark:bg-black/30" : "relative my-2 rounded-lg overflow-hidden bg-zinc-900 dark:bg-black/40 border border-zinc-500/20";
   const codeBlockHeaderClass = isWidget ? "flex items-center justify-between px-2 py-1 bg-zinc-200 dark:bg-white/5 border-b border-zinc-500/10" : "flex items-center justify-between px-3 py-1.5 bg-zinc-800/50 dark:bg-white/5 border-b border-zinc-500/20";
   const codeBlockLangClass = isWidget ? "text-[8px] font-mono text-zinc-500 dark:text-zinc-400 uppercase" : "text-[9px] font-mono text-zinc-400 uppercase";
-  const codeBlockPreClass = isWidget ? "p-2 overflow-x-auto text-[9px] text-zinc-800 dark:text-zinc-300 font-mono scrollbar-thin" : "p-3 overflow-x-auto text-[10px] text-zinc-300 font-mono scrollbar-thin";
+  const codeBlockPreClass = isWidget ? "p-2 overflow-x-auto text-[9px] text-zinc-800 dark:text-zinc-300 font-mono" : "p-3 overflow-x-auto text-[10px] text-zinc-300 font-mono";
   const quoteClass = isWidget ? "border-l-2 border-zinc-500/30 pl-2 italic opacity-80 my-1" : "border-l-2 border-zinc-500/40 pl-3 italic opacity-80 my-1";
+
+  const processedText = preprocessMarkdown(displayText);
 
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm, remarkMath]}
       rehypePlugins={[rehypeKatex]}
       components={{
-        p: ({node, ...props}) => <p className="mb-1 last:mb-0" dir="auto" {...props} />,
+        p: ({node, ...props}) => <p dir="auto" {...props} />,
         a: ({node, ...props}) => <a className="text-blue-500 hover:underline" target="_blank" rel="noreferrer" {...props} />,
-        ul: ({node, ...props}) => <ul className="list-disc list-inside mb-1 last:mb-0" dir="auto" {...props} />,
-        ol: ({node, ...props}) => <ol className="list-decimal list-inside mb-1 last:mb-0" dir="auto" {...props} />,
+        ul: ({node, ...props}) => <ul className="list-disc list-inside w-[calc(100%-1px)]" dir="auto" {...props} />,
+        ol: ({node, ...props}) => <ol className="list-decimal list-inside w-[calc(100%-1px)]" dir="auto" {...props} />,
         li: ({node, ...props}) => <li className="mb-0.5" dir="auto" {...props} />,
         h1: ({node, ...props}) => <h1 className={h1Class} dir="auto" {...props} />,
         h2: ({node, ...props}) => <h2 className={h2Class} dir="auto" {...props} />,
@@ -97,9 +138,10 @@ function MarkdownChatContent({
         th: ({node, ...props}) => <th className="px-3 py-2 text-left text-[10px] font-semibold tracking-wider" {...props} />,
         td: ({node, ...props}) => <td className="px-3 py-2 text-[10px] border-t border-zinc-500/10" {...props} />,
         blockquote: ({node, ...props}) => <blockquote className={quoteClass} dir="auto" {...props} />,
+        hr: ({node, ...props}) => <hr className="border-t border-zinc-500/15 dark:border-white/10 my-3" {...props} />,
       }}
     >
-      {displayText}
+      {processedText}
     </ReactMarkdown>
   );
 }
@@ -107,9 +149,7 @@ function MarkdownChatContent({
 const MemoizedMarkdownChatContent = React.memo(MarkdownChatContent, (prevProps, nextProps) => {
   return (
     prevProps.content === nextProps.content &&
-    prevProps.typing === nextProps.typing &&
-    prevProps.messageId === nextProps.messageId &&
-    prevProps.sessionId === nextProps.sessionId &&
+    prevProps.streamingEventId === nextProps.streamingEventId &&
     prevProps.isWidget === nextProps.isWidget
   );
 });

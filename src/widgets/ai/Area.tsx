@@ -2,36 +2,54 @@ import React, { useState, useEffect, useRef } from 'react';
 import { aiManager } from '../../lib/AiServicesManager';
 import { useAiServicesStore } from '../../stores/aiServicesStore';
 import { useWidgetInstanceStore } from '../../stores/widgetInstanceStore';
-import { BotSparkleColor, SendRegular, OpenRegular, PersonRegular, AddRegular } from '@fluentui/react-icons';
+import { BotSparkleColor, SendRegular, OpenRegular, PersonRegular, AddRegular, StopRegular } from '@fluentui/react-icons';
 import { invoke } from '@tauri-apps/api/core';
+import { emit } from '@tauri-apps/api/event';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import MarkdownChatContent from '../../components/MarkdownChatContent';
 
 function AreaInput({ onSend, isSending }: { onSend: (msg: string) => void; isSending: boolean }) {
     const [val, setVal] = useState('');
+
     const handleSend = () => {
         if (!val.trim()) return;
         onSend(val);
         setVal('');
     };
+
     return (
-        <div className="flex gap-2">
-            <input 
-                type="text" 
+        <div className="flex items-end gap-2">
+            <textarea 
                 value={val}
-                dir= "auto"
+                dir="auto"
                 onChange={e => setVal(e.target.value)}
-                className="flex-1 bg-zinc-500/5 dark:bg-white/5 border border-zinc-500/20 dark:border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-zinc-500/40 dark:text-white"
+                className="flex-1 bg-zinc-500/5 dark:bg-white/5 border border-zinc-500/20 dark:border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-zinc-500/40 dark:text-white resize-none [field-sizing:content] min-h-[36px] max-h-[100px] leading-relaxed"
                 placeholder="Type a message..."
                 disabled={isSending}
-                onKeyDown={e => e.key === 'Enter' && !isSending && handleSend()}
+                rows={1}
+                onKeyDown={e => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        if (!isSending) handleSend();
+                    }
+                }}
             />
             <button 
-                onClick={handleSend}
-                disabled={isSending || !val.trim()}
-                className="bg-zinc-500/10 hover:bg-zinc-500/20 dark:bg-white/10 dark:hover:bg-white/20 disabled:opacity-40 text-zinc-800 dark:text-white rounded-lg p-2 flex items-center justify-center transition-colors border border-zinc-500/10 dark:border-white/10"
+                onClick={() => {
+                    if (isSending) {
+                        emit('ai-abort-stream').catch(console.error);
+                    } else {
+                        handleSend();
+                    }
+                }}
+                disabled={!isSending && !val.trim()}
+                className={`rounded-lg p-2 flex items-center justify-center transition-colors border border-zinc-500/10 dark:border-white/10 ${
+                    isSending 
+                        ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20' 
+                        : 'bg-zinc-500/10 hover:bg-zinc-500/20 dark:bg-white/10 dark:hover:bg-white/20 disabled:opacity-40 text-zinc-800 dark:text-white'
+                }`}
             >
-                <SendRegular fontSize={16} />
+                {isSending ? <StopRegular fontSize={16} /> : <SendRegular fontSize={16} />}
             </button>
         </div>
     );
@@ -163,7 +181,7 @@ export default function AiArea({ widgetId }: { widgetId: string }) {
                                     <span>{msg.role === 'user' ? 'You' : 'Assistant'}</span>
                                 </div>
                                 <div className="text-zinc-700 dark:text-zinc-300 leading-normal overflow-hidden w-full px-2">
-                                    <div className="flex flex-col gap-1.5 overflow-x-auto">
+                                    <div className="flex flex-col gap-1.5 overflow-x-auto overflow-y-hidden break-words">
                                         <MarkdownChatContent
                                             content={msg.content}
                                             streamingEventId={msg.streamingEventId}
@@ -178,25 +196,7 @@ export default function AiArea({ widgetId }: { widgetId: string }) {
                         </div>
                     ))
                 )}
-                {isSending && (
-                    <div className="w-full">
-                        <hr className="border-zinc-500/10 dark:border-white/5 my-3" />
-                        <div className="flex flex-col gap-1 items-start">
-                            <div className="text-[10px] font-semibold text-zinc-400 flex items-center gap-1.5">
-                                <BotSparkleColor fontSize={12} className="animate-pulse" />
-                                <span>Assistant</span>
-                            </div>
-                            <div className="text-zinc-500 text-[10px] leading-normal pl-4 flex items-center gap-2">
-                                <span className="animate-pulse">Thinking</span>
-                                <div className="flex gap-0.5">
-                                    <div className="w-0.5 h-0.5 rounded-full bg-zinc-500 animate-bounce" style={{ animationDelay: '0ms' }} />
-                                    <div className="w-0.5 h-0.5 rounded-full bg-zinc-500 animate-bounce" style={{ animationDelay: '150ms' }} />
-                                    <div className="w-0.5 h-0.5 rounded-full bg-zinc-500 animate-bounce" style={{ animationDelay: '300ms' }} />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
+
                 <div ref={messagesEndRef} />
             </div>
 

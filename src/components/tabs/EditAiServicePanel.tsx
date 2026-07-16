@@ -4,7 +4,7 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Slider } from "../ui/slider";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeftRegular, EyeRegular, EyeOffRegular } from '@fluentui/react-icons';
 import { invoke } from "@tauri-apps/api/core";
 import { DEFAULT_SYSTEM_PROMPT } from "../../lib/AiServicesManager";
 
@@ -22,6 +22,7 @@ export default function EditAiServicePanel({ instance, onBack, onSave }: EditAiS
   const [editSystemPrompt, setEditSystemPrompt] = useState(instance.systemPrompt || DEFAULT_SYSTEM_PROMPT);
   const [editModels, setEditModels] = useState<string[]>([]);
   const [isLoadingEditModels, setIsLoadingEditModels] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
 
   useEffect(() => {
     setEditModels([]);
@@ -67,6 +68,22 @@ export default function EditAiServicePanel({ instance, onBack, onSave }: EditAiS
       })
       .catch(err => console.error("Error fetching OpenAI models for edit:", err))
       .finally(() => setIsLoadingEditModels(false));
+    } else if (providerId === 'groq-api' && apiKey) {
+      invoke<any>('proxy_request', {
+        url: 'https://api.groq.com/openai/v1/models',
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${apiKey}` }
+      })
+      .then(resData => {
+        if (resData && Array.isArray(resData.data)) {
+          const chatModels = resData.data
+            .map((m: any) => m.id)
+            .filter((id: string) => !id.includes('whisper'));
+          setEditModels(chatModels);
+        }
+      })
+      .catch(err => console.error("Error fetching Groq models for edit:", err))
+      .finally(() => setIsLoadingEditModels(false));
     } else if (providerId === 'deepseek-api') {
       setEditModels(['deepseek-chat', 'deepseek-reasoner']);
       setIsLoadingEditModels(false);
@@ -89,13 +106,13 @@ export default function EditAiServicePanel({ instance, onBack, onSave }: EditAiS
   };
 
   return (
-    <div className="max-w-xl w-full self-center h-full flex flex-col animate-in slide-in-from-right-4 duration-300">
+    <div className="max-w-xl w-full self-center h-auto max-h-[80vh] flex flex-col animate-in slide-in-from-right-4 duration-300">
       <div className="flex items-center gap-3 mb-6">
         <button 
           onClick={onBack}
-          className="p-1.5 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-500/10 rounded-md transition-colors"
+          className="flex items-center justify-cente p-1.5 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-500/10 rounded-md transition-colors"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeftRegular fontSize={20} />
         </button>
         <div>
           <h2 className="text-xl font-semibold text-zinc-800 dark:text-zinc-100">Service Settings</h2>
@@ -116,13 +133,22 @@ export default function EditAiServicePanel({ instance, onBack, onSave }: EditAiS
 
         <div className="space-y-1.5">
           <label className="text-xs text-zinc-500 font-medium">API Key</label>
-          <Input 
-            type="password"
-            placeholder="sk-..." 
-            value={editApiKey} 
-            onChange={e => setEditApiKey(e.target.value)} 
-            className="bg-transparent border-zinc-500/20"
-          />
+          <div className="relative">
+            <Input 
+              type={showApiKey ? "text" : "password"}
+              placeholder="sk-..." 
+              value={editApiKey} 
+              onChange={e => setEditApiKey(e.target.value)} 
+              className="bg-transparent border-zinc-500/20 pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => setShowApiKey(!showApiKey)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors flex items-center justify-center"
+            >
+              {showApiKey ? <EyeOffRegular fontSize={16} /> : <EyeRegular fontSize={16} />}
+            </button>
+          </div>
         </div>
 
         <div className="space-y-1.5">

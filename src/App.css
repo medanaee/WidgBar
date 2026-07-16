@@ -167,9 +167,20 @@ html.dark {
 }
 
 /* Force KaTeX math and Code blocks to always render LTR */
-.katex-display, pre {
+pre {
   direction: ltr !important;
   text-align: left !important;
+}
+
+.katex-display {
+  display: block !important;
+  direction: ltr !important;
+  text-align: center !important;
+  font-size: 1.25em !important;
+  margin: 0.5rem 0 !important;
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .katex {
@@ -181,4 +192,10 @@ html.dark {
 code {
   direction: ltr !important;
   unicode-bidi: embed;
+}
+
+/* Hide native password reveal and text clear buttons in Edge/WebView2 */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none !important;
 }

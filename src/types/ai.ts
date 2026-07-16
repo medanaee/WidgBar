@@ -62,5 +62,11 @@ export const AI_PROVIDERS: AiProvider[] = [
     name: 'NVIDIA NIM API',
     type: 'api',
     description: 'Use NVIDIA Inference Microservice API (NIM) directly with your API Key.',
+  },
+  {
+    id: 'groq-api',
+    name: 'Groq API',
+    type: 'api',
+    description: 'Use Groq API directly with your API Key.',
   }
 ];
