@@ -24,7 +24,6 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          # Fixed node version to prevent extra manifest queries and API rate-limits
           node-version: '22'
           cache: 'npm'
 
@@ -43,7 +42,7 @@ jobs:
         id: get_version
         shell: bash
         run: |
-          VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version" | tr -d '\r')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Build Tauri App
@@ -66,5 +65,4 @@ jobs:
             src-tauri/target/release/bundle/msi/*.msi
             src-tauri/target/release/widg-bar-portable.exe
           token: ${{ secrets.GITHUB_TOKEN }}
-          # Note: overwrite_files is now deprecated in softprops/action-gh-release@v2. 
-          # V2 handles file updates automatically, but we can keep it or let the action manage it.
+          overwrite_files: true
