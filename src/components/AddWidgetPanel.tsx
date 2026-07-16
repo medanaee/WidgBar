@@ -1,17 +1,9 @@
 import React from 'react';
 import { useWidgetRegistryStore } from '../stores/widgetRegistryStore';
 import { LayoutGrid } from 'lucide-react';
-import { ClockColor, ClipboardTaskColor, CalendarColor, ClockAlarmColor } from '@fluentui/react-icons';
 import { ArrowLeft } from 'lucide-react';
 import { useTranslation, TranslationKey } from '../lib/i18n';
-import { Squircle } from './ui/Squircle';
-
-const FluentIconMap: Record<string, React.ComponentType<any>> = {
-  ClockColor,
-  ClipboardTaskColor,
-  CalendarColor,
-  ClockAlarmColor,
-};
+import { FluentIconMap } from '../lib/widgetIcons';
 
 interface AddWidgetPanelProps {
   context: "bar" | "widgetArea";
@@ -48,7 +40,7 @@ export default function AddWidgetPanel({ context, onBack, onSelect }: AddWidgetP
         </div>
       </div>
 
-      {/* Grid Content of Squircles */}
+      {/* Grid Content */}
       <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar pb-6">
         {widgets.length === 0 ? (
           <div className="p-8 text-center text-sm text-zinc-500">
@@ -58,45 +50,28 @@ export default function AddWidgetPanel({ context, onBack, onSelect }: AddWidgetP
           <div className="grid grid-cols-2 gap-3.5">
             {widgets.map(w => {
               const IconComponent = FluentIconMap[w.icon] || LayoutGrid;
-              
-              // Map widget type to localization key
-              let widgetNameKey: TranslationKey = "widgets";
-              if (w.type_name === 'clock') widgetNameKey = "widgetClock" as TranslationKey;
-              else if (w.type_name === 'todo') widgetNameKey = "widgetTodo" as TranslationKey;
-              else if (w.type_name === 'calendar') widgetNameKey = "widgetCalendar" as TranslationKey;
-              else if (w.type_name === 'timer') widgetNameKey = "widgetTimer" as TranslationKey;
 
               return (
                 <button
                   key={w.type_name}
                   onClick={() => onSelect(w.type_name)}
-                  className=""
+                  className="flex flex-row items-center gap-3.5 p-3.5 w-full rounded-2xl cursor-pointer select-none outline-none focus-visible:ring-2 focus-visible:ring-primary text-left border border-zinc-500/20 transition-colors
+                  bg-zinc-500/10 dark:bg-zinc-500/10 hover:bg-zinc-500/20 dark:hover:bg-zinc-500/20"
                 >
-                  <Squircle 
-                    cornerRadius={16} 
-                    cornerSmoothing={0.6}
-                    borderWidth={1}
-                    borderClassName="stroke-zinc-500/20 transition-colors"
-                    className="flex flex-row items-center gap-3.5 p-3.5 w-full cursor-pointer select-none outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-xl text-left
-                    inset-0 bg-zinc-500/10 dark:bg-zinc-500/10 hover:bg-zinc-500/20 dark:hover:bg-zinc-500/20 transition-all"
-                  >
-                    <div className="relative z-10 shrink-0 flex items-center justify-center">
+                  <div className="relative z-10 shrink-0 flex items-center justify-center">
                     <IconComponent className="w-8 h-8 text-zinc-700 dark:text-zinc-200 group-hover:text-primary transition-colors" />
                   </div>
                   
                   <div className="relative z-10 flex flex-col min-w-0 text-left">
                     <span className="font-semibold text-sm text-zinc-800 dark:text-zinc-100 capitalize truncate">
-                      {t(widgetNameKey)}
+                      {t(w.nameKey as TranslationKey)}
                     </span>
-                    {w.description && (
+                    {w.descriptionKey && (
                       <span className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-0.5 line-clamp-2 leading-tight">
-                        {w.description}
+                        {t(w.descriptionKey as TranslationKey)}
                       </span>
                     )}
                   </div>
-                  </Squircle>
-                  
-                  
                 </button>
               );
             })}

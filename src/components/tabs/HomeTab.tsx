@@ -10,11 +10,8 @@ export default function HomeTab() {
 
   return (
     <div className="w-full h-full animate-in fade-in zoom-in-95 duration-300 overflow-y-auto custom-scrollbar ltr:pr-2 ltr:-mr-2 rtl:pl-2 rtl:-ml-2 flex flex-col gap-6 pb-6 pr-2 -mr-2">
-      <Squircle
-        cornerRadius={24}
-        borderWidth={1}
-        borderClassName="text-zinc-500/25 dark:text-zinc-700/30"
-        className="w-full bg-zinc-200 dark:bg-zinc-800 text-white p-8 flex flex-col md:flex-row items-center justify-between gap-6 shrink-0 overflow-hidden"
+      <div
+        className="w-full bg-zinc-200 dark:bg-zinc-800 text-white rounded-4xl p-8 flex flex-col md:flex-row items-center justify-between gap-6 shrink-0 overflow-hidden relative border border-zinc-500/25 dark:border-zinc-700/30"
       >
         <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
           <div className="absolute -top-16 -left-16 w-56 h-56 bg-blue-500 rounded-full filter blur-[100px] opacity-40 mix-blend-screen"></div>
@@ -29,7 +26,7 @@ export default function HomeTab() {
         </div>
 
         <Logo className="w-20 h-20 drop-shadow-2xl brightness-110" />
-      </Squircle>
+      </div>
 
       <div className="flex flex-col gap-4">
         <h2 className="text-lg font-bold text-zinc-800 dark:text-zinc-200 px-1">

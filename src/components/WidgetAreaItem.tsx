@@ -463,6 +463,7 @@ export default function WidgetAreaItem({
                 width: `${widget.width}px`, 
                 height: `${widget.height}px`,
                 borderRadius: `${BORDER_RADIUS}px`, 
+                cornerShape: 'round',
                 touchAction: 'none', 
                 // Dynamically assign z-index based on global active state
                 zIndex: activeWidgetId === widget.id ? 9999 : index + 10,

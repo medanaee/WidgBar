@@ -1,25 +1,20 @@
 import React from 'react';
 import { useWidgetRegistryStore } from '../stores/widgetRegistryStore';
-import { LayoutGrid, CheckSquare, Calendar, Timer } from 'lucide-react';
-import { ClockColor, ClipboardTaskColor, CalendarColor, ClockAlarmColor } from '@fluentui/react-icons';
+import { LayoutGrid } from 'lucide-react';
 import { CutoutModal } from './ui/CutoutModal';
-
-const FluentIconMap: Record<string, React.ComponentType<any>> = {
-  ClockColor,
-  ClipboardTaskColor,
-  CalendarColor,
-  ClockAlarmColor,
-};
+import { useTranslation, TranslationKey } from '../lib/i18n';
+import { FluentIconMap } from '../lib/widgetIcons';
 
 interface AddWidgetModalProps {
+  context: "bar" | "widgetArea";
   isOpen: boolean;
   onClose: () => void;
   onSelect: (typeName: string) => void;
-  context: "bar" | "widgetArea";
 }
 
 export function AddWidgetModal({ isOpen, onClose, onSelect, context }: AddWidgetModalProps) {
   const { registry } = useWidgetRegistryStore();
+  const { t } = useTranslation();
 
   if (!isOpen) return null;
 
@@ -35,13 +30,13 @@ export function AddWidgetModal({ isOpen, onClose, onSelect, context }: AddWidget
     >
       <div className="px-4 py-3 border-b border-zinc-500/20 bg-zinc-50/20 dark:bg-zinc-900/20 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            {context === 'bar' ? 'Add Bar Widget' : 'Add Desktop Widget'}
+            {context === 'bar' ? t("addBarWidget" as TranslationKey) : t("addDesktopWidget" as TranslationKey)}
           </h3>
         </div>
         
         <div className="p-2 flex flex-col gap-1 max-h-[300px] overflow-y-auto">
           {widgets.length === 0 ? (
-            <div className="p-4 text-center text-xs text-zinc-500">No widgets available</div>
+            <div className="p-4 text-center text-xs text-zinc-500">{t("noWidgets" as TranslationKey)}</div>
           ) : (
             widgets.map(w => {
               const IconComponent = FluentIconMap[w.icon] || LayoutGrid;
@@ -58,10 +53,12 @@ export function AddWidgetModal({ isOpen, onClose, onSelect, context }: AddWidget
                     <IconComponent className="w-8 h-8 text-zinc-700 dark:text-zinc-200" />
                   </div>
                   <div className="flex flex-col">
-                    <span className="font-medium text-sm text-zinc-900 dark:text-zinc-100 capitalize">{w.type_name}</span>
-                    {w.description && (
+                    <span className="font-medium text-sm text-zinc-900 dark:text-zinc-100 capitalize">
+                      {t(w.nameKey as TranslationKey)}
+                    </span>
+                    {w.descriptionKey && (
                       <span className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-0.5 leading-tight">
-                        {w.description}
+                        {t(w.descriptionKey as TranslationKey)}
                       </span>
                     )}
                   </div>

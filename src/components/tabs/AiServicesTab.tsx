@@ -5,7 +5,7 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Plus, Trash2, Webhook, Link as LinkIcon, MessageCircle, Pencil } from "lucide-react";
-import { SettingCard } from "../ui/SettingCard";
+import { SettingCard, SettingCardNoLayout } from "../ui/SettingCard";
 import { invoke } from "@tauri-apps/api/core";
 
 export default function AiServicesTab() {
@@ -57,9 +57,9 @@ export default function AiServicesTab() {
         </div>
 
         {isAdding && (
-          <SettingCard className="border-primary/50 border bg-primary/5">
+          <SettingCardNoLayout className="border-primary/50 border bg-primary/5 flex flex-col content-end">
             <h3 className="text-sm font-medium mb-4">Add New Service</h3>
-            <div className="space-y-4">
+            <div className="space-y-4 w-full">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-xs text-zinc-500">Provider</label>
@@ -106,17 +106,17 @@ export default function AiServicesTab() {
                 <Button onClick={handleAdd} disabled={!newProviderId || !newName}>Save Service</Button>
               </div>
             </div>
-          </SettingCard>
+          </SettingCardNoLayout>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
           {instances.map(instance => {
             const provider = AI_PROVIDERS.find(p => p.id === instance.providerId);
             return (
               <SettingCard 
                 key={instance.id} 
                 className="flex flex-col relative group h-40"
-                style={{ borderRadius: '36px', cornerShape: 'superellipse(1.5)' } as React.CSSProperties}
+                style={{ borderRadius: '24px', cornerShape: 'superellipse(1.5)' } as React.CSSProperties}
               >
                 <div className="flex justify-between items-start mb-4 w-full">
                   <div className="flex items-center gap-3">

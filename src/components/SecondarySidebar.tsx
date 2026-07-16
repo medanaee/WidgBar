@@ -1,9 +1,9 @@
 import React from 'react';
-import { useTranslation } from '../lib/i18n';
+import { useTranslation, TranslationKey } from '../lib/i18n';
 import { Monitor } from '../types/layout';
 import { useWidgetRegistryStore } from '../stores/widgetRegistryStore';
-import { Squircle } from './ui/Squircle';
-import { CalendarColor, ClipboardTaskColor, ClockAlarmColor, ClockColor } from '@fluentui/react-icons';
+import { FluentIconMap } from '../lib/widgetIcons';
+import { ClockColor } from '@fluentui/react-icons';
 
 type ActiveTab = "home" | "settings" | "layout" | "appearance" | "widgets_library" | "ai_services";
 
@@ -20,27 +20,17 @@ interface SecondarySidebarProps {
 
 function SubMenuItem({ active, onClick, children }: { active: boolean, onClick: () => void, children: React.ReactNode }) {
   return (
-    <Squircle
-      as="button"
+    <button
       onClick={onClick}
-      cornerRadius={8}
-      className={`w-full px-3 py-1.5 text-start text-xs font-medium transition-all duration-150 flex items-center gap-2 ${active
+      className={`w-full px-3 py-1.5 text-start text-xs rounded-sm font-medium transition-all duration-150 flex items-center gap-2 ${active
         ? "bg-zinc-500/10 dark:bg-zinc-500/20 text-zinc-900 dark:text-zinc-100"
         : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-500/5 dark:hover:bg-zinc-500/10 hover:text-zinc-900 dark:hover:text-zinc-200"
         }`}
     >
       {children}
-    </Squircle>
+    </button>
   );
 }
-
-const FluentIconMap: Record<string, React.ComponentType<any>> = {
-  ClockColor,
-  ClipboardTaskColor,
-  CalendarColor,
-  ClockAlarmColor
-};
-
 
 function WidgetListItem({ 
   w, 
@@ -51,31 +41,31 @@ function WidgetListItem({
   isSelected: boolean, 
   onClick: () => void 
 }) {
+  const { t } = useTranslation();
   const IconComp = FluentIconMap[w.icon] || ClockColor;
   
   return (
-    <Squircle
-      as="button"
+    <button
       onClick={onClick}
-      cornerRadius={14}
-      borderWidth={isSelected ? 1 : 0}
-      autoMargin={false}
-      borderClassName="text-zinc-300 dark:text-zinc-600"
-      className={`w-full px-2.5 py-2 text-start transition-all duration-150 flex items-start gap-2.5 ${isSelected
-        ? "bg-zinc-500/10 dark:bg-zinc-500/20 text-zinc-900 dark:text-zinc-100"
-        : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-500/5 dark:hover:bg-zinc-500/10 hover:text-zinc-900 dark:hover:text-zinc-200"
+      className={`w-full px-2.5 py-2 text-start rounded-2xl transition-all duration-150 flex items-start gap-2.5 ${isSelected
+        ? "bg-zinc-500/10 dark:bg-zinc-500/20 text-zinc-900 dark:text-zinc-100 border border-zinc-500/30"
+        : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-500/5 dark:hover:bg-zinc-500/10 hover:text-zinc-900 dark:hover:text-zinc-200 border border-transparent"
         }`}
     >
       <div className="shrink-0 flex items-center justify-center relative z-10">
         <IconComp fontSize={28} />
       </div>
       <div className="flex flex-col min-w-0 relative z-10">
-        <span className="font-semibold text-xs text-zinc-800 dark:text-zinc-200 capitalize leading-tight">{w.type_name}</span>
-        {w.description && (
-          <span className="text-xs text-zinc-500 dark:text-zinc-400 leading-normal line-clamp-2 mt-0.5">{w.description}</span>
+        <span className="font-semibold text-xs text-zinc-800 dark:text-zinc-200 capitalize leading-tight">
+          {t(w.nameKey as TranslationKey)}
+        </span>
+        {w.descriptionKey && (
+          <span className="text-xs text-zinc-500 dark:text-zinc-400 leading-normal line-clamp-2 mt-0.5">
+            {t(w.descriptionKey as TranslationKey)}
+          </span>
         )}
       </div>
-    </Squircle>
+    </button>
   );
 }
 
@@ -98,7 +88,7 @@ export default function SecondarySidebar({
         <div className="p-4 font-semibold text-sm text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">
           Widgets Library
         </div>
-        <div className="flex flex-col px-2 space-y-1.5">
+        <div className="flex flex-col px-2">
           {Object.values(registry).map(w => (
             <WidgetListItem
               key={w.type_name}

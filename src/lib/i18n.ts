@@ -48,9 +48,9 @@ export const translations = {
     addDesktopWidget: "Add Desktop Widget",
     selectWidgetDesc: "Select a widget to add to your layout",
     widgetClock: "Clock",
-    widgetTodo: "Todo",
-    widgetCalendar: "Calendar",
-    widgetTimer: "Timer",
+    widgetClockDesc: "A minimalist digital clock with date.",
+    widgetAi: "AI Chat",
+    widgetAiDesc: "Chat and interact with AI.",
     noWidgets: "No widgets available",
   },
   fa: {
@@ -100,9 +100,9 @@ export const translations = {
     addDesktopWidget: "افزودن ابزارک دسکتاپ",
     selectWidgetDesc: "یک ابزارک را برای اضافه کردن به صفحه انتخاب کنید",
     widgetClock: "ساعت",
-    widgetTodo: "تسک‌ها",
-    widgetCalendar: "تقویم",
-    widgetTimer: "تایمر",
+    widgetClockDesc: "یک ساعت دیجیتال مینیمال و ساده به همراه تاریخ.",
+    widgetAi: "هوش مصنوعی",
+    widgetAiDesc: "ویجت چت و ارتباط با هوش مصنوعی.",
     noWidgets: "هیچ ابزارکی در دسترس نیست",
   }
 } as const;
