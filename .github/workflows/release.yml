@@ -24,6 +24,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
+          # Fixed node version to prevent extra manifest queries and API rate-limits
           node-version: '22'
           cache: 'npm'
 
@@ -42,7 +43,18 @@ jobs:
         id: get_version
         shell: bash
         run: |
-          VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version" | tr -d '\r')
+          # Use jq to robustly extract the version without Windows carriage returns
+          VERSION=$(jq -r '.version' src-tauri/tauri.conf.json)
+          
+          # Print the version so we can see it in the logs
+          echo "Extracted Version: $VERSION"
+          
+          # If version is empty or null, fail the build immediately!
+          if [ -z "$VERSION" ] || [ "$VERSION" == "null" ]; then
+            echo "Error: Failed to extract version from tauri.conf.json"
+            exit 1
+          fi
+          
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Build Tauri App
@@ -51,9 +63,12 @@ jobs:
       - name: Prepare portable binary
         shell: bash
         run: |
+          # Copy the executable to create a portable version
           cp src-tauri/target/release/widg-bar.exe src-tauri/target/release/widg-bar-portable.exe
 
       - name: Create or Update GitHub Release
+        # Only run if version was successfully read
+        if: steps.get_version.outputs.version != '' 
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.get_version.outputs.version }}
