@@ -154,6 +154,38 @@ fn exit_app() {
     std::process::exit(0);
 }
 
+#[tauri::command]
+async fn proxy_request(
+    url: String,
+    method: String,
+    headers: HashMap<String, String>,
+    body: Option<serde_json::Value>,
+) -> Result<serde_json::Value, String> {
+    let client = reqwest::Client::new();
+    let mut req = match method.to_uppercase().as_str() {
+        "POST" => client.post(&url),
+        _ => client.get(&url),
+    };
+
+    for (k, v) in headers {
+        req = req.header(&k, &v);
+    }
+
+    if let Some(b) = body {
+        req = req.json(&b);
+    }
+
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    
+    let status = res.status();
+    if !status.is_success() {
+        return Err(format!("HTTP Error {}: {}", status, res.text().await.unwrap_or_default()));
+    }
+
+    let val: serde_json::Value = res.json().await.map_err(|e| e.to_string())?;
+    Ok(val)
+}
+
 fn main() {
     tauri::Builder::default()
         .manage(LockedPopupsState {
@@ -200,7 +232,8 @@ fn main() {
             hide_locked_popup,
             close_locked_popup,
             execute_js_in_popup,
-            exit_app
+            exit_app,
+            proxy_request
         ])
         .setup(|app| {
             let handle = app.handle().clone();

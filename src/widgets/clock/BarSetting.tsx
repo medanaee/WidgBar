@@ -59,6 +59,18 @@ export default function ClockBarSetting({ widgetId }: { widgetId: string }) {
                     onCheckedChange={(checked) => handleUpdate({ barShowTimezone: checked })} 
                 />
             </SettingCard>
+
+            {/* Click to Open Details */}
+            <SettingCard>
+                <div>
+                    <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Click to Open Details</h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Allow clicking the clock in the bar to open its settings/details popup</p>
+                </div>
+                <Switch 
+                    checked={!config.disableClickPopup} 
+                    onCheckedChange={(checked) => handleUpdate({ disableClickPopup: !checked })} 
+                />
+            </SettingCard>
         </div>
     );
 }

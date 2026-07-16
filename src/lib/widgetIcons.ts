@@ -1,4 +1,4 @@
-import { ClockColor, ClipboardTaskColor, CalendarColor, ClockAlarmColor, MicColor } from '@fluentui/react-icons';
+import { ClockColor, ClipboardTaskColor, CalendarColor, ClockAlarmColor, BotSparkleColor } from '@fluentui/react-icons';
 import React from 'react';
 
 export const FluentIconMap: Record<string, React.ComponentType<any>> = {
@@ -6,5 +6,5 @@ export const FluentIconMap: Record<string, React.ComponentType<any>> = {
   ClipboardTaskColor,
   CalendarColor,
   ClockAlarmColor,
-  MicColor,
+  BotSparkleColor,
 };

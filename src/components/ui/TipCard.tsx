@@ -1,6 +1,5 @@
 import React from 'react';
 import { LucideIcon } from 'lucide-react';
-import { Squircle } from './Squircle';
 
 interface TipCardProps {
   icon: LucideIcon;

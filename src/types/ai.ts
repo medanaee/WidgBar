@@ -28,6 +28,7 @@ export interface ChatSession {
   instanceId: string;
   title: string;
   messages: ChatMessage[];
+  model?: string;
   updatedAt: number;
   createdAt: number;
 }
@@ -50,5 +51,11 @@ export const AI_PROVIDERS: AiProvider[] = [
     name: 'DeepSeek API',
     type: 'api',
     description: 'Use DeepSeek API directly with your API Key.',
+  },
+  {
+    id: 'nvidia-api',
+    name: 'NVIDIA NIM API',
+    type: 'api',
+    description: 'Use NVIDIA Inference Microservice API (NIM) directly with your API Key.',
   }
 ];

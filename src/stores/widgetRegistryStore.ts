@@ -37,7 +37,7 @@ export const useWidgetRegistryStore = create<WidgetRegistryState>((set, get) => 
     },
     ai: {
       type_name: 'ai',
-      icon: 'MicColor',
+      icon: 'BotSparkleColor',
       nameKey: 'widgetAi',
       descriptionKey: 'widgetAiDesc',
       can_be_in_bar: true,
