@@ -166,9 +166,7 @@ export default function AiArea({ widgetId }: { widgetId: string }) {
                                     <div className="flex flex-col gap-1.5 overflow-x-auto">
                                         <MarkdownChatContent
                                             content={msg.content}
-                                            typing={msg.typing}
-                                            messageId={msg.id}
-                                            sessionId={currentSession?.id || ''}
+                                            streamingEventId={msg.streamingEventId}
                                             isWidget={true}
                                             onScrollToBottom={() => {
                                                 messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

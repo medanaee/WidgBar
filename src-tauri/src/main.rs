@@ -6,6 +6,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::Listener;
 use tauri::Manager;
+use tauri::Emitter;
 use tauri::{WebviewUrl, WebviewWindowBuilder};
 use window_vibrancy::*;
 
@@ -186,6 +187,65 @@ async fn proxy_request(
     Ok(val)
 }
 
+#[tauri::command]
+async fn stream_ai_request(
+    window: tauri::Window,
+    url: String,
+    method: String,
+    headers: HashMap<String, String>,
+    body: Option<serde_json::Value>,
+    event_id: String,
+) -> Result<(), String> {
+    let client = reqwest::Client::new();
+    let mut req = match method.to_uppercase().as_str() {
+        "POST" => client.post(&url),
+        _ => client.get(&url),
+    };
+
+    for (k, v) in headers {
+        req = req.header(&k, &v);
+    }
+
+    if let Some(b) = body {
+        req = req.json(&b);
+    }
+
+    let mut res = req.send().await.map_err(|e| e.to_string())?;
+
+    let status = res.status();
+    if !status.is_success() {
+        let err_text = res.text().await.unwrap_or_default();
+        return Err(format!("HTTP Error {}: {}", status, err_text));
+    }
+
+    let mut buffer = Vec::new();
+    while let Some(chunk) = res.chunk().await.map_err(|e| e.to_string())? {
+        buffer.extend_from_slice(&chunk);
+        
+        while let Some(i) = buffer.iter().position(|&b| b == b'\n') {
+            let line_bytes = buffer.drain(..=i).collect::<Vec<u8>>();
+            if let Ok(line_str) = String::from_utf8(line_bytes) {
+                let trimmed = line_str.trim();
+                if !trimmed.is_empty() {
+                    let _ = window.emit(&format!("ai-chunk-{}", event_id), trimmed);
+                }
+            }
+        }
+    }
+
+    if !buffer.is_empty() {
+        if let Ok(line_str) = String::from_utf8(buffer) {
+            let trimmed = line_str.trim();
+            if !trimmed.is_empty() {
+                let _ = window.emit(&format!("ai-chunk-{}", event_id), trimmed);
+            }
+        }
+    }
+
+    let _ = window.emit(&format!("ai-close-{}", event_id), "");
+    Ok(())
+}
+
 fn main() {
     tauri::Builder::default()
         .manage(LockedPopupsState {
@@ -233,7 +293,8 @@ fn main() {
             close_locked_popup,
             execute_js_in_popup,
             exit_app,
-            proxy_request
+            proxy_request,
+            stream_ai_request
         ])
         .setup(|app| {
             let handle = app.handle().clone();

@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import { useAiServicesStore } from '../stores/aiServicesStore';
 import { AI_PROVIDERS, AiServiceInstance, ChatMessage, ChatSession } from '../types/ai';
 
@@ -55,37 +56,45 @@ class AiServicesManager {
     const updatedMessages = [...session.messages, userMessage];
     store.updateSession(sessionId, { messages: updatedMessages, updatedAt: Date.now() });
 
-    // 2. Call the provider (API via Rust Proxy to bypass CORS)
-    let aiResponseContent = "";
+    // 2. Prepare the empty AI message with streamingEventId
+    const eventId = crypto.randomUUID();
+    const aiMessageId = crypto.randomUUID();
+    const aiMessage: ChatMessage = {
+      id: aiMessageId,
+      role: 'assistant',
+      content: "", // Will be filled
+      timestamp: Date.now(),
+      streamingEventId: eventId
+    };
 
+    const updatedWithAi = [...updatedMessages, aiMessage];
+    store.updateSession(sessionId, { messages: updatedWithAi, updatedAt: Date.now() });
+
+    // 3. Call the provider using the streaming interface
+    let aiResponseContent = "";
     try {
-      aiResponseContent = await this.callApiProvider(
+      aiResponseContent = await this.callApiProviderStream(
         provider.id, 
         instance.apiKey, 
         updatedMessages, 
         session.model,
         instance.temperature,
-        instance.systemPrompt || DEFAULT_SYSTEM_PROMPT
+        instance.systemPrompt || DEFAULT_SYSTEM_PROMPT,
+        eventId
       );
     } catch (e: any) {
       aiResponseContent = `Error: ${e.message}`;
     }
 
-    // 3. Save the full completed message immediately with typing: true
-    const aiMessageId = crypto.randomUUID();
-    const aiMessage: ChatMessage = {
-      id: aiMessageId,
-      role: 'assistant',
-      content: aiResponseContent,
-      timestamp: Date.now(),
-      typing: !aiResponseContent.startsWith('Error:'), // Only animate if it's not an error
-    };
-
-    const finalMessages = [...updatedMessages, aiMessage];
-    store.updateSession(sessionId, { 
-      messages: finalMessages, 
-      updatedAt: Date.now() 
-    });
+    // 4. Save the full completed message and remove streaming state
+    const storeAfter = useAiServicesStore.getState();
+    const sessionAfter = storeAfter.data.sessions.find(s => s.id === sessionId);
+    if (sessionAfter) {
+      const finalMessages = sessionAfter.messages.map(m => 
+        m.id === aiMessageId ? { ...m, content: aiResponseContent, streamingEventId: undefined } : m
+      );
+      storeAfter.updateSession(sessionId, { messages: finalMessages, updatedAt: Date.now() });
+    }
 
     return aiMessage;
   }
@@ -102,13 +111,14 @@ class AiServicesManager {
     store.updateSession(sessionId, { messages: updated });
   }
 
-  private async callApiProvider(
+  private async callApiProviderStream(
     providerId: string, 
     apiKey: string | undefined, 
     messages: ChatMessage[],
-    model?: string,
-    temperature?: number,
-    systemPrompt?: string
+    model: string | undefined,
+    temperature: number | undefined,
+    systemPrompt: string,
+    eventId: string
   ): Promise<string> {
     if (!apiKey) throw new Error("API Key is missing");
 
@@ -117,104 +127,129 @@ class AiServicesManager {
       ...messages.map(m => ({ role: m.role, content: m.content }))
     ];
 
-    if (providerId === 'openai-api') {
-      const data = await invoke<any>('proxy_request', {
-        url: 'https://api.openai.com/v1/chat/completions',
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: {
-          model: model || 'gpt-4o',
-          messages: requestMessages,
-          temperature: temperature ?? 0.7
-        }
-      });
-      if (!data?.choices?.[0]?.message) {
-        throw new Error(data?.error?.message || "Invalid response structure from OpenAI API");
-      }
-      return data.choices[0].message.content;
-    } 
-    
-    if (providerId === 'gemini-api') {
-      const formattedContents = messages.map(m => ({
-        role: m.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: m.content }]
-      }));
-      const geminiModel = model || 'gemini-1.5-flash';
-      
-      const generationConfig: any = {};
-      if (temperature !== undefined) {
-        generationConfig.temperature = temperature;
-      }
-      
-      const requestBody: any = {
-        contents: formattedContents,
-        generationConfig
+    let fullText = "";
+
+    return new Promise((resolve, reject) => {
+      let unlistenChunk: UnlistenFn;
+      let unlistenClose: UnlistenFn;
+
+      const cleanup = () => {
+        if (unlistenChunk) unlistenChunk();
+        if (unlistenClose) unlistenClose();
       };
 
-      if (systemPrompt) {
-        requestBody.systemInstruction = {
-          parts: [{ text: systemPrompt }]
+      const onChunk = (payload: any) => {
+        const line = payload as string;
+        let textPart = "";
+        
+        try {
+          if (providerId === 'gemini-api') {
+            if (line.startsWith('data: ')) {
+              const data = JSON.parse(line.substring(6));
+              textPart = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+            }
+          } else {
+            if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+              const data = JSON.parse(line.substring(6));
+              textPart = data.choices?.[0]?.delta?.content || "";
+            }
+          }
+        } catch (e) {
+          // ignore parsing error for partial lines
+        }
+
+        if (textPart) {
+          fullText += textPart;
+          window.dispatchEvent(new CustomEvent(`ai-text-${eventId}`, { detail: textPart }));
+        }
+      };
+
+      listen(`ai-chunk-${eventId}`, (event) => onChunk(event.payload)).then(u => unlistenChunk = u);
+      listen(`ai-close-${eventId}`, () => {
+        cleanup();
+        resolve(fullText);
+      }).then(u => unlistenClose = u);
+
+      let promise;
+      if (providerId === 'openai-api') {
+        promise = invoke('stream_ai_request', {
+          url: 'https://api.openai.com/v1/chat/completions',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: {
+            model: model || 'gpt-4o',
+            messages: requestMessages,
+            temperature: temperature ?? 0.7,
+            stream: true
+          },
+          eventId
+        });
+      } else if (providerId === 'gemini-api') {
+        const formattedContents = messages.map(m => ({
+          role: m.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: m.content }]
+        }));
+        const geminiModel = model || 'gemini-1.5-flash';
+        
+        const requestBody: any = {
+          contents: formattedContents,
+          generationConfig: {
+             ...(temperature !== undefined && { temperature })
+          }
         };
-      }
-      
-      const data = await invoke<any>('proxy_request', {
-        url: `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: requestBody
-      });
-      if (!data?.candidates?.[0]?.content?.parts?.[0]?.text) {
-        throw new Error(data?.error?.message || "Invalid response structure from Gemini API");
-      }
-      return data.candidates[0].content.parts[0].text;
-    }
+        if (systemPrompt) requestBody.systemInstruction = { parts: [{ text: systemPrompt }] };
 
-    if (providerId === 'deepseek-api') {
-      const data = await invoke<any>('proxy_request', {
-        url: 'https://api.deepseek.com/chat/completions',
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: {
-          model: model || 'deepseek-chat',
-          messages: requestMessages,
-          temperature: temperature ?? 0.7
-        }
-      });
-      if (!data?.choices?.[0]?.message) {
-        throw new Error(data?.error?.message || "Invalid response structure from DeepSeek API");
+        promise = invoke('stream_ai_request', {
+          url: `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:streamGenerateContent?alt=sse&key=${apiKey}`,
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: requestBody,
+          eventId
+        });
+      } else if (providerId === 'deepseek-api') {
+        promise = invoke('stream_ai_request', {
+          url: 'https://api.deepseek.com/chat/completions',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: {
+            model: model || 'deepseek-chat',
+            messages: requestMessages,
+            temperature: temperature ?? 0.7,
+            stream: true
+          },
+          eventId
+        });
+      } else if (providerId === 'nvidia-api') {
+        promise = invoke('stream_ai_request', {
+          url: 'https://integrate.api.nvidia.com/v1/chat/completions',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: {
+            model: model || 'meta/llama-3.1-8b-instruct',
+            messages: requestMessages,
+            temperature: temperature ?? 0.7,
+            stream: true
+          },
+          eventId
+        });
+      } else {
+        promise = Promise.reject(new Error(`Provider ${providerId} API not implemented yet.`));
       }
-      return data.choices[0].message.content;
-    }
 
-    if (providerId === 'nvidia-api') {
-      const data = await invoke<any>('proxy_request', {
-        url: 'https://integrate.api.nvidia.com/v1/chat/completions',
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: {
-          model: model || 'meta/llama-3.1-8b-instruct',
-          messages: requestMessages,
-          temperature: temperature ?? 0.7
-        }
+      promise.catch(err => {
+        cleanup();
+        reject(new Error(err as string));
       });
-      if (!data?.choices?.[0]?.message) {
-        throw new Error(data?.error?.message || "Invalid response structure from NVIDIA NIM. Check model requirements.");
-      }
-      return data.choices[0].message.content;
-    }
-    
-    throw new Error(`Provider ${providerId} API not implemented yet.`);
+    });
   }
 }
 

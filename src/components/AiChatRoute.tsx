@@ -327,9 +327,7 @@ export default function AiChatRoute() {
                     <div className="flex flex-col gap-2 overflow-x-auto">
                       <MarkdownChatContent
                         content={msg.content}
-                        typing={msg.typing}
-                        messageId={msg.id}
-                        sessionId={currentSession?.id || ''}
+                        streamingEventId={msg.streamingEventId}
                         onScrollToBottom={() => {
                           messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
                         }}

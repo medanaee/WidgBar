@@ -25,6 +25,7 @@ export interface ChatMessage {
   content: string;
   timestamp: number;
   typing?: boolean;
+  streamingEventId?: string;
 }
 
 export interface ChatSession {

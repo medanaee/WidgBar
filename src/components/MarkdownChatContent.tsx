@@ -4,67 +4,45 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
-import { aiManager } from '../lib/AiServicesManager';
 
 interface MarkdownChatContentProps {
   content: string;
-  typing?: boolean;
-  messageId: string;
-  sessionId: string;
+  streamingEventId?: string;
   isWidget?: boolean;
   onScrollToBottom?: () => void;
 }
 
 function MarkdownChatContent({
   content,
-  typing,
-  messageId,
-  sessionId,
+  streamingEventId,
   isWidget = false,
   onScrollToBottom
 }: MarkdownChatContentProps) {
-  const [displayText, setDisplayText] = useState(typing ? '' : content);
-  const wordsRef = useRef<string[]>([]);
-  const currentIndexRef = useRef(0);
-  const timerRef = useRef<any>(null);
+  const [displayText, setDisplayText] = useState(content);
+  const scrollRef = useRef(onScrollToBottom);
 
-  // Initialize and run typewriter animation locally
   useEffect(() => {
-    if (typing) {
-      // Split by spaces but preserve whitespace matches
-      wordsRef.current = content.split(' ');
-      currentIndexRef.current = 0;
-      setDisplayText('');
+    scrollRef.current = onScrollToBottom;
+  }, [onScrollToBottom]);
 
-      const typeNextWord = () => {
-        if (currentIndexRef.current < wordsRef.current.length) {
-          const nextIndex = currentIndexRef.current + 1;
-          const currentWords = wordsRef.current.slice(0, nextIndex);
-          setDisplayText(currentWords.join(' '));
-          currentIndexRef.current = nextIndex;
-          
-          if (onScrollToBottom) {
-            onScrollToBottom();
-          }
-
-          timerRef.current = setTimeout(typeNextWord, 20);
-        } else {
-          // Finished typing, notify manager to update state once
-          aiManager.finishTyping(sessionId, messageId);
-        }
+  // Listen to live stream chunks
+  useEffect(() => {
+    if (streamingEventId) {
+      setDisplayText(""); // Start empty for the stream
+      const handleChunk = (e: any) => {
+        setDisplayText(prev => prev + e.detail);
+        if (scrollRef.current) scrollRef.current();
       };
 
-      timerRef.current = setTimeout(typeNextWord, 20);
+      const eventName = `ai-text-${streamingEventId}`;
+      window.addEventListener(eventName, handleChunk);
+      return () => {
+        window.removeEventListener(eventName, handleChunk);
+      };
     } else {
       setDisplayText(content);
     }
-
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
-    };
-  }, [content, typing, messageId, sessionId]);
+  }, [streamingEventId, content]);
 
   // Adjust font sizes and paddings based on isWidget flag
   const h1Class = isWidget ? "text-[13px] font-bold mt-2 mb-1" : "text-lg font-bold mt-2 mb-1";
