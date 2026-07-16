@@ -24,7 +24,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: lts/*
+          # Fixed node version to prevent extra manifest queries and API rate-limits
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
@@ -65,4 +66,5 @@ jobs:
             src-tauri/target/release/bundle/msi/*.msi
             src-tauri/target/release/widg-bar-portable.exe
           token: ${{ secrets.GITHUB_TOKEN }}
-          overwrite_files: true
+          # Note: overwrite_files is now deprecated in softprops/action-gh-release@v2. 
+          # V2 handles file updates automatically, but we can keep it or let the action manage it.
