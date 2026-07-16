@@ -12,6 +12,11 @@ import { useTranslation, TranslationKey } from "../lib/i18n";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { BotSparkleColor, PersonRegular, SendRegular, AddRegular, DeleteRegular } from '@fluentui/react-icons';
 import EditAiServicePanel from "./tabs/EditAiServicePanel";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import { Settings as SettingsIcon } from "lucide-react";
 
 export default function AiChatRoute() {
@@ -240,14 +245,60 @@ export default function AiChatRoute() {
                     </div>
                   )}
                   <div 
-                    className={`max-w-[80%] px-4 py-1 text-xs leading-relaxed border ${
+                    className={`max-w-[80%] px-4 py-1 text-[11px] leading-relaxed border overflow-hidden ${
                       msg.role === 'user' 
                         ? 'bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-900 border-zinc-700 dark:border-zinc-300' 
                         : 'bg-white/40 dark:bg-zinc-900/40 border-zinc-500/10 dark:border-white/5'
                     }`}
                     style={{ borderRadius: '16px', cornerShape: 'squircle' } as React.CSSProperties}
                   >
-                    {msg.content}
+                    <div className="flex flex-col gap-2 overflow-x-auto">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm, remarkMath]}
+                        rehypePlugins={[rehypeKatex]}
+                        components={{
+                          p: ({node, ...props}) => <p className="mb-1 last:mb-0" {...props} />,
+                          a: ({node, ...props}) => <a className="text-blue-500 hover:underline" target="_blank" rel="noreferrer" {...props} />,
+                          ul: ({node, ...props}) => <ul className="list-disc pl-4 mb-1 last:mb-0" {...props} />,
+                          ol: ({node, ...props}) => <ol className="list-decimal pl-4 mb-1 last:mb-0" {...props} />,
+                          li: ({node, ...props}) => <li className="mb-0.5" {...props} />,
+                          h1: ({node, ...props}) => <h1 className="text-lg font-bold mt-2 mb-1" {...props} />,
+                          h2: ({node, ...props}) => <h2 className="text-base font-bold mt-2 mb-1" {...props} />,
+                          h3: ({node, ...props}) => <h3 className="text-sm font-bold mt-1.5 mb-1" {...props} />,
+                          code: ({node, className, children, ...props}: any) => {
+                            const match = /language-(\w+)/.exec(className || '');
+                            const isInline = !match && !className?.includes('language-');
+                            return isInline ? (
+                              <code className="bg-zinc-500/20 dark:bg-white/20 rounded px-1.5 py-0.5 font-mono text-[10px]" {...props}>
+                                {children}
+                              </code>
+                            ) : (
+                              <div className="relative my-2 rounded-lg overflow-hidden bg-zinc-900 dark:bg-black/40 border border-zinc-500/20">
+                                <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-800/50 dark:bg-white/5 border-b border-zinc-500/20">
+                                  <span className="text-[9px] font-mono text-zinc-400 uppercase">{match?.[1] || 'Code'}</span>
+                                </div>
+                                <pre className="p-3 overflow-x-auto text-[10px] text-zinc-300 font-mono scrollbar-thin">
+                                  <code className={className} {...props}>
+                                    {children}
+                                  </code>
+                                </pre>
+                              </div>
+                            )
+                          },
+                          table: ({node, ...props}) => (
+                            <div className="overflow-x-auto my-2 rounded border border-zinc-500/20">
+                              <table className="min-w-full divide-y divide-zinc-500/20" {...props} />
+                            </div>
+                          ),
+                          thead: ({node, ...props}) => <thead className="bg-zinc-500/10 dark:bg-white/5" {...props} />,
+                          th: ({node, ...props}) => <th className="px-3 py-2 text-left text-[10px] font-semibold tracking-wider" {...props} />,
+                          td: ({node, ...props}) => <td className="px-3 py-2 text-[10px] border-t border-zinc-500/10" {...props} />,
+                          blockquote: ({node, ...props}) => <blockquote className="border-l-2 border-zinc-500/40 pl-3 italic opacity-80 my-1" {...props} />,
+                        }}
+                      >
+                        {msg.content}
+                      </ReactMarkdown>
+                    </div>
                   </div>
                   {msg.role === 'user' && (
                     <div className="w-8 h-8 rounded-full bg-zinc-800/10 dark:bg-white/10 flex items-center justify-center shrink-0 border border-zinc-500/10 dark:border-white/10">
