@@ -19,6 +19,7 @@ export default function EditAiServicePanel({ instance, onBack, onSave }: EditAiS
   const [editApiKey, setEditApiKey] = useState(instance.apiKey || "");
   const [editModel, setEditModel] = useState(instance.model || "");
   const [editTemperature, setEditTemperature] = useState<number>(instance.temperature ?? 0.7);
+  const [editReasoningEffort, setEditReasoningEffort] = useState<'low' | 'medium' | 'high' | undefined>(instance.reasoningEffort);
   const [editSystemPrompt, setEditSystemPrompt] = useState(instance.systemPrompt || DEFAULT_SYSTEM_PROMPT);
   const [editModels, setEditModels] = useState<string[]>([]);
   const [isLoadingEditModels, setIsLoadingEditModels] = useState(false);
@@ -101,6 +102,7 @@ export default function EditAiServicePanel({ instance, onBack, onSave }: EditAiS
       apiKey: editApiKey,
       model: editModel,
       temperature: editTemperature,
+      reasoningEffort: editReasoningEffort,
       systemPrompt: editSystemPrompt
     });
   };
@@ -197,6 +199,29 @@ export default function EditAiServicePanel({ instance, onBack, onSave }: EditAiS
             />
             <span className="text-[10px] text-zinc-400">Creative</span>
           </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-xs text-zinc-500 font-medium flex justify-between">
+            <span>Reasoning Effort</span>
+            <span className="font-normal text-[10px] text-zinc-400">(Supported models only)</span>
+          </label>
+          <Select 
+            value={editReasoningEffort || "none"} 
+            onValueChange={(val) => setEditReasoningEffort(val === "none" ? undefined : val as any)}
+          >
+            <SelectTrigger className="w-full bg-transparent border-zinc-500/20 text-zinc-800 dark:text-zinc-200">
+              <SelectValue placeholder="Default (None)" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="none">Default (None)</SelectItem>
+                <SelectItem value="low">Low</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="space-y-1.5">

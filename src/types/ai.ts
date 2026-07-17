@@ -15,6 +15,7 @@ export interface AiServiceInstance {
   apiKey?: string;
   model?: string;
   temperature?: number;
+  reasoningEffort?: 'low' | 'medium' | 'high';
   systemPrompt?: string;
   createdAt: number;
 }

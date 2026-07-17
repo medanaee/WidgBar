@@ -29,6 +29,35 @@ function preprocessMarkdown(text: string): string {
   return processed;
 }
 
+function ThinkBlock({ content, isWidget, markdownComponents }: { content: string, isWidget: boolean, markdownComponents: any }) {
+  const [isOpen, setIsOpen] = useState(false);
+  
+  return (
+    <div className={`my-2 border-l-2 border-zinc-400/40 dark:border-zinc-500/40 pl-3 ${isWidget ? 'text-[10px]' : 'text-[11px]'}`}>
+      <div 
+        className="flex items-center gap-2 cursor-pointer text-zinc-500 dark:text-zinc-400 font-medium mb-1 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors select-none"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <span className="text-[12px]">🧠</span> 
+        <span>Reasoning</span>
+        <span className="text-[9px] opacity-70">{isOpen ? '▼' : '▶'}</span>
+      </div>
+      <div className={`relative overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[5000px] opacity-80' : 'max-h-20 opacity-50'}`}>
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm, remarkMath]}
+          rehypePlugins={[rehypeKatex]}
+          components={markdownComponents}
+        >
+          {preprocessMarkdown(content)}
+        </ReactMarkdown>
+        {!isOpen && (
+          <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-[#f4f4f5] dark:from-[#18181b] to-transparent pointer-events-none" />
+        )}
+      </div>
+    </div>
+  );
+}
+
 function MarkdownChatContent({
   content,
   streamingEventId,
@@ -94,55 +123,81 @@ function MarkdownChatContent({
   const codeBlockPreClass = isWidget ? "p-2 overflow-x-auto text-[9px] text-zinc-800 dark:text-zinc-300 font-mono" : "p-3 overflow-x-auto text-[10px] text-zinc-300 font-mono";
   const quoteClass = isWidget ? "border-l-2 border-zinc-500/30 pl-2 italic opacity-80 my-1" : "border-l-2 border-zinc-500/40 pl-3 italic opacity-80 my-1";
 
-  const processedText = preprocessMarkdown(displayText);
-
-  return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm, remarkMath]}
-      rehypePlugins={[rehypeKatex]}
-      components={{
-        p: ({node, ...props}) => <p dir="auto" {...props} />,
-        a: ({node, ...props}) => <a className="text-blue-500 hover:underline" target="_blank" rel="noreferrer" {...props} />,
-        ul: ({node, ...props}) => <ul className="list-disc list-inside w-[calc(100%-1px)]" dir="auto" {...props} />,
-        ol: ({node, ...props}) => <ol className="list-decimal list-inside w-[calc(100%-1px)]" dir="auto" {...props} />,
-        li: ({node, ...props}) => <li className="mb-0.5" dir="auto" {...props} />,
-        h1: ({node, ...props}) => <h1 className={h1Class} dir="auto" {...props} />,
-        h2: ({node, ...props}) => <h2 className={h2Class} dir="auto" {...props} />,
-        h3: ({node, ...props}) => <h3 className={h3Class} dir="auto" {...props} />,
-        code: ({node, className, children, ...props}: any) => {
-          const match = /language-(\w+)/.exec(className || '');
-          const isInline = !match && !className?.includes('language-');
-          return isInline ? (
-            <code className={codeInlineClass} {...props}>
+  const markdownComponents: any = {
+    p: ({node, ...props}: any) => <p dir="auto" {...props} />,
+    a: ({node, ...props}: any) => <a className="text-blue-500 hover:underline" target="_blank" rel="noreferrer" {...props} />,
+    ul: ({node, ...props}: any) => <ul className="list-disc list-inside w-[calc(100%-1px)]" dir="auto" {...props} />,
+    ol: ({node, ...props}: any) => <ol className="list-decimal list-inside w-[calc(100%-1px)]" dir="auto" {...props} />,
+    li: ({node, ...props}: any) => <li className="mb-0.5" dir="auto" {...props} />,
+    h1: ({node, ...props}: any) => <h1 className={h1Class} dir="auto" {...props} />,
+    h2: ({node, ...props}: any) => <h2 className={h2Class} dir="auto" {...props} />,
+    h3: ({node, ...props}: any) => <h3 className={h3Class} dir="auto" {...props} />,
+    code: ({node, className, children, ...props}: any) => {
+      const match = /language-(\w+)/.exec(className || '');
+      const isInline = !match && !className?.includes('language-');
+      return isInline ? (
+        <code className={codeInlineClass} {...props}>
+          {children}
+        </code>
+      ) : (
+        <div className={codeBlockContainerClass} dir="ltr">
+          <div className={codeBlockHeaderClass}>
+            <span className={codeBlockLangClass}>{match?.[1] || 'Code'}</span>
+          </div>
+          <pre className={codeBlockPreClass}>
+            <code className={className} {...props}>
               {children}
             </code>
-          ) : (
-            <div className={codeBlockContainerClass} dir="ltr">
-              <div className={codeBlockHeaderClass}>
-                <span className={codeBlockLangClass}>{match?.[1] || 'Code'}</span>
-              </div>
-              <pre className={codeBlockPreClass}>
-                <code className={className} {...props}>
-                  {children}
-                </code>
-              </pre>
-            </div>
-          )
-        },
-        table: ({node, ...props}) => (
-          <div className="overflow-x-auto my-2 rounded border border-zinc-500/20">
-            <table className="min-w-full divide-y divide-zinc-500/20" {...props} />
-          </div>
-        ),
-        thead: ({node, ...props}) => <thead className="bg-zinc-500/10 dark:bg-white/5" {...props} />,
-        th: ({node, ...props}) => <th className="px-3 py-2 text-left text-[10px] font-semibold tracking-wider" {...props} />,
-        td: ({node, ...props}) => <td className="px-3 py-2 text-[10px] border-t border-zinc-500/10" {...props} />,
-        blockquote: ({node, ...props}) => <blockquote className={quoteClass} dir="auto" {...props} />,
-        hr: ({node, ...props}) => <hr className="border-t border-zinc-500/15 dark:border-white/10 my-3" {...props} />,
-      }}
-    >
-      {processedText}
-    </ReactMarkdown>
+          </pre>
+        </div>
+      )
+    },
+    table: ({node, ...props}: any) => (
+      <div className="overflow-x-auto my-2 rounded border border-zinc-500/20">
+        <table className="min-w-full divide-y divide-zinc-500/20" {...props} />
+      </div>
+    ),
+    thead: ({node, ...props}: any) => <thead className="bg-zinc-500/10 dark:bg-white/5" {...props} />,
+    th: ({node, ...props}: any) => <th className="px-3 py-2 text-left text-[10px] font-semibold tracking-wider" {...props} />,
+    td: ({node, ...props}: any) => <td className="px-3 py-2 text-[10px] border-t border-zinc-500/10" {...props} />,
+    blockquote: ({node, ...props}: any) => <blockquote className={quoteClass} dir="auto" {...props} />,
+    hr: ({node, ...props}: any) => <hr className="border-t border-zinc-500/15 dark:border-white/10 my-3" {...props} />,
+  };
+
+  const parts = [];
+  const regex = /<think>([\s\S]*?)(?:<\/think>|$)/g;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(displayText)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push({ type: 'text', content: displayText.slice(lastIndex, match.index) });
+    }
+    parts.push({ type: 'think', content: match[1] });
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < displayText.length) {
+    parts.push({ type: 'text', content: displayText.slice(lastIndex) });
+  }
+
+  return (
+    <div className="flex flex-col gap-1 w-full">
+      {parts.map((part, i) => {
+        if (part.type === 'think') {
+          return <ThinkBlock key={i} content={part.content} isWidget={isWidget} markdownComponents={markdownComponents} />;
+        }
+        return (
+          <ReactMarkdown
+            key={i}
+            remarkPlugins={[remarkGfm, remarkMath]}
+            rehypePlugins={[rehypeKatex]}
+            components={markdownComponents}
+          >
+            {preprocessMarkdown(part.content)}
+          </ReactMarkdown>
+        );
+      })}
+    </div>
   );
 }
 

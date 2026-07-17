@@ -80,7 +80,8 @@ class AiServicesManager {
         session.model,
         instance.temperature,
         instance.systemPrompt || DEFAULT_SYSTEM_PROMPT,
-        eventId
+        eventId,
+        instance.reasoningEffort
       );
     } catch (e: any) {
       aiResponseContent = `Error: ${e.message}`;
@@ -118,7 +119,8 @@ class AiServicesManager {
     model: string | undefined,
     temperature: number | undefined,
     systemPrompt: string,
-    eventId: string
+    eventId: string,
+    reasoningEffort?: 'low' | 'medium' | 'high'
   ): Promise<string> {
     if (!apiKey) throw new Error("API Key is missing");
 
@@ -128,6 +130,7 @@ class AiServicesManager {
     ];
 
     let fullText = "";
+    let isReasoning = false;
 
     return new Promise((resolve, reject) => {
       let unlistenChunk: UnlistenFn;
@@ -153,7 +156,22 @@ class AiServicesManager {
           } else {
             if (line.startsWith('data: ') && line !== 'data: [DONE]') {
               const data = JSON.parse(line.substring(6));
-              textPart = data.choices?.[0]?.delta?.content || "";
+              const delta = data.choices?.[0]?.delta;
+              if (delta) {
+                if (delta.reasoning_content) {
+                  if (!isReasoning) {
+                    isReasoning = true;
+                    textPart += "<think>\n";
+                  }
+                  textPart += delta.reasoning_content;
+                } else if (delta.content) {
+                  if (isReasoning) {
+                    isReasoning = false;
+                    textPart += "\n</think>\n\n";
+                  }
+                  textPart += delta.content;
+                }
+              }
             }
           }
         } catch (e) {
@@ -189,6 +207,7 @@ class AiServicesManager {
             model: model || 'gpt-4o',
             messages: requestMessages,
             temperature: temperature ?? 0.7,
+            ...(reasoningEffort && { reasoning_effort: reasoningEffort }),
             stream: true
           },
           eventId
@@ -227,6 +246,7 @@ class AiServicesManager {
             model: model || 'deepseek-chat',
             messages: requestMessages,
             temperature: temperature ?? 0.7,
+            ...(reasoningEffort && { reasoning_effort: reasoningEffort }),
             stream: true
           },
           eventId
@@ -243,11 +263,13 @@ class AiServicesManager {
             model: model || 'llama-3.3-70b-specdec',
             messages: requestMessages,
             temperature: temperature ?? 0.7,
+            ...(reasoningEffort && { reasoning_effort: reasoningEffort }),
             stream: true
           },
           eventId
         });
       } else if (providerId === 'nvidia-api') {
+        const targetModel = model || 'meta/llama-3.1-8b-instruct';
         promise = invoke('stream_ai_request', {
           url: 'https://integrate.api.nvidia.com/v1/chat/completions',
           method: 'POST',
@@ -256,9 +278,13 @@ class AiServicesManager {
             'Authorization': `Bearer ${apiKey}`
           },
           body: {
-            model: model || 'meta/llama-3.1-8b-instruct',
+            model: targetModel,
             messages: requestMessages,
             temperature: temperature ?? 0.7,
+            ...(reasoningEffort && { 
+              reasoning_effort: reasoningEffort,
+              ...(targetModel.toLowerCase().includes('glm') && { thinking: { type: "enabled" } })
+            }),
             stream: true
           },
           eventId
