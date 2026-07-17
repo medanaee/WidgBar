@@ -28,6 +28,7 @@ use crate::database::*;
 
 mod locked_popups;
 use crate::locked_popups::*;
+mod system_monitor;
 
 static WINDOW_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
@@ -303,7 +304,8 @@ fn main() {
             execute_js_in_popup,
             exit_app,
             proxy_request,
-            stream_ai_request
+            stream_ai_request,
+            system_monitor::get_system_stats
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -313,6 +315,12 @@ fn main() {
                 init_main_window(handle).await;
             });
             app.manage(SharedWidgetState::default());
+
+            // Initialize System Monitor
+            let stats = std::sync::Arc::new(std::sync::Mutex::new(system_monitor::SystemStats::default()));
+            system_monitor::start_monitor_thread(stats.clone());
+            app.manage(system_monitor::SystemMonitorState { stats });
+
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())

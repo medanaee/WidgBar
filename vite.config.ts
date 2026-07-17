@@ -26,7 +26,7 @@ export default defineConfig(async () => ({
   
   // Explicitly tell Vite to include and optimize the icons package
   optimizeDeps: {
-    include: ["@fluentui/react-icons"],
+    include: ["@fluentui/react-icons", "recharts"],
   },
   
   // Enforce aggressive tree-shaking during the production build

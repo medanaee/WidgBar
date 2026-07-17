@@ -36,6 +36,14 @@ export const WIDGET_TYPE_META: Record<string, WidgetTypeMeta> = {
     descriptionKey: 'widgetWeatherDesc',
     can_be_in_bar: true,
     can_be_in_area: true,
+  },
+  system_monitor: {
+    type_name: 'system_monitor',
+    icon: 'DeveloperBoardRegular',
+    nameKey: 'widgetSystemMonitor',
+    descriptionKey: 'widgetSystemMonitorDesc',
+    can_be_in_bar: true,
+    can_be_in_area: true,
   }
 };
 
@@ -50,6 +58,7 @@ const SEED_DEFAULTS: Record<string, WidgetTypeSettings> = {
   clock: { default_width: 300, default_height: 150 },
   ai: { default_width: 350, default_height: 400 },
   weather: { default_width: 300, default_height: 150 },
+  system_monitor: { default_width: 300, default_height: 180 },
 };
 
 // ── Combined type for consumers ──

@@ -53,6 +53,8 @@ export const translations = {
     widgetWeatherDesc: "Real-time weather and forecast.",
     widgetAi: "AI Chat",
     widgetAiDesc: "Chat and interact with AI.",
+    widgetSystemMonitor: "System Monitor",
+    widgetSystemMonitorDesc: "Real-time system resource tracking.",
     noWidgets: "No widgets available",
   },
   fa: {
@@ -107,6 +109,8 @@ export const translations = {
     widgetWeatherDesc: "وضعیت لحظه‌ای و پیش‌بینی آب و هوا.",
     widgetAi: "هوش مصنوعی",
     widgetAiDesc: "ویجت چت و ارتباط با هوش مصنوعی.",
+    widgetSystemMonitor: "پایشگر سیستم",
+    widgetSystemMonitorDesc: "پایشگر زنده منابع سیستم (سی‌پی‌یو، رم، هارد و شبکه).",
     noWidgets: "هیچ ابزارکی در دسترس نیست",
   }
 } as const;

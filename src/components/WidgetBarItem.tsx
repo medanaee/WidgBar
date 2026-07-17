@@ -5,6 +5,7 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { useWidgetRegistryStore } from '../stores/widgetRegistryStore';
 import { listen } from '@tauri-apps/api/event';
 import { useWidgetInstanceStore } from '@/stores/widgetInstanceStore';
+import { useWidgetConstraintsStore } from '../stores/widgetConstraintsStore';
 
 interface Props {
     widget: BarWidget;
@@ -69,10 +70,21 @@ export default function WidgetBarItem({ widget, children }: Props) {
         }
     };
 
+    const constraints = useWidgetConstraintsStore(state => state.constraints[widget.id]);
+    const barPadding = constraints?.barPadding ?? (widget.type === 'system_monitor' ? 0 : 2);
+    
+    const paddingClass = {
+        0: 'px-0',
+        1: 'px-1',
+        2: 'px-2',
+        3: 'px-3',
+        4: 'px-4'
+    }[barPadding] ?? 'px-2';
+
     return (
         <div 
             onClick={handleClick}
-            className={`flex items-center justify-center h-full px-2 transition-colors rounded-md cursor-pointer select-none ${
+            className={`flex items-center justify-center h-full ${paddingClass} transition-colors rounded-md cursor-pointer select-none ${
                 isHighlighted 
                     ? 'bg-primary/20 ring-1 ring-primary/50 shadow-sm'
                     : 'hover:bg-white/10'
