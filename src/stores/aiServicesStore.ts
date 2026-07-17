@@ -11,6 +11,7 @@ interface AiData {
 interface AiServicesState {
   data: AiData;
   sessionMessages: Record<string, ChatMessage[]>;
+  sessionsLoaded: Record<string, boolean>;
   isLoading: boolean;
   hasInitialized: boolean;
   
@@ -35,6 +36,7 @@ export const useAiServicesStore = create<AiServicesState>((set, get) => {
   return {
     data: { instances: [], sessions: [] },
     sessionMessages: {},
+    sessionsLoaded: {},
     isLoading: false,
     hasInitialized: false,
 
@@ -62,6 +64,7 @@ export const useAiServicesStore = create<AiServicesState>((set, get) => {
       await invoke('save_ai_instance', { id: instance.id, data: JSON.stringify(instance) });
       const currentData = get().data;
       set({ data: { ...currentData, instances: [...currentData.instances, instance] } });
+      emit('ai-data-sync').catch(console.error);
     },
 
     updateInstance: async (id, updatedFields) => {
@@ -75,6 +78,7 @@ export const useAiServicesStore = create<AiServicesState>((set, get) => {
       const newInstances = [...currentData.instances];
       newInstances[index] = updatedInstance;
       set({ data: { ...currentData, instances: newInstances } });
+      emit('ai-data-sync').catch(console.error);
     },
 
     removeInstance: async (id) => {
@@ -87,6 +91,7 @@ export const useAiServicesStore = create<AiServicesState>((set, get) => {
           sessions: currentData.sessions.filter(s => s.instanceId !== id)
         }
       });
+      emit('ai-data-sync').catch(console.error);
     },
 
     addSession: async (session) => {
@@ -128,12 +133,20 @@ export const useAiServicesStore = create<AiServicesState>((set, get) => {
     removeSession: async (id) => {
       await invoke('delete_ai_session', { id });
       const currentData = get().data;
-      set({
-        data: {
-          ...currentData,
-          sessions: currentData.sessions.filter(s => s.id !== id)
-        }
-      });
+      const currentMessages = get().sessionMessages;
+      const currentLoaded = get().sessionsLoaded;
+      
+      const newMessages = { ...currentMessages };
+      delete newMessages[id];
+      const newLoaded = { ...currentLoaded };
+      delete newLoaded[id];
+      
+      set({ 
+          data: { ...currentData, sessions: currentData.sessions.filter(s => s.id !== id) },
+          sessionMessages: newMessages,
+          sessionsLoaded: newLoaded
+      }); 
+      emit('ai-data-sync').catch(console.error);
     },
 
     loadMessagesForSession: async (sessionId, offset) => {
@@ -145,11 +158,15 @@ export const useAiServicesStore = create<AiServicesState>((set, get) => {
         const currentMessages = get().sessionMessages;
         const existingMessages = currentMessages[sessionId] || [];
         
-        const newMessages = offset > 0 ? [...messages, ...existingMessages] : messages;
+        const newMessages = [...messages, ...existingMessages];
         
         const uniqueMessages = Array.from(new Map(newMessages.map(item => [item.id, item])).values());
-        
-        set({ sessionMessages: { ...currentMessages, [sessionId]: uniqueMessages } });
+        uniqueMessages.sort((a, b) => a.timestamp - b.timestamp);
+      
+        set({ 
+          sessionMessages: { ...currentMessages, [sessionId]: uniqueMessages },
+          sessionsLoaded: { ...get().sessionsLoaded, [sessionId]: true }
+        });
       } catch (err) {
         console.error('Error fetching messages for session', sessionId, err);
       }

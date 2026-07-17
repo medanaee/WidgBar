@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useAiServicesStore } from "../../stores/aiServicesStore";
 import { AI_PROVIDERS, AiServiceInstance } from "../../types/ai";
 import { Button } from "../ui/button";
-import { Plus, Trash2, Webhook, Settings, MessageSquare } from "lucide-react";
+import { Plus, Trash2, Settings, MessageSquare } from "lucide-react";
+import { CompanyLogo } from "../CompanyLogo";
 import { SettingCard } from "../ui/SettingCard";
 import AddAiServicePanel from "./AddAiServicePanel";
 import EditAiServicePanel from "./EditAiServicePanel";
@@ -89,8 +90,8 @@ export default function AiServicesTab() {
               >
                 <div className="flex justify-between items-start mb-4 w-full">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center shadow-sm">
-                      <Webhook className="w-5 h-5 text-blue-500" />
+                    <div className="w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center shadow-sm overflow-hidden">
+                      <CompanyLogo providerId={instance.providerId} size={24} fallbackIcon="cloud" className="text-blue-500" />
                     </div>
                     <div>
                       <h3 className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">{instance.name}</h3>

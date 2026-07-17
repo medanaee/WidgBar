@@ -34,12 +34,20 @@ export default function WidgetBarItem({ widget, children }: Props) {
         // Find default dimensions from registry by widget type
         const registry = useWidgetRegistryStore.getState().registry;
         const config = registry[widget.type];
-        let width = 300;
-        let height = 300;
         
-        if (config) {
-            width = config.default_width || width;
-            height = config.default_height || height;
+        // Check instance config first, then registry default, then fallback
+        const instanceConfig = useWidgetInstanceStore.getState().instances[widget.id];
+        let width = instanceConfig?.popupWidth;
+        let height = instanceConfig?.popupHeight;
+        
+        if (!width || !height) {
+            if (config) {
+                width = width || config.default_width || 300;
+                height = height || config.default_height || 300;
+            } else {
+                width = width || 300;
+                height = height || 300;
+            }
         }
 
         try {

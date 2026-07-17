@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { AiServiceInstance } from "../../types/ai";
+import { AiServiceInstance, AI_PROVIDERS } from "../../types/ai";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
@@ -7,6 +7,7 @@ import { Slider } from "../ui/slider";
 import { ArrowLeftRegular, EyeRegular, EyeOffRegular } from '@fluentui/react-icons';
 import { invoke } from "@tauri-apps/api/core";
 import { DEFAULT_SYSTEM_PROMPT } from "../../lib/AiServicesManager";
+import { CompanyLogo } from "../CompanyLogo";
 
 interface EditAiServicePanelProps {
   instance: AiServiceInstance;
@@ -15,6 +16,7 @@ interface EditAiServicePanelProps {
 }
 
 export default function EditAiServicePanel({ instance, onBack, onSave }: EditAiServicePanelProps) {
+  const [editProviderId, setEditProviderId] = useState(instance.providerId);
   const [editName, setEditName] = useState(instance.name);
   const [editApiKey, setEditApiKey] = useState(instance.apiKey || "");
   const [editModel, setEditModel] = useState(instance.model || "");
@@ -29,8 +31,8 @@ export default function EditAiServicePanel({ instance, onBack, onSave }: EditAiS
     setEditModels([]);
     setIsLoadingEditModels(true);
     
-    const providerId = instance.providerId;
-    const apiKey = editApiKey || instance.apiKey || "";
+    const providerId = editProviderId;
+    const apiKey = editApiKey;
     
     if (providerId === 'nvidia-api' && apiKey) {
       invoke<any>('proxy_request', {
@@ -49,6 +51,9 @@ export default function EditAiServicePanel({ instance, onBack, onSave }: EditAiS
               !id.includes('vl')
             );
           setEditModels(chatModels);
+          if (chatModels.length > 0 && !chatModels.includes(editModel)) {
+            setEditModel(chatModels[0]);
+          }
         }
       })
       .catch(err => console.error("Error fetching Nvidia models for edit:", err))
@@ -65,6 +70,9 @@ export default function EditAiServicePanel({ instance, onBack, onSave }: EditAiS
             .map((m: any) => m.id)
             .filter((id: string) => id.includes('gpt'));
           setEditModels(chatModels);
+          if (chatModels.length > 0 && !chatModels.includes(editModel)) {
+            setEditModel(chatModels[0]);
+          }
         }
       })
       .catch(err => console.error("Error fetching OpenAI models for edit:", err))
@@ -81,23 +89,36 @@ export default function EditAiServicePanel({ instance, onBack, onSave }: EditAiS
             .map((m: any) => m.id)
             .filter((id: string) => !id.includes('whisper'));
           setEditModels(chatModels);
+          if (chatModels.length > 0 && !chatModels.includes(editModel)) {
+            setEditModel(chatModels[0]);
+          }
         }
       })
       .catch(err => console.error("Error fetching Groq models for edit:", err))
       .finally(() => setIsLoadingEditModels(false));
     } else if (providerId === 'deepseek-api') {
-      setEditModels(['deepseek-chat', 'deepseek-reasoner']);
+      const models = ['deepseek-chat', 'deepseek-reasoner'];
+      setEditModels(models);
+      if (!models.includes(editModel)) {
+        setEditModel(models[0]);
+      }
       setIsLoadingEditModels(false);
     } else if (providerId === 'gemini-api') {
-      setEditModels(['gemini-1.5-flash', 'gemini-1.5-pro']);
+      const models = ['gemini-1.5-flash', 'gemini-1.5-pro'];
+      setEditModels(models);
+      if (!models.includes(editModel)) {
+        setEditModel(models[0]);
+      }
       setIsLoadingEditModels(false);
     } else {
       setIsLoadingEditModels(false);
     }
-  }, [instance.providerId, instance.apiKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editProviderId, editApiKey]);
 
   const handleSave = () => {
     onSave({
+      providerId: editProviderId,
       name: editName,
       apiKey: editApiKey,
       model: editModel,
@@ -123,6 +144,27 @@ export default function EditAiServicePanel({ instance, onBack, onSave }: EditAiS
       </div>
 
       <div className="grow pr-2 custom-scrollbar pb-6 space-y-5 text-zinc-800 dark:text-zinc-200 ">
+        <div className="space-y-1.5">
+          <label className="text-xs text-zinc-500 font-medium">Provider</label>
+          <Select value={editProviderId} onValueChange={setEditProviderId}>
+            <SelectTrigger className="w-full bg-transparent border-zinc-500/20 text-zinc-800 dark:text-zinc-200">
+              <SelectValue placeholder="Select a Provider" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {AI_PROVIDERS.map(p => (
+                  <SelectItem key={p.id} value={p.id}>
+                    <div className="flex items-center gap-2">
+                      <CompanyLogo providerId={p.id} size={16} fallbackIcon="cloud" className="text-blue-500" />
+                      {p.name}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
+
         <div className="space-y-1.5">
           <label className="text-xs text-zinc-500 font-medium">Custom Name</label>
           <Input 

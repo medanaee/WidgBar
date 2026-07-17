@@ -58,6 +58,89 @@ function ThinkBlock({ content, isWidget, markdownComponents }: { content: string
   );
 }
 
+function CopyButton({ text, isWidget }: { text: string; isWidget: boolean }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (err) {
+      console.error('Failed to copy: ', err);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      className={`text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors focus:outline-none flex items-center gap-1 font-medium ${
+        isWidget ? 'text-[8px]' : 'text-[9px]'
+      }`}
+    >
+      {copied ? (
+        <span className="text-green-500 flex items-center gap-0.5 font-semibold">
+          <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          Copied
+        </span>
+      ) : (
+        <span className="flex items-center gap-1">
+          <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+          </svg>
+          Copy
+        </span>
+      )}
+    </button>
+  );
+}
+
+function SimpleCodeHighlighter({ children, language }: { children: string; language: string }) {
+  if (typeof children !== 'string') return <>{children}</>;
+  
+  const lang = (language || '').toLowerCase();
+  const supported = ['javascript', 'js', 'typescript', 'ts', 'rust', 'rs', 'python', 'py', 'json', 'bash', 'sh', 'html', 'css'];
+  if (!supported.includes(lang)) {
+    return <>{children}</>;
+  }
+
+  const regex = /(\/\/[^\n]*|#[^\n]*)|("[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*'|`[^`\\]*(?:\\.[^`\\]*)*`)|(\b\w+(?=\())|(\b(?:[A-Z]\w*|i32|u32|i64|u64|f32|f64|str|String|bool|Option|Result|Self|self)\b)|(\b(?:const|let|var|function|return|import|export|from|class|if|else|for|while|fn|mut|pub|use|impl|struct|enum|def|as|in|try|except|break|continue|new|static|type|async|await|interface|private|public|protected|throw|catch|match)\b)|(\b\d+\b)/g;
+
+  const parts: React.ReactNode[] = [];
+  let lastIdx = 0;
+  let match;
+
+  while ((match = regex.exec(children)) !== null) {
+    if (match.index > lastIdx) {
+      parts.push(children.substring(lastIdx, match.index));
+    }
+
+    if (match[1]) { // Comment
+      parts.push(<span key={match.index} className="text-zinc-400 dark:text-zinc-500 italic">{match[0]}</span>);
+    } else if (match[2]) { // String
+      parts.push(<span key={match.index} className="text-emerald-600 dark:text-sky-300">{match[0]}</span>);
+    } else if (match[3]) { // Function
+      parts.push(<span key={match.index} className="text-blue-600 dark:text-purple-400">{match[0]}</span>);
+    } else if (match[4]) { // Type/Class
+      parts.push(<span key={match.index} className="text-amber-605 dark:text-orange-350">{match[0]}</span>);
+    } else if (match[5]) { // Keyword
+      parts.push(<span key={match.index} className="text-violet-600 dark:text-pink-400 font-semibold">{match[0]}</span>);
+    } else if (match[6]) { // Number
+      parts.push(<span key={match.index} className="text-amber-600 dark:text-blue-400">{match[0]}</span>);
+    }
+
+    lastIdx = regex.lastIndex;
+  }
+
+  if (lastIdx < children.length) {
+    parts.push(children.substring(lastIdx));
+  }
+
+  return <>{parts}</>;
+}
+
 function MarkdownChatContent({
   content,
   streamingEventId,
@@ -117,10 +200,14 @@ function MarkdownChatContent({
   const h2Class = isWidget ? "text-[12px] font-bold mt-2 mb-1" : "text-base font-bold mt-2 mb-1";
   const h3Class = isWidget ? "text-[11px] font-bold mt-1.5 mb-1" : "text-sm font-bold mt-1.5 mb-1";
   const codeInlineClass = isWidget ? "bg-zinc-500/10 dark:bg-white/10 rounded px-1 py-0.5 font-mono text-[9px]" : "bg-zinc-500/20 dark:bg-white/20 rounded px-1.5 py-0.5 font-mono text-[10px]";
-  const codeBlockContainerClass = isWidget ? "relative my-1.5 rounded border border-zinc-500/10 overflow-hidden bg-zinc-100 dark:bg-black/30" : "relative my-2 rounded-lg overflow-hidden bg-zinc-900 dark:bg-black/40 border border-zinc-500/20";
-  const codeBlockHeaderClass = isWidget ? "flex items-center justify-between px-2 py-1 bg-zinc-200 dark:bg-white/5 border-b border-zinc-500/10" : "flex items-center justify-between px-3 py-1.5 bg-zinc-800/50 dark:bg-white/5 border-b border-zinc-500/20";
+  const codeBlockContainerClass = isWidget 
+    ? "relative my-1.5 rounded border border-zinc-500/20 overflow-hidden bg-zinc-100 dark:bg-black/30" 
+    : "relative my-2 rounded-lg overflow-hidden bg-zinc-50 dark:bg-black/30 border border-zinc-500/20";
+  const codeBlockHeaderClass = isWidget 
+    ? "flex items-center justify-between px-2 py-1 bg-zinc-200 dark:bg-white/5 border-b border-zinc-500/20" 
+    : "flex items-center justify-between px-3 py-1.5  bg-zinc-200 dark:bg-white/5 border-b border-zinc-500/20";
   const codeBlockLangClass = isWidget ? "text-[8px] font-mono text-zinc-500 dark:text-zinc-400 uppercase" : "text-[9px] font-mono text-zinc-400 uppercase";
-  const codeBlockPreClass = isWidget ? "p-2 overflow-x-auto text-[9px] text-zinc-800 dark:text-zinc-300 font-mono" : "p-3 overflow-x-auto text-[10px] text-zinc-300 font-mono";
+  const codeBlockPreClass = isWidget ? "p-2 overflow-x-auto text-[9px] text-zinc-800 dark:text-zinc-300 font-mono" : "p-3 overflow-x-auto text-[10px] text-zinc-850 dark:text-zinc-300 font-mono";
   const quoteClass = isWidget ? "border-l-2 border-zinc-500/30 pl-2 italic opacity-80 my-1" : "border-l-2 border-zinc-500/40 pl-3 italic opacity-80 my-1";
 
   const markdownComponents: any = {
@@ -135,6 +222,7 @@ function MarkdownChatContent({
     code: ({node, className, children, ...props}: any) => {
       const match = /language-(\w+)/.exec(className || '');
       const isInline = !match && !className?.includes('language-');
+      const codeString = String(children).replace(/\n$/, '');
       return isInline ? (
         <code className={codeInlineClass} {...props}>
           {children}
@@ -143,10 +231,11 @@ function MarkdownChatContent({
         <div className={codeBlockContainerClass} dir="ltr">
           <div className={codeBlockHeaderClass}>
             <span className={codeBlockLangClass}>{match?.[1] || 'Code'}</span>
+            <CopyButton text={codeString} isWidget={isWidget} />
           </div>
           <pre className={codeBlockPreClass}>
             <code className={className} {...props}>
-              {children}
+              <SimpleCodeHighlighter children={codeString} language={match?.[1] || ''} />
             </code>
           </pre>
         </div>

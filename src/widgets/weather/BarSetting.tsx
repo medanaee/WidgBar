@@ -1,7 +1,6 @@
 import { useWidgetInstanceStore } from '../../stores/widgetInstanceStore';
 import { Switch } from '../../components/ui/switch';
 
-// Styled Card matching the layout settings card
 function SettingCard({ children }: { children: React.ReactNode }) {
     return (
         <div className="flex items-center justify-between p-3.5 rounded-xl bg-white/50 dark:bg-zinc-900/10 border border-zinc-500/20 dark:border-zinc-500/20 shadow-sm transition-all hover:bg-white/80 dark:hover:bg-zinc-900/50">
@@ -10,13 +9,9 @@ function SettingCard({ children }: { children: React.ReactNode }) {
     );
 }
 
-export default function ClockBarSetting({ widgetId }: { widgetId: string }) {
+export default function WeatherBarSetting({ widgetId }: { widgetId: string }) {
     const config = useWidgetInstanceStore(state => state.instances[widgetId]) || {};
     const updateInstance = useWidgetInstanceStore(state => state.updateInstance);
-
-    const barShowSeconds = config.barShowSeconds ?? false;
-    const barIs24Hour = config.barIs24Hour ?? false;
-    const barShowTimezone = config.barShowTimezone ?? false;
 
     const handleUpdate = (updates: any) => {
         updateInstance(widgetId, { ...config, ...updates });
@@ -24,47 +19,11 @@ export default function ClockBarSetting({ widgetId }: { widgetId: string }) {
 
     return (
         <div className="space-y-3 pt-2">
-            {/* Show Seconds in Bar */}
-            <SettingCard>
-                <div>
-                    <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Show Seconds in Bar</h3>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Display seconds hand or digits on the top bar clock</p>
-                </div>
-                <Switch 
-                    checked={barShowSeconds} 
-                    onCheckedChange={(checked) => handleUpdate({ barShowSeconds: checked })} 
-                />
-            </SettingCard>
-
-            {/* 24-Hour Format in Bar */}
-            <SettingCard>
-                <div>
-                    <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">24-Hour Format in Bar</h3>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Use 24-hour time instead of AM/PM in the bar clock</p>
-                </div>
-                <Switch 
-                    checked={barIs24Hour} 
-                    onCheckedChange={(checked) => handleUpdate({ barIs24Hour: checked })} 
-                />
-            </SettingCard>
-
-            {/* Show Timezone in Bar */}
-            <SettingCard>
-                <div>
-                    <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Show Timezone in Bar</h3>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Display flag and name of selected timezone on the top bar clock</p>
-                </div>
-                <Switch 
-                    checked={barShowTimezone} 
-                    onCheckedChange={(checked) => handleUpdate({ barShowTimezone: checked })} 
-                />
-            </SettingCard>
-
             {/* Click to Open Details */}
             <SettingCard>
                 <div>
                     <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Click to Open Details</h3>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Allow clicking the clock in the bar to open its settings/details popup</p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Allow clicking the weather icon in the bar to open the popup</p>
                 </div>
                 <Switch 
                     checked={!config.disableClickPopup} 
@@ -76,7 +35,7 @@ export default function ClockBarSetting({ widgetId }: { widgetId: string }) {
             <div className="p-3.5 rounded-xl bg-white/50 dark:bg-zinc-900/10 border border-zinc-500/20 dark:border-zinc-500/20 shadow-sm space-y-4">
                 <div>
                     <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Popup Size</h3>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Adjust the dimensions of the popup window</p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Adjust the dimensions of the weather popup window</p>
                 </div>
                 <div className="space-y-4 pt-2">
                     <div className="space-y-2">
@@ -95,12 +54,12 @@ export default function ClockBarSetting({ widgetId }: { widgetId: string }) {
                     <div className="space-y-2">
                         <div className="flex justify-between text-xs">
                             <span className="font-medium text-zinc-700 dark:text-zinc-300">Height</span>
-                            <span className="text-zinc-500">{config.popupHeight || 150}px</span>
+                            <span className="text-zinc-500">{config.popupHeight || 300}px</span>
                         </div>
                         <input 
                             type="range" 
                             min="100" max="800" step="10"
-                            value={config.popupHeight || 150}
+                            value={config.popupHeight || 300}
                             onChange={(e) => handleUpdate({ popupHeight: Number(e.target.value) })}
                             className="w-full accent-primary"
                         />

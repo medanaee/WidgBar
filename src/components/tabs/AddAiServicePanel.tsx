@@ -5,6 +5,7 @@ import { Input } from "../ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { ArrowLeftRegular, CloudRegular, EyeRegular, EyeOffRegular } from '@fluentui/react-icons';
 import { DEFAULT_SYSTEM_PROMPT } from "../../lib/AiServicesManager";
+import { CompanyLogo } from "../CompanyLogo";
 
 interface AddAiServicePanelProps {
   onBack: () => void;
@@ -65,7 +66,7 @@ export default function AddAiServicePanel({ onBack, onSave }: AddAiServicePanelP
                 {AI_PROVIDERS.map(p => (
                   <SelectItem key={p.id} value={p.id}>
                     <div className="flex items-center gap-2">
-                      <CloudRegular fontSize={14} className="text-blue-500" />
+                      <CompanyLogo providerId={p.id} size={16} fallbackIcon="cloud" className="text-blue-500" />
                       {p.name}
                     </div>
                   </SelectItem>

@@ -12,6 +12,7 @@ import { CutoutProvider } from "./ui/CutoutProvider";
 import { useTranslation, TranslationKey } from "../lib/i18n";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { BotSparkleColor, PersonRegular, SendRegular, AddRegular, DeleteRegular, StopRegular } from '@fluentui/react-icons';
+import { CompanyLogo } from "./CompanyLogo";
 import EditAiServicePanel from "./tabs/EditAiServicePanel";
 import MarkdownChatContent from "./MarkdownChatContent";
 import { Settings as SettingsIcon } from "lucide-react";
@@ -109,7 +110,7 @@ function ChatInput({
 export default function AiChatRoute() {
   console.log("Rendering AiChatRoute");
   const { instanceId } = useParams<{ instanceId: string }>();
-  const { data, sessionMessages, loadMessagesForSession, removeSession } = useAiServicesStore();
+  const { data, sessionMessages, sessionsLoaded, loadMessagesForSession, removeSession } = useAiServicesStore();
   const { language, t } = useTranslation();
   
   const instance = data.instances.find(i => i.id === instanceId);
@@ -123,10 +124,21 @@ export default function AiChatRoute() {
 
   const currentMessages = activeSession ? (sessionMessages[activeSession.id] || []) : [];
 
+  const isAutoScrollEnabled = useRef(true);
+
   // Scroll to bottom whenever messages change or we start sending, if we're near bottom
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (isAutoScrollEnabled.current || isSending) {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        if (isSending) isAutoScrollEnabled.current = true;
+    }
   }, [currentMessages.length > 0 ? currentMessages[currentMessages.length - 1].id : null, isSending]);
+
+  const scrollToBottomIfEnabled = () => {
+      if (isAutoScrollEnabled.current) {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }
+  };
 
   const [models, setModels] = useState<string[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
@@ -144,12 +156,16 @@ export default function AiChatRoute() {
 
   // Lazy load initial messages when activeSession changes
   useEffect(() => {
-    if (activeSession && !sessionMessages[activeSession.id]) {
+    if (activeSession && !sessionsLoaded[activeSession.id]) {
       loadMessagesForSession(activeSession.id, 0);
     }
-  }, [activeSession?.id, sessionMessages, loadMessagesForSession]);
+  }, [activeSession?.id, sessionsLoaded, loadMessagesForSession]);
 
   const handleScroll = async (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    const isAtBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 50;
+    isAutoScrollEnabled.current = isAtBottom;
+
     if (e.currentTarget.scrollTop === 0 && activeSession && !isLoadingMore) {
       const msgs = sessionMessages[activeSession.id] || [];
       if (msgs.length >= 20) {
@@ -376,7 +392,7 @@ export default function AiChatRoute() {
             >
               {currentMessages.length === 0 && (
                 <div className="h-full flex flex-col items-center justify-center opacity-40">
-                  <BotSparkleColor fontSize={48} className="mb-4" />
+                  <CompanyLogo providerId={instance.providerId} size={48} className="mb-4" />
                   <p className="text-xs">Start a conversation with {instance.name}</p>
                 </div>
               )}
@@ -390,8 +406,8 @@ export default function AiChatRoute() {
               {currentMessages.map((msg) => (
                 <div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   {msg.role === 'assistant' && (
-                    <div className="w-8 h-8 rounded-full bg-zinc-500/10 dark:bg-white/10 flex items-center justify-center shrink-0 border border-zinc-500/10 dark:border-white/10">
-                      <BotSparkleColor fontSize={18} />
+                    <div className="w-8 h-8 rounded-full bg-zinc-500/10 dark:bg-zinc-800 flex items-center justify-center shrink-0 border border-zinc-500/10 dark:border-zinc-700 overflow-hidden shadow-sm">
+                      <CompanyLogo providerId={instance.providerId} size={18} />
                     </div>
                   )}
                   <div 
@@ -407,9 +423,7 @@ export default function AiChatRoute() {
                       <MarkdownChatContent
                         content={msg.content}
                         streamingEventId={msg.streamingEventId}
-                        onScrollToBottom={() => {
-                          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-                        }}
+                        onScrollToBottom={scrollToBottomIfEnabled}
                       />
                     </div>
                   </div>

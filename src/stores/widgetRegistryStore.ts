@@ -45,6 +45,17 @@ export const useWidgetRegistryStore = create<WidgetRegistryState>((set, get) => 
       default_config: {},
       default_width: 350,
       default_height: 400
+    },
+    weather: {
+      type_name: 'weather',
+      icon: 'WeatherPartlyCloudyDayRegular',
+      nameKey: 'widgetWeather',
+      descriptionKey: 'widgetWeatherDesc',
+      can_be_in_bar: true,
+      can_be_in_area: true,
+      default_config: {},
+      default_width: 300,
+      default_height: 150
     }
   },
   isLoading: false,

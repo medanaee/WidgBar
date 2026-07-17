@@ -3,6 +3,7 @@ import { aiManager } from '../../lib/AiServicesManager';
 import { useAiServicesStore } from '../../stores/aiServicesStore';
 import { useWidgetInstanceStore } from '../../stores/widgetInstanceStore';
 import { BotSparkleColor, SendRegular, OpenRegular, PersonRegular, AddRegular, StopRegular } from '@fluentui/react-icons';
+import { CompanyLogo } from '../../components/CompanyLogo';
 import { invoke } from '@tauri-apps/api/core';
 import { emit } from '@tauri-apps/api/event';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
@@ -62,7 +63,7 @@ export default function AiArea({ widgetId }: { widgetId: string }) {
 
     const widgetConfig = useWidgetInstanceStore(state => state.instances[widgetId]) || {};
     const selectedInstanceId = widgetConfig.selectedInstanceId;
-    const { data: aiData, sessionMessages, loadMessagesForSession } = useAiServicesStore();
+    const { data: aiData, sessionMessages, sessionsLoaded, loadMessagesForSession } = useAiServicesStore();
     const instances = aiData.instances || [];
 
     let instance = instances.find(i => i.id === selectedInstanceId);
@@ -98,15 +99,32 @@ export default function AiArea({ widgetId }: { widgetId: string }) {
     const currentMessages = currentSession ? (sessionMessages[currentSession.id] || []) : [];
 
     useEffect(() => {
-        if (currentSession && !sessionMessages[currentSession.id]) {
+        if (currentSession && !sessionsLoaded[currentSession.id]) {
             loadMessagesForSession(currentSession.id, 0);
         }
-    }, [currentSession?.id, sessionMessages, loadMessagesForSession]);
+    }, [currentSession?.id, sessionsLoaded, loadMessagesForSession]);
+
+    const isAutoScrollEnabled = useRef(true);
+
+    const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+        const target = e.currentTarget;
+        const isAtBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 50;
+        isAutoScrollEnabled.current = isAtBottom;
+    };
 
     // Auto-scroll to bottom
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [currentMessages, isSending]);
+        if (isAutoScrollEnabled.current || isSending) {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            if (isSending) isAutoScrollEnabled.current = true;
+        }
+    }, [currentMessages.length > 0 ? currentMessages[currentMessages.length - 1].id : null, isSending]);
+
+    const scrollToBottomIfEnabled = () => {
+        if (isAutoScrollEnabled.current) {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }
+    };
 
     const handleSend = async (msgToSend: string) => {
         if (!instance) return;
@@ -131,8 +149,8 @@ export default function AiArea({ widgetId }: { widgetId: string }) {
         <div className="flex flex-col h-full w-full bg-transparent p-4 text-zinc-800 dark:text-zinc-200 overflow-hidden font-sans select-none">
             <h2 className="text-sm font-semibold mb-3 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                    <BotSparkleColor fontSize={18} />
-                    <span>AI Assistant</span>
+                    {instance ? <CompanyLogo providerId={instance.providerId} size={18} /> : <BotSparkleColor fontSize={18} />}
+                    <span>{instance ? instance.name : 'AI Assistant'}</span>
                 </div>
                 <div className="flex items-center gap-1.5 min-w-0">
                     {instance && (
@@ -176,7 +194,10 @@ export default function AiArea({ widgetId }: { widgetId: string }) {
                 </div>
             </h2>
             
-            <div className="flex-1 bg-zinc-500/5 dark:bg-black/20 border border-zinc-500/10 dark:border-white/5 rounded-xl p-3 mb-3 overflow-y-auto text-xs font-sans leading-relaxed flex flex-col gap-2">
+            <div 
+                className="flex-1 bg-zinc-500/5 dark:bg-black/20 border border-zinc-500/10 dark:border-white/5 rounded-xl p-3 mb-3 overflow-y-auto text-xs font-sans leading-relaxed flex flex-col gap-2"
+                onScroll={handleScroll}
+            >
                 {!currentSession || currentMessages.length === 0 ? (
                     <div className="text-zinc-400 dark:text-zinc-500 text-center my-auto">Ask me anything...</div>
                 ) : (
@@ -185,8 +206,8 @@ export default function AiArea({ widgetId }: { widgetId: string }) {
                             {idx > 0 && <hr className="border-zinc-500/10 dark:border-white/5 my-3" />}
                             <div className={`flex flex-col gap-1 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                                 <div className="text-[10px] font-semibold text-zinc-400 flex items-center gap-1.5">
-                                    {msg.role === 'user' ? <PersonRegular fontSize={12} /> : <BotSparkleColor fontSize={12} />}
-                                    <span>{msg.role === 'user' ? 'You' : 'Assistant'}</span>
+                                    {msg.role === 'user' ? <PersonRegular fontSize={12} /> : (instance ? <CompanyLogo providerId={instance.providerId} size={12} /> : <BotSparkleColor fontSize={12} />)}
+                                    <span>{msg.role === 'user' ? 'You' : (instance ? instance.name : 'Assistant')}</span>
                                 </div>
                                 <div className="text-zinc-700 dark:text-zinc-300 leading-normal overflow-hidden w-full px-2">
                                     <div className="flex flex-col gap-1.5 overflow-x-auto overflow-y-hidden break-words">
@@ -194,9 +215,7 @@ export default function AiArea({ widgetId }: { widgetId: string }) {
                                             content={msg.content}
                                             streamingEventId={msg.streamingEventId}
                                             isWidget={true}
-                                            onScrollToBottom={() => {
-                                                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-                                            }}
+                                            onScrollToBottom={scrollToBottomIfEnabled}
                                         />
                                     </div>
                                 </div>
