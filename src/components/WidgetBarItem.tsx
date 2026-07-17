@@ -4,6 +4,7 @@ import { BarWidget } from '../types/layout';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useWidgetRegistryStore } from '../stores/widgetRegistryStore';
 import { listen } from '@tauri-apps/api/event';
+import { useWidgetInstanceStore } from '@/stores/widgetInstanceStore';
 
 interface Props {
     widget: BarWidget;

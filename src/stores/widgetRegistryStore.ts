@@ -19,6 +19,7 @@ interface WidgetRegistryState {
   
   fetchRegistry: () => Promise<void>;
   registerWidgetType: (config: WidgetTypeConfig, sync?: boolean) => void;
+  updateWidgetType: (typeName: string, updates: Partial<WidgetTypeConfig>) => void;
 }
 
 export const useWidgetRegistryStore = create<WidgetRegistryState>((set, get) => ({
@@ -72,6 +73,21 @@ export const useWidgetRegistryStore = create<WidgetRegistryState>((set, get) => 
     if (sync) {
       emit('widget-registry-sync', { config }).catch(console.error);
     }
+  },
+
+  updateWidgetType: (typeName, updates) => {
+    set((state) => {
+      const existing = state.registry[typeName];
+      if (!existing) return state;
+      const updated = { ...existing, ...updates };
+      
+      // Sync it
+      emit('widget-registry-sync', { config: updated }).catch(console.error);
+      
+      return {
+        registry: { ...state.registry, [typeName]: updated }
+      };
+    });
   }
 }));
 

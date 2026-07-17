@@ -62,6 +62,15 @@ fn init_database(app: &AppHandle) -> std::result::Result<(), String> {
     )
     .map_err(|e| format!("Failed to create table widget_instances: {}", e))?;
 
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS widget_registry (
+            id TEXT PRIMARY KEY,
+            data TEXT NOT NULL
+         )",
+        [],
+    )
+    .map_err(|e| format!("Failed to create table widget_registry: {}", e))?;
+
     // Check if the default row already exists
     let mut stmt = conn
         .prepare("SELECT COUNT(*) FROM layout WHERE layout = 'default'")
@@ -376,3 +385,43 @@ pub async fn delete_widget_instance(app: AppHandle, id: String) -> std::result::
     ).map_err(|e| format!("Failed to delete widget_instance: {}", e))?;
     Ok(())
 }
+
+#[tauri::command]
+pub async fn load_widget_registry(app: AppHandle) -> std::result::Result<HashMap<String, String>, String> {
+    init_database(&app)?;
+    let conn = get_db_connection(&app)?;
+    let mut stmt = conn.prepare("SELECT id, data FROM widget_registry")
+        .map_err(|e| format!("Failed to prepare select for widget_registry: {}", e))?;
+
+    let iter = stmt.query_map([], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+    }).map_err(|e| format!("Failed to map query rows: {}", e))?;
+
+    let mut map = HashMap::new();
+    for res in iter {
+        let (k, v) = res.map_err(|e| format!("Row iteration error: {}", e))?;
+        map.insert(k, v);
+    }
+    Ok(map)
+}
+
+#[tauri::command]
+pub async fn save_widget_registry(app: AppHandle, id: String, data: String) -> std::result::Result<(), String> {
+    let conn = get_db_connection(&app)?;
+    conn.execute(
+        "INSERT OR REPLACE INTO widget_registry (id, data) VALUES (?1, ?2)",
+        rusqlite::params![id, data],
+    ).map_err(|e| format!("Failed to update widget_registry: {}", e))?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn delete_widget_registry(app: AppHandle, id: String) -> std::result::Result<(), String> {
+    let conn = get_db_connection(&app)?;
+    conn.execute(
+        "DELETE FROM widget_registry WHERE id = ?1",
+        rusqlite::params![id],
+    ).map_err(|e| format!("Failed to delete widget_registry: {}", e))?;
+    Ok(())
+}
+

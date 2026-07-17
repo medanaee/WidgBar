@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { useWidgetInstanceStore } from '../../stores/widgetInstanceStore';
-import { useLayoutStore } from '../../stores/layoutStore';
 import { 
     SunIcon, CloudSunIcon, CloudIcon, CloudFogIcon, 
     CloudDrizzleIcon, CloudRainIcon, CloudSnowIcon, 
@@ -35,27 +34,22 @@ export default function WeatherArea({ widgetId }: { widgetId: string }) {
     const startX = useRef(0);
     const scrollLeft = useRef(0);
 
-    const width = useLayoutStore(state => {
-        const layout = state.layouts[state.currentLayout];
-        if (!layout) return 300;
-        for (const monitor of layout.monitors) {
-            const widget = monitor.widgetArea.find(w => w.id === widgetId);
-            if (widget) return widget.width;
-        }
-        return 300;
-    });
+    const [dimensions, setDimensions] = useState({ width: 300, height: 150 });
+    const [containerElement, setContainerElement] = useState<HTMLDivElement | null>(null);
 
-    const height = useLayoutStore(state => {
-        const layout = state.layouts[state.currentLayout];
-        if (!layout) return 150;
-        for (const monitor of layout.monitors) {
-            const widget = monitor.widgetArea.find(w => w.id === widgetId);
-            if (widget) return widget.height;
-        }
-        return 150;
-    });
-
-    const dimensions = { width, height };
+    useEffect(() => {
+        if (!containerElement) return;
+        const observer = new ResizeObserver(entries => {
+            for (const entry of entries) {
+                setDimensions({
+                    width: entry.contentRect.width,
+                    height: entry.contentRect.height
+                });
+            }
+        });
+        observer.observe(containerElement);
+        return () => observer.disconnect();
+    }, [containerElement]);
 
     const [error, setError] = useState(false);
     const useFahrenheit = config.useFahrenheit ?? false;
@@ -98,7 +92,7 @@ export default function WeatherArea({ widgetId }: { widgetId: string }) {
 
     if (loading && !weatherData) {
         return (
-            <div className="w-full h-full flex items-center justify-center pointer-events-none text-zinc-800 dark:text-zinc-100">
+            <div ref={setContainerElement} className="w-full h-full flex items-center justify-center pointer-events-none text-zinc-800 dark:text-zinc-100">
                 <div className="animate-pulse flex flex-col items-center">
                     <CloudIcon className="w-8 h-8 opacity-50 mb-2" />
                     <div className="h-2 w-16 bg-zinc-300 dark:bg-zinc-700 rounded-full"></div>
@@ -109,7 +103,7 @@ export default function WeatherArea({ widgetId }: { widgetId: string }) {
 
     if (error || !weatherData) {
         return (
-            <div className="w-full h-full flex flex-col items-center justify-center text-red-500 text-xs pointer-events-none">
+            <div ref={setContainerElement} className="w-full h-full flex flex-col items-center justify-center text-red-500 text-xs pointer-events-none">
                 <span>Failed to load</span>
                 <span>weather data</span>
             </div>
@@ -157,7 +151,7 @@ export default function WeatherArea({ widgetId }: { widgetId: string }) {
     };
 
     return (
-        <div className="w-full h-full text-zinc-800 dark:text-zinc-100 p-3 md:p-4 flex flex-col justify-between overflow-hidden relative pointer-events-none">
+        <div ref={setContainerElement} className="w-full h-full text-zinc-800 dark:text-zinc-100 p-3 md:p-4 flex flex-col justify-between overflow-hidden relative pointer-events-none">
             {/* Background Icon (decorative) */}
             <Icon className="absolute -right-6 -top-6 w-32 h-32 opacity-5" />
 
