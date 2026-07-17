@@ -109,7 +109,7 @@ function ChatInput({
 export default function AiChatRoute() {
   console.log("Rendering AiChatRoute");
   const { instanceId } = useParams<{ instanceId: string }>();
-  const { data, removeSession } = useAiServicesStore();
+  const { data, sessionMessages, loadMessagesForSession, removeSession } = useAiServicesStore();
   const { language, t } = useTranslation();
   
   const instance = data.instances.find(i => i.id === instanceId);
@@ -117,12 +117,16 @@ export default function AiChatRoute() {
   
   const [activeSession, setActiveSession] = useState<ChatSession | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Scroll to bottom whenever messages change or we start sending
+  const currentMessages = activeSession ? (sessionMessages[activeSession.id] || []) : [];
+
+  // Scroll to bottom whenever messages change or we start sending, if we're near bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [activeSession?.messages, isSending]);
+  }, [currentMessages.length > 0 ? currentMessages[currentMessages.length - 1].id : null, isSending]);
 
   const [models, setModels] = useState<string[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
@@ -137,6 +141,33 @@ export default function AiChatRoute() {
       setActiveSession(newSession);
     }
   }, [sessions, activeSession, instance]);
+
+  // Lazy load initial messages when activeSession changes
+  useEffect(() => {
+    if (activeSession && !sessionMessages[activeSession.id]) {
+      loadMessagesForSession(activeSession.id, 0);
+    }
+  }, [activeSession?.id, sessionMessages, loadMessagesForSession]);
+
+  const handleScroll = async (e: React.UIEvent<HTMLDivElement>) => {
+    if (e.currentTarget.scrollTop === 0 && activeSession && !isLoadingMore) {
+      const msgs = sessionMessages[activeSession.id] || [];
+      if (msgs.length >= 20) {
+        setIsLoadingMore(true);
+        // Save scroll height to restore scroll position
+        const scrollContainer = e.currentTarget;
+        const prevHeight = scrollContainer.scrollHeight;
+        
+        await loadMessagesForSession(activeSession.id, msgs.length);
+        
+        // Restore scroll position so it doesn't jump to top
+        requestAnimationFrame(() => {
+           scrollContainer.scrollTop = scrollContainer.scrollHeight - prevHeight;
+        });
+        setIsLoadingMore(false);
+      }
+    }
+  };
 
   // Fetch models for selected instance
   useEffect(() => {
@@ -339,15 +370,24 @@ export default function AiChatRoute() {
             </div>
 
             {/* Messages Scroll View */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-zinc-100/10 dark:bg-zinc-950/20">
-              {currentSession?.messages.length === 0 && (
+            <div 
+              className="flex-1 overflow-y-auto p-4 space-y-4 bg-zinc-100/10 dark:bg-zinc-950/20"
+              onScroll={handleScroll}
+            >
+              {currentMessages.length === 0 && (
                 <div className="h-full flex flex-col items-center justify-center opacity-40">
                   <BotSparkleColor fontSize={48} className="mb-4" />
                   <p className="text-xs">Start a conversation with {instance.name}</p>
                 </div>
               )}
               
-              {currentSession?.messages.map((msg) => (
+              {isLoadingMore && (
+                <div className="w-full flex justify-center py-2">
+                  <span className="text-[10px] text-zinc-400 animate-pulse">Loading older messages...</span>
+                </div>
+              )}
+
+              {currentMessages.map((msg) => (
                 <div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   {msg.role === 'assistant' && (
                     <div className="w-8 h-8 rounded-full bg-zinc-500/10 dark:bg-white/10 flex items-center justify-center shrink-0 border border-zinc-500/10 dark:border-white/10">

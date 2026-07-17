@@ -62,7 +62,7 @@ export default function AiArea({ widgetId }: { widgetId: string }) {
 
     const widgetConfig = useWidgetInstanceStore(state => state.instances[widgetId]) || {};
     const selectedInstanceId = widgetConfig.selectedInstanceId;
-    const { data: aiData } = useAiServicesStore();
+    const { data: aiData, sessionMessages, loadMessagesForSession } = useAiServicesStore();
     const instances = aiData.instances || [];
 
     let instance = instances.find(i => i.id === selectedInstanceId);
@@ -95,10 +95,18 @@ export default function AiArea({ widgetId }: { widgetId: string }) {
         currentSession = instanceSessions[0];
     }
 
+    const currentMessages = currentSession ? (sessionMessages[currentSession.id] || []) : [];
+
+    useEffect(() => {
+        if (currentSession && !sessionMessages[currentSession.id]) {
+            loadMessagesForSession(currentSession.id, 0);
+        }
+    }, [currentSession?.id, sessionMessages, loadMessagesForSession]);
+
     // Auto-scroll to bottom
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [currentSession?.messages, isSending]);
+    }, [currentMessages, isSending]);
 
     const handleSend = async (msgToSend: string) => {
         if (!instance) return;
@@ -169,10 +177,10 @@ export default function AiArea({ widgetId }: { widgetId: string }) {
             </h2>
             
             <div className="flex-1 bg-zinc-500/5 dark:bg-black/20 border border-zinc-500/10 dark:border-white/5 rounded-xl p-3 mb-3 overflow-y-auto text-xs font-sans leading-relaxed flex flex-col gap-2">
-                {!currentSession || currentSession.messages.length === 0 ? (
+                {!currentSession || currentMessages.length === 0 ? (
                     <div className="text-zinc-400 dark:text-zinc-500 text-center my-auto">Ask me anything...</div>
                 ) : (
-                    currentSession.messages.map((msg, idx) => (
+                    currentMessages.map((msg, idx) => (
                         <div key={msg.id} className="w-full">
                             {idx > 0 && <hr className="border-zinc-500/10 dark:border-white/5 my-3" />}
                             <div className={`flex flex-col gap-1 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>

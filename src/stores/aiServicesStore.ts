@@ -1,116 +1,235 @@
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 import { emit, listen } from '@tauri-apps/api/event';
-import { AiServiceInstance, ChatSession } from '../types/ai';
+import { AiServiceInstance, ChatSession, ChatMessage } from '../types/ai';
 
 interface AiData {
   instances: AiServiceInstance[];
   sessions: ChatSession[];
 }
 
-const DEFAULT_AI_DATA: AiData = {
-  instances: [],
-  sessions: [],
-};
-
 interface AiServicesState {
   data: AiData;
+  sessionMessages: Record<string, ChatMessage[]>;
   isLoading: boolean;
   hasInitialized: boolean;
   
   // Actions
   fetchAndSyncData: () => Promise<void>;
-  addInstance: (instance: AiServiceInstance) => void;
-  updateInstance: (id: string, instance: Partial<AiServiceInstance>) => void;
-  removeInstance: (id: string) => void;
   
-  addSession: (session: ChatSession) => void;
-  updateSession: (id: string, session: Partial<ChatSession>) => void;
-  removeSession: (id: string) => void;
+  addInstance: (instance: AiServiceInstance) => Promise<void>;
+  updateInstance: (id: string, instance: Partial<AiServiceInstance>) => Promise<void>;
+  removeInstance: (id: string) => Promise<void>;
+  
+  addSession: (session: ChatSession) => Promise<void>;
+  updateSession: (id: string, session: Partial<ChatSession>) => Promise<void>;
+  removeSession: (id: string) => Promise<void>;
+  
+  // Messages
+  loadMessagesForSession: (sessionId: string, offset: number) => Promise<void>;
+  addMessageToSession: (sessionId: string, message: ChatMessage) => Promise<void>;
+  updateMessageInSession: (sessionId: string, messageId: string, updatedFields: Partial<ChatMessage>) => Promise<void>;
 }
 
 export const useAiServicesStore = create<AiServicesState>((set, get) => {
-  const saveData = async (newData: AiData) => {
-    set({ data: newData });
-    invoke('save_ai_data', { data: JSON.stringify(newData) }).catch(console.error);
-    emit('ai-data-sync', newData).catch(console.error);
-  };
-
   return {
-    data: DEFAULT_AI_DATA,
+    data: { instances: [], sessions: [] },
+    sessionMessages: {},
     isLoading: false,
     hasInitialized: false,
 
     fetchAndSyncData: async () => {
       set({ isLoading: true });
       try {
-        const rawData = await invoke<string>('load_ai_data');
-        let parsedData = DEFAULT_AI_DATA;
-        if (rawData && rawData !== '{}') {
-          parsedData = { ...DEFAULT_AI_DATA, ...JSON.parse(rawData) };
-        }
-        set({ data: parsedData, isLoading: false, hasInitialized: true });
+        const instancesRaw: string[] = await invoke('load_ai_instances');
+        const sessionsRaw: string[] = await invoke('load_ai_sessions');
+        
+        const instances = instancesRaw.map(r => JSON.parse(r));
+        const sessions = sessionsRaw.map(r => JSON.parse(r));
+
+        set({ 
+          data: { instances, sessions }, 
+          isLoading: false, 
+          hasInitialized: true 
+        });
       } catch (err) {
         console.error('Error fetching AI data from tauri backend:', err);
         set({ isLoading: false });
       }
     },
 
-    addInstance: (instance) => {
+    addInstance: async (instance) => {
+      await invoke('save_ai_instance', { id: instance.id, data: JSON.stringify(instance) });
       const currentData = get().data;
-      saveData({
-        ...currentData,
-        instances: [...currentData.instances, instance]
+      set({ data: { ...currentData, instances: [...currentData.instances, instance] } });
+    },
+
+    updateInstance: async (id, updatedFields) => {
+      const currentData = get().data;
+      const index = currentData.instances.findIndex(i => i.id === id);
+      if (index === -1) return;
+      
+      const updatedInstance = { ...currentData.instances[index], ...updatedFields };
+      await invoke('save_ai_instance', { id: updatedInstance.id, data: JSON.stringify(updatedInstance) });
+      
+      const newInstances = [...currentData.instances];
+      newInstances[index] = updatedInstance;
+      set({ data: { ...currentData, instances: newInstances } });
+    },
+
+    removeInstance: async (id) => {
+      await invoke('delete_ai_instance', { id });
+      const currentData = get().data;
+      set({
+        data: {
+          ...currentData,
+          instances: currentData.instances.filter(i => i.id !== id),
+          sessions: currentData.sessions.filter(s => s.instanceId !== id)
+        }
       });
     },
 
-    updateInstance: (id, updatedFields) => {
+    addSession: async (session) => {
+      const sessionToSave = { ...session };
+      delete sessionToSave.messages;
+      
       const currentData = get().data;
-      saveData({
-        ...currentData,
-        instances: currentData.instances.map(i => i.id === id ? { ...i, ...updatedFields } : i)
+      set({ data: { ...currentData, sessions: [sessionToSave, ...currentData.sessions] } }); 
+      
+      invoke('save_ai_session', { 
+        id: session.id, 
+        instanceId: session.instanceId, 
+        updatedAt: session.updatedAt, 
+        data: JSON.stringify(sessionToSave) 
+      }).then(() => emit('ai-data-sync')).catch(console.error);
+    },
+
+    updateSession: async (id, updatedFields) => {
+      const currentData = get().data;
+      const index = currentData.sessions.findIndex(s => s.id === id);
+      if (index === -1) return;
+      
+      const updatedSession = { ...currentData.sessions[index], ...updatedFields };
+      delete updatedSession.messages;
+
+      const newSessions = [...currentData.sessions];
+      newSessions[index] = updatedSession;
+      newSessions.sort((a, b) => b.updatedAt - a.updatedAt);
+      set({ data: { ...currentData, sessions: newSessions } });
+
+      invoke('save_ai_session', { 
+        id: updatedSession.id, 
+        instanceId: updatedSession.instanceId, 
+        updatedAt: updatedSession.updatedAt, 
+        data: JSON.stringify(updatedSession) 
+      }).then(() => emit('ai-data-sync')).catch(console.error);
+    },
+
+    removeSession: async (id) => {
+      await invoke('delete_ai_session', { id });
+      const currentData = get().data;
+      set({
+        data: {
+          ...currentData,
+          sessions: currentData.sessions.filter(s => s.id !== id)
+        }
       });
     },
 
-    removeInstance: (id) => {
-      const currentData = get().data;
-      saveData({
-        ...currentData,
-        instances: currentData.instances.filter(i => i.id !== id),
-        // optionally remove sessions linked to this instance:
-        sessions: currentData.sessions.filter(s => s.instanceId !== id)
-      });
+    loadMessagesForSession: async (sessionId, offset) => {
+      try {
+        const limit = 20;
+        const messagesRaw: string[] = await invoke('load_ai_messages', { sessionId, limit, offset });
+        const messages = messagesRaw.map(r => JSON.parse(r));
+        
+        const currentMessages = get().sessionMessages;
+        const existingMessages = currentMessages[sessionId] || [];
+        
+        const newMessages = offset > 0 ? [...messages, ...existingMessages] : messages;
+        
+        const uniqueMessages = Array.from(new Map(newMessages.map(item => [item.id, item])).values());
+        
+        set({ sessionMessages: { ...currentMessages, [sessionId]: uniqueMessages } });
+      } catch (err) {
+        console.error('Error fetching messages for session', sessionId, err);
+      }
     },
 
-    addSession: (session) => {
-      const currentData = get().data;
-      saveData({
-        ...currentData,
-        sessions: [...currentData.sessions, session]
-      });
+    addMessageToSession: async (sessionId, message) => {
+      if (!message.streamingEventId) {
+        await invoke('save_ai_message', { 
+          id: message.id, 
+          sessionId: sessionId, 
+          timestamp: message.timestamp, 
+          data: JSON.stringify(message) 
+        });
+      }
+      const currentMessagesMap = get().sessionMessages;
+      const sessionMsgs = currentMessagesMap[sessionId] || [];
+      if (!sessionMsgs.find(m => m.id === message.id)) {
+        set({ sessionMessages: { ...currentMessagesMap, [sessionId]: [...sessionMsgs, message] } });
+      }
+      emit('ai-sync-action', { type: 'ADD_MESSAGE', payload: { sessionId, message } }).catch(console.error);
     },
 
-    updateSession: (id, updatedFields) => {
-      const currentData = get().data;
-      saveData({
-        ...currentData,
-        sessions: currentData.sessions.map(s => s.id === id ? { ...s, ...updatedFields } : s)
-      });
-    },
+    updateMessageInSession: async (sessionId, messageId, updatedFields) => {
+      const currentMessagesMap = get().sessionMessages;
+      const sessionMsgs = currentMessagesMap[sessionId] || [];
+      const index = sessionMsgs.findIndex(m => m.id === messageId);
+      if (index === -1) return;
 
-    removeSession: (id) => {
-      const currentData = get().data;
-      saveData({
-        ...currentData,
-        sessions: currentData.sessions.filter(s => s.id !== id)
-      });
+      const updatedMessage = { ...sessionMsgs[index], ...updatedFields };
+      if ('streamingEventId' in updatedFields && updatedFields.streamingEventId === undefined) {
+         delete updatedMessage.streamingEventId;
+      }
+      
+      if (!updatedMessage.streamingEventId && sessionMsgs[index].streamingEventId) {
+        await invoke('save_ai_message', { 
+          id: updatedMessage.id, 
+          sessionId: sessionId, 
+          timestamp: updatedMessage.timestamp, 
+          data: JSON.stringify(updatedMessage) 
+        });
+      } else if (!updatedMessage.streamingEventId) {
+         await invoke('save_ai_message', { 
+          id: updatedMessage.id, 
+          sessionId: sessionId, 
+          timestamp: updatedMessage.timestamp, 
+          data: JSON.stringify(updatedMessage) 
+        });
+      }
+
+      const newMsgs = [...sessionMsgs];
+      newMsgs[index] = updatedMessage;
+      set({ sessionMessages: { ...currentMessagesMap, [sessionId]: newMsgs } });
+      
+      emit('ai-sync-action', { type: 'UPDATE_MESSAGE', payload: { sessionId, messageId, updatedMessage } }).catch(console.error);
     }
   };
 });
 
-listen('ai-data-sync', (event: any) => {
-  const updatedData = event.payload;
-  if (updatedData) {
-    useAiServicesStore.setState({ data: updatedData });
+listen('ai-data-sync', () => {
+  useAiServicesStore.getState().fetchAndSyncData();
+}).catch(console.error);
+
+listen<any>('ai-sync-action', (event) => {
+  const { type, payload } = event.payload;
+  const store = useAiServicesStore.getState();
+  
+  if (type === 'ADD_MESSAGE') {
+     const { sessionId, message } = payload;
+     const msgs = store.sessionMessages[sessionId] || [];
+     if (!msgs.find(m => m.id === message.id)) {
+        useAiServicesStore.setState({ sessionMessages: { ...store.sessionMessages, [sessionId]: [...msgs, message] } });
+     }
+  } else if (type === 'UPDATE_MESSAGE') {
+     const { sessionId, messageId, updatedMessage } = payload;
+     const msgs = store.sessionMessages[sessionId] || [];
+     const idx = msgs.findIndex(m => m.id === messageId);
+     if (idx !== -1) {
+        const newMsgs = [...msgs];
+        newMsgs[idx] = updatedMessage;
+        useAiServicesStore.setState({ sessionMessages: { ...store.sessionMessages, [sessionId]: newMsgs } });
+     }
   }
 }).catch(console.error);

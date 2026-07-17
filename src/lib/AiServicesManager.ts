@@ -20,7 +20,6 @@ class AiServicesManager {
       id: crypto.randomUUID(),
       instanceId,
       title,
-      messages: [],
       model: instance?.model,
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -53,8 +52,8 @@ class AiServicesManager {
       timestamp: Date.now(),
     };
 
-    const updatedMessages = [...session.messages, userMessage];
-    store.updateSession(sessionId, { messages: updatedMessages, updatedAt: Date.now() });
+    await store.addMessageToSession(sessionId, userMessage);
+    await store.updateSession(sessionId, { updatedAt: Date.now() });
 
     // 2. Prepare the empty AI message with streamingEventId
     const eventId = crypto.randomUUID();
@@ -67,8 +66,10 @@ class AiServicesManager {
       streamingEventId: eventId
     };
 
-    const updatedWithAi = [...updatedMessages, aiMessage];
-    store.updateSession(sessionId, { messages: updatedWithAi, updatedAt: Date.now() });
+    await store.addMessageToSession(sessionId, aiMessage);
+    
+    // Ensure the message list passed to the provider includes the new user message
+    const currentMessages = useAiServicesStore.getState().sessionMessages[sessionId] || [];
 
     // 3. Call the provider using the streaming interface
     let aiResponseContent = "";
@@ -76,7 +77,7 @@ class AiServicesManager {
       aiResponseContent = await this.callApiProviderStream(
         provider.id, 
         instance.apiKey, 
-        updatedMessages, 
+        currentMessages, 
         session.model,
         instance.temperature,
         instance.systemPrompt || DEFAULT_SYSTEM_PROMPT,
@@ -88,14 +89,11 @@ class AiServicesManager {
     }
 
     // 4. Save the full completed message and remove streaming state
-    const storeAfter = useAiServicesStore.getState();
-    const sessionAfter = storeAfter.data.sessions.find(s => s.id === sessionId);
-    if (sessionAfter) {
-      const finalMessages = sessionAfter.messages.map(m => 
-        m.id === aiMessageId ? { ...m, content: aiResponseContent, streamingEventId: undefined } : m
-      );
-      storeAfter.updateSession(sessionId, { messages: finalMessages, updatedAt: Date.now() });
-    }
+    await store.updateMessageInSession(sessionId, aiMessageId, { 
+        content: aiResponseContent, 
+        streamingEventId: undefined 
+    });
+    await store.updateSession(sessionId, { updatedAt: Date.now() });
 
     return aiMessage;
   }
@@ -103,13 +101,7 @@ class AiServicesManager {
   // Set typing: false after animation finishes
   public finishTyping(sessionId: string, messageId: string) {
     const store = useAiServicesStore.getState();
-    const session = store.data.sessions.find(s => s.id === sessionId);
-    if (!session) return;
-    
-    const updated = session.messages.map(m => 
-      m.id === messageId ? { ...m, typing: false } : m
-    );
-    store.updateSession(sessionId, { messages: updated });
+    store.updateMessageInSession(sessionId, messageId, { typing: false });
   }
 
   private async callApiProviderStream(

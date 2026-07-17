@@ -33,7 +33,7 @@ export interface ChatSession {
   id: string;
   instanceId: string;
   title: string;
-  messages: ChatMessage[];
+  messages?: ChatMessage[];
   model?: string;
   updatedAt: number;
   createdAt: number;
