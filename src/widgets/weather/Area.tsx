@@ -90,7 +90,7 @@ export default function WeatherArea({ widgetId }: { widgetId: string }) {
         };
     }, [lat, lon, useFahrenheit]);
 
-    if (loading && !weatherData) {
+    if (loading) {
         return (
             <div ref={setContainerElement} className="w-full h-full flex items-center justify-center pointer-events-none text-zinc-800 dark:text-zinc-100">
                 <div className="animate-pulse flex flex-col items-center">
@@ -116,7 +116,7 @@ export default function WeatherArea({ widgetId }: { widgetId: string }) {
     
     // Determine layout based on dimensions
     const isSmall = dimensions.width < 130 || dimensions.height < 90;
-    const showForecast = dimensions.height >= 190 && dimensions.width >= 180;
+    const showForecast = (config.showForecast ?? true) && dimensions.height >= 190 && dimensions.width >= 180;
     const showDetails = dimensions.width >= 240 && dimensions.height >= 130;
 
     const forecastDays = [1, 2, 3, 4, 5, 6];

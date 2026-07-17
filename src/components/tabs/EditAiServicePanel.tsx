@@ -147,7 +147,7 @@ export default function EditAiServicePanel({ instance, onBack, onSave }: EditAiS
         <div className="space-y-1.5">
           <label className="text-xs text-zinc-500 font-medium">Provider</label>
           <Select value={editProviderId} onValueChange={setEditProviderId}>
-            <SelectTrigger className="w-full bg-transparent border-zinc-500/20 text-zinc-800 dark:text-zinc-200">
+            <SelectTrigger className="w-full border-zinc-500/20 text-zinc-800 dark:text-zinc-200">
               <SelectValue placeholder="Select a Provider" />
             </SelectTrigger>
             <SelectContent>
@@ -171,7 +171,7 @@ export default function EditAiServicePanel({ instance, onBack, onSave }: EditAiS
             placeholder="Name" 
             value={editName} 
             onChange={e => setEditName(e.target.value)} 
-            className="bg-transparent border-zinc-500/20"
+            className="border-zinc-500/20"
           />
         </div>
 

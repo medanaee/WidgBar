@@ -31,6 +31,17 @@ export default function WeatherBarSetting({ widgetId }: { widgetId: string }) {
                 />
             </SettingCard>
 
+            {/* Show City Name */}
+            <SettingCard>
+                <div>
+                    <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Show City Name</h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Display city name on the bar</p>
+                </div>
+                <Switch 
+                    checked={!!config.showCityName} 
+                    onCheckedChange={(checked) => handleUpdate({ showCityName: checked })} 
+                />
+            </SettingCard>
         </div>
     );
 }

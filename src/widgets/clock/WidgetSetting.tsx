@@ -77,7 +77,7 @@ export default function ClockWidgetSetting({ widgetId }: { widgetId: string }) {
     ];
 
     return (
-        <div className="space-y-3 pt-2">
+        <div className="space-y-3 pt-2 animate-in fade-in slide-in-from-top-1 duration-200">
             <VisualSelector
                 value={clockType}
                 onChange={(val) => handleUpdate({ clockType: val })}
@@ -100,7 +100,7 @@ export default function ClockWidgetSetting({ widgetId }: { widgetId: string }) {
 
             {/* 24-Hour Format (only applicable for Digital Clock) */}
             {clockType === 'digital' && (
-                <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                <div className="">
                     <SettingCard>
                         <div>
                             <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">24-Hour Format</h3>

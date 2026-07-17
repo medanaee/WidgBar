@@ -59,6 +59,7 @@ function AppContent() {
         useSettingsStore.getState().fetchAndSyncSettings();
         useLayoutStore.getState().fetchAndSyncLayouts();
         useWidgetInstanceStore.getState().fetchInstances();
+        useWidgetRegistryStore.getState().fetchRegistry();
         useAiServicesStore.getState().fetchAndSyncData();
     }, []);
 

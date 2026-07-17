@@ -39,11 +39,14 @@ export default function WeatherBar({ widgetId }: { widgetId: string }) {
     
     const barHeight = settings.barHeight || 36;
     const isLarge = barHeight >= 48;
+    const showCityName = config.showCityName ?? false;
+    const currentCity = config.cityName || 'London';
 
     useEffect(() => {
         let isMounted = true;
         const fetchWeather = async () => {
             try {
+                setLoading(true);
                 const tempUnit = useFahrenheit ? 'fahrenheit' : 'celsius';
                 const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,is_day,weather_code&timezone=auto&temperature_unit=${tempUnit}`;
                 
@@ -76,7 +79,7 @@ export default function WeatherBar({ widgetId }: { widgetId: string }) {
     if (loading || !weatherData) {
         return (
             <div onClick={handleRootClick} className="text-white/70 text-sm font-medium flex items-center gap-1.5">
-                <div className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white/80 animate-spin" />
+                <div className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white/80 animate-spin" style={{cornerShape: 'round'}} />
             </div>
         );
     }
@@ -89,9 +92,12 @@ export default function WeatherBar({ widgetId }: { widgetId: string }) {
         return (
             <div onClick={handleRootClick} className="text-white flex flex-col items-center justify-center leading-none select-none">
                 <span className="text-sm font-semibold tracking-wide flex items-center gap-1">
+                    <Icon className="w-3.5 h-3.5 text-white/90" />
                     {temp}°
                 </span>
-                <Icon className="w-3.5 h-3.5 text-white/80 mt-0.5" />
+                {showCityName && (
+                    <span className="text-[10px] text-white/70 font-normal leading-none mt-1">{currentCity}</span>
+                )}
             </div>
         );
     }
@@ -100,6 +106,9 @@ export default function WeatherBar({ widgetId }: { widgetId: string }) {
         <div onClick={handleRootClick} className="text-white text-sm font-medium tracking-wide flex items-center gap-1.5 select-none">
             <Icon className="w-4 h-4 text-white/90" />
             <span>{temp}°</span>
+            {showCityName && (
+                <span className="text-xs text-white/80 font-normal">{currentCity}</span>
+            )}
         </div>
     );
 }

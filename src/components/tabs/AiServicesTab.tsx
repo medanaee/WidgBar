@@ -129,16 +129,16 @@ export default function AiServicesTab() {
                   </div>
                 </div>
                 
-                <div className="mt-auto border-t border-zinc-100 dark:border-zinc-800/50 w-full pt-3 space-y-1.5 text-xs text-zinc-500">
+                <div className="mt-auto border-t border-zinc-500/30 w-full pt-3 space-y-1.5 text-xs text-zinc-500">
                   <div className="flex items-center justify-between">
                     <span>API Key</span>
-                    <span className="font-mono bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-md text-[10px]">
+                    <span className="font-mono bg-zinc-500/10 px-2 py-0.5 rounded-md text-[10px]">
                       {instance.apiKey ? `...${instance.apiKey.slice(-4)}` : 'Not Set'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Model</span>
-                    <span className="font-mono bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-md text-[10px] truncate max-w-[140px]">
+                    <span className="font-mono bg-zinc-500/10 px-2 py-0.5 rounded-md text-[10px] truncate max-w-[140px]">
                       {instance.model ? instance.model.split('/').pop() : 'Default'}
                     </span>
                   </div>
