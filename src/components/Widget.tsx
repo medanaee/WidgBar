@@ -12,7 +12,6 @@ interface Props {
     setActiveWidgetId?: (id: string | null) => void;
     isEditMode?: boolean;
     onUpdate?: (id: string, updates: Partial<DesktopWidget>, broadcast?: boolean) => void;
-    onDragEnd?: (id: string) => void;
 }
 
 export default function Widget(props: Props) {

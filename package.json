@@ -19,6 +19,8 @@
     "@tauri-apps/plugin-shell": "^2.3.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
+    "countries-and-timezones": "^3.9.0",
     "figma-squircle": "^1.1.0",
     "katex": "^0.17.0",
     "lucide-react": "^1.20.0",

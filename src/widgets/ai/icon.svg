@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="100%" height="100%">
+  <defs>
+    <linearGradient id="ai-grad1" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10B981" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+    <linearGradient id="ai-grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6EE7B7" />
+      <stop offset="100%" stop-color="#34D399" />
+    </linearGradient>
+    <filter id="ai-shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000" flood-opacity="0.25" />
+    </filter>
+  </defs>
+  
+  <!-- True iOS/Figma G2 Squircle (R72, S1.0) -->
+  <path d="M 128 0 c 52.4677 0 78.7015 0 97.2975 13.0211 a 72.0000 72.0000 0 0 1 17.6814 17.6814 c 13.0211 18.5960 13.0211 44.8298 13.0211 97.2975 L 256 128 c 0 52.4677 0 78.7015 -13.0211 97.2975 a 72.0000 72.0000 0 0 1 -17.6814 17.6814 c -18.5960 13.0211 -44.8298 13.0211 -97.2975 13.0211 L 128 256 c -52.4677 0 -78.7015 0 -97.2975 -13.0211 a 72.0000 72.0000 0 0 1 -17.6814 -17.6814 c -13.0211 -18.5960 -13.0211 -44.8298 -13.0211 -97.2975 L 0 128 c 0 -52.4677 0 -78.7015 13.0211 -97.2975 a 72.0000 72.0000 0 0 1 17.6814 -17.6814 c 18.5960 -13.0211 44.8298 -13.0211 97.2975 -13.0211 Z" fill="url(#ai-grad1)" filter="url(#ai-shadow)"/>
+  
+  <path d="M128 48 C128 96 176 128 208 128 C176 128 128 160 128 208 C128 160 80 128 48 128 C80 128 128 96 128 48 Z" fill="url(#ai-grad2)"/>
+  <circle cx="128" cy="128" r="16" fill="#fff"/>
+</svg>

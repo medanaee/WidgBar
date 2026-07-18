@@ -2,6 +2,7 @@ import React from 'react';
 import { useWidgetInstanceStore } from '../../stores/widgetInstanceStore';
 import { Switch } from '../../components/ui/switch';
 import { VisualSelector } from '../../components/ui/VisualSelector';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 
 // Styled Card matching the Main layout settings card exactly
 function SettingCard({ children }: { children: React.ReactNode }) {
@@ -125,6 +126,34 @@ export default function ClockWidgetSetting({ widgetId }: { widgetId: string }) {
                     onCheckedChange={(checked) => handleUpdate({ showTimezone: checked })} 
                 />
             </SettingCard>
+
+            {/* Date Format (only applicable for Digital Clock) */}
+            {clockType === 'digital' && (
+                <SettingCard>
+                    <div className="flex-grow min-w-0 pr-3">
+                        <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Date Format</h3>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">Choose calendar style or hide date</p>
+                    </div>
+                    <Select value={config.dateFormat || 'gregorian'} onValueChange={(val) => handleUpdate({ dateFormat: val })}>
+                        <SelectTrigger className="w-40 h-8 text-xs bg-transparent border-zinc-500/20">
+                            <SelectValue placeholder="Select format" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectGroup>
+                                <SelectItem value="none" className="text-xs">No Date</SelectItem>
+                                <SelectItem value="gregorian" className="text-xs">Gregorian</SelectItem>
+                                <SelectItem value="jalali" className="text-xs">Solar Persian</SelectItem>
+                                <SelectItem value="islamic" className="text-xs">Lunar Islamic</SelectItem>
+                                <SelectItem value="buddhist" className="text-xs">Buddhist</SelectItem>
+                                <SelectItem value="chinese" className="text-xs">Chinese</SelectItem>
+                                <SelectItem value="hebrew" className="text-xs">Hebrew</SelectItem>
+                                <SelectItem value="indian" className="text-xs">Indian</SelectItem>
+                                <SelectItem value="japanese" className="text-xs">Japanese</SelectItem>
+                            </SelectGroup>
+                        </SelectContent>
+                    </Select>
+                </SettingCard>
+            )}
         </div>
     );
 }

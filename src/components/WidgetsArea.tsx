@@ -22,23 +22,6 @@ export default function WidgetsArea() {
         return () => { document.documentElement.style.backgroundColor = ''; };
     }, []);
 
-    const handleDragEnd = async (id: string) => {
-        const widget = widgetsForThisWindow.find(w => w.id === id);
-        if (!widget) return;
-        
-        import('@tauri-apps/api/core').then(async ({ invoke }) => {
-            const { getCurrentWebviewWindow } = await import('@tauri-apps/api/webviewWindow');
-            await invoke('stop_change_region', {
-                label: getCurrentWebviewWindow().label,
-                widgetId: widget.id,
-                x: widget.x * window.devicePixelRatio,
-                y: widget.y * window.devicePixelRatio,
-                width: widget.width * window.devicePixelRatio,
-                height: widget.height * window.devicePixelRatio,
-                borderRadius: 24.0 * window.devicePixelRatio
-            }).catch(console.error);
-        });
-    };
 
     return (
         <div className="w-screen h-screen overflow-hidden relative pointer-events-none">
@@ -87,7 +70,6 @@ export default function WidgetsArea() {
                     setActiveWidgetId={setActiveWidgetId}
                     isEditMode={monitor?.isEditMode || false}
                     onUpdate={(id, updates, broadcast) => updateWidget(monitorId!, id, updates, broadcast)}
-                    onDragEnd={handleDragEnd}
                 />
             ))}
         </div>

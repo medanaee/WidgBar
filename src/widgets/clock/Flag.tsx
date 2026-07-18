@@ -1,17 +1,27 @@
 import React from 'react';
+import { getTimezone } from 'countries-and-timezones';
 
-const cityMap: Record<string, string> = {
-    'tehran': '🇮🇷', 'dubai': '🇦🇪', 'london': '🇬🇧', 'paris': '🇫🇷', 'berlin': '🇩🇪',
-    'rome': '🇮🇹', 'tokyo': '🇯🇵', 'sydney': '🇦🇺', 'melbourne': '🇦🇺', 'new_york': '🇺🇸',
-    'los_angeles': '🇺🇸', 'chicago': '🇺🇸', 'denver': '🇺🇸', 'toronto': '🇨🇦', 'vancouver': '🇨🇦',
-    'seoul': '🇰🇷', 'shanghai': '🇨🇳', 'moscow': '🇷🇺', 'singapore': '🇸🇬', 'cairo': '🇪🇬',
-    'istanbul': '🇹🇷', 'riyadh': '🇸🇦', 'utc': '🌐', 'gmt': '🌐'
+const getFlagEmojiForCountry = (countryCode: string) => {
+    const codePoints = countryCode
+        .toUpperCase()
+        .split('')
+        .map((char) => 127397 + char.charCodeAt(0));
+    return String.fromCodePoint(...codePoints);
 };
 
 export function getFlagEmoji(tz: string): string {
+    if (!tz) return '📍';
     const tzLower = tz.toLowerCase();
-    for (const [city, flag] of Object.entries(cityMap)) {
-        if (tzLower.includes(city)) return flag;
+    if (tzLower === 'utc' || tzLower === 'gmt') {
+        return '🌐';
+    }
+    try {
+        const tzInfo = getTimezone(tz);
+        if (tzInfo && tzInfo.countries && tzInfo.countries.length > 0) {
+            return getFlagEmojiForCountry(tzInfo.countries[0]);
+        }
+    } catch (e) {
+        console.error(e);
     }
     return '📍';
 }

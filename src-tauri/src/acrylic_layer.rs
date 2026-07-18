@@ -698,6 +698,7 @@ pub async fn request_region(
     border_radius: f32,
     state: State<'_, SharedWidgetState>,
 ) -> Result<(), String> {
+    println!("[DEBUG] IPC: request_region called for widget_id: {}, label: {}, x: {}, y: {}, w: {}, h: {}", widget_id, label, x, y, width, height);
     let window = app.get_webview_window(&label).ok_or("Window not found")?;
     let hwnd_ptr = window.hwnd().map_err(|e| e.to_string())?.0 as isize;
     let scale_factor = window.scale_factor().unwrap_or(1.0) as f32;
@@ -877,7 +878,7 @@ pub async fn request_region(
         }
     });
 
-    println!("[DEBUG] Requested region mapped to ID: {}", widget_id);
+
     Ok(())
 }
 
@@ -888,6 +889,7 @@ pub async fn remove_region(
     widget_id: String,
     state: State<'_, SharedWidgetState>,
 ) -> Result<(), String> {
+    println!("[DEBUG] IPC: remove_region called for widget_id: {}, label: {}", widget_id, label);
     let window = app.get_webview_window(&label).ok_or("Window not found")?;
     let hwnd_ptr = window.hwnd().map_err(|e| e.to_string())?.0 as isize;
 
@@ -925,6 +927,7 @@ pub async fn start_change_region(
     widget_id: String,
     state: State<'_, SharedWidgetState>,
 ) -> Result<(), String> {
+    println!("[DEBUG] IPC: start_change_region called for widget_id: {}, label: {}", widget_id, label);
     let window = app.get_webview_window(&label).ok_or("Window not found")?;
     let hwnd_ptr = window.hwnd().map_err(|e| e.to_string())?.0 as isize;
 
@@ -958,6 +961,7 @@ pub async fn stop_change_region(
     border_radius: f32,
     state: State<'_, SharedWidgetState>,
 ) -> Result<(), String> {
+    println!("[DEBUG] IPC: stop_change_region called for widget_id: {}, label: {}, x: {}, y: {}, w: {}, h: {}", widget_id, label, x, y, width, height);
     let window = app.get_webview_window(&label).ok_or("Window not found")?;
     let hwnd_ptr = window.hwnd().map_err(|e| e.to_string())?.0 as isize;
     let scale_factor = window.scale_factor().unwrap_or(1.0) as f32;

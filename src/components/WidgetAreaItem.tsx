@@ -16,7 +16,6 @@ interface WidgetProps {
     activeWidgetId: string | null;
     setActiveWidgetId: (id: string | null) => void;
     onUpdate: (id: string, updates: Partial<DesktopWidget>, broadcast?: boolean) => void;
-    onDragEnd: (id: string) => void;
     isEditMode?: boolean;
     children: React.ReactNode;
 }
@@ -28,7 +27,6 @@ export default function WidgetAreaItem({
     activeWidgetId,
     setActiveWidgetId,
     onUpdate, 
-    onDragEnd,
     isEditMode,
     children
 }: WidgetProps) {
@@ -188,8 +186,10 @@ export default function WidgetAreaItem({
         };
     }, [widget.id]);
 
-    // Keep region coordinates updated
+    // Keep region updated on mount and coordinate changes (only when not actively dragging/resizing)
     useEffect(() => {
+        if (action !== null) return; 
+
         const updateWidgetRegion = async () => {
             try {
                 await invoke('request_region', {
@@ -208,7 +208,7 @@ export default function WidgetAreaItem({
 
         const timerId = setTimeout(updateWidgetRegion, 50);
         return () => clearTimeout(timerId);
-    }, [widget.id, widget.x, widget.y, widget.width, widget.height]);
+    }, [widget.id, widget.x, widget.y, widget.width, widget.height, action]);
 
     // Drag Handlers
     const handleDragDown = async (e: React.PointerEvent<HTMLDivElement>) => {
@@ -221,7 +221,7 @@ export default function WidgetAreaItem({
         
         if (delayTimeoutRef.current) clearTimeout(delayTimeoutRef.current);
         await new Promise<void>((resolve) => {
-            delayTimeoutRef.current = setTimeout(() => { resolve(); }, 150);
+            delayTimeoutRef.current = setTimeout(() => { resolve(); }, 50);
         });
 
         await invoke('start_change_region', { label: getCurrentWebviewWindow().label, widgetId: widget.id }).catch(console.error);
@@ -294,7 +294,15 @@ export default function WidgetAreaItem({
         }
 
         onUpdate(widget.id, { x: snapCoordsRef.current.x, y: snapCoordsRef.current.y }, true);
-        onDragEnd(widget.id);
+        await invoke('stop_change_region', {
+            label: getCurrentWebviewWindow().label,
+            widgetId: widget.id,
+            x: snapCoordsRef.current.x * window.devicePixelRatio,
+            y: snapCoordsRef.current.y * window.devicePixelRatio,
+            width: widget.width * window.devicePixelRatio,
+            height: widget.height * window.devicePixelRatio,
+            borderRadius: BORDER_RADIUS * window.devicePixelRatio
+        }).catch(console.error);
     };
 
     // Resize Handlers
@@ -440,7 +448,15 @@ export default function WidgetAreaItem({
         }
 
         onUpdate(widget.id, { width: snapCoordsRef.current.w, height: snapCoordsRef.current.h }, true);
-        onDragEnd(widget.id);
+        await invoke('stop_change_region', {
+            label: getCurrentWebviewWindow().label,
+            widgetId: widget.id,
+            x: widget.x * window.devicePixelRatio,
+            y: widget.y * window.devicePixelRatio,
+            width: snapCoordsRef.current.w * window.devicePixelRatio,
+            height: snapCoordsRef.current.h * window.devicePixelRatio,
+            borderRadius: BORDER_RADIUS * window.devicePixelRatio
+        }).catch(console.error);
     };
 
     const isInteracting = action !== null;
@@ -451,7 +467,7 @@ export default function WidgetAreaItem({
     return (
         <div
             ref={containerRef}
-            className={`absolute flex items-center justify-center select-none overflow-hidden transition duration-150 ease-out border pointer-events-auto ${isInteracting 
+            className={`absolute flex items-center justify-center select-none overflow-hidden transition duration-50 ease-out border pointer-events-auto ${isInteracting 
                 ? 'border-zinc-500/30 dark:border-white/20 bg-white dark:bg-zinc-800 shadow-xl z-50' 
                 : isHighlighted
                     ? 'border-3 border-primary shadow-lg shadow-primary/5 z-[9999] scale-[1.015]'

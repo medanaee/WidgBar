@@ -5,7 +5,6 @@ import { invoke } from '@tauri-apps/api/core';
 // ── Hardcoded metadata (never persisted, always from code) ──
 export interface WidgetTypeMeta {
   type_name: string;
-  icon: string;
   nameKey: string;
   descriptionKey?: string;
   can_be_in_bar: boolean;
@@ -15,7 +14,6 @@ export interface WidgetTypeMeta {
 export const WIDGET_TYPE_META: Record<string, WidgetTypeMeta> = {
   clock: {
     type_name: 'clock',
-    icon: 'ClockColor',
     nameKey: 'widgetClock',
     descriptionKey: 'widgetClockDesc',
     can_be_in_bar: true,
@@ -23,7 +21,6 @@ export const WIDGET_TYPE_META: Record<string, WidgetTypeMeta> = {
   },
   ai: {
     type_name: 'ai',
-    icon: 'BotSparkleColor',
     nameKey: 'widgetAi',
     descriptionKey: 'widgetAiDesc',
     can_be_in_bar: true,
@@ -31,7 +28,6 @@ export const WIDGET_TYPE_META: Record<string, WidgetTypeMeta> = {
   },
   weather: {
     type_name: 'weather',
-    icon: 'WeatherPartlyCloudyDayRegular',
     nameKey: 'widgetWeather',
     descriptionKey: 'widgetWeatherDesc',
     can_be_in_bar: true,
@@ -39,7 +35,6 @@ export const WIDGET_TYPE_META: Record<string, WidgetTypeMeta> = {
   },
   system_monitor: {
     type_name: 'system_monitor',
-    icon: 'DeveloperBoardRegular',
     nameKey: 'widgetSystemMonitor',
     descriptionKey: 'widgetSystemMonitorDesc',
     can_be_in_bar: true,

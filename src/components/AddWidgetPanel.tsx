@@ -3,7 +3,7 @@ import { useWidgetRegistryStore } from '../stores/widgetRegistryStore';
 import { LayoutGrid } from 'lucide-react';
 import { ArrowLeft } from 'lucide-react';
 import { useTranslation, TranslationKey } from '../lib/i18n';
-import { FluentIconMap } from '../lib/widgetIcons';
+import { WidgetIcon } from './WidgetIcon';
 
 interface AddWidgetPanelProps {
   context: "bar" | "widgetArea";
@@ -49,8 +49,6 @@ export default function AddWidgetPanel({ context, onBack, onSelect }: AddWidgetP
         ) : (
           <div className="grid grid-cols-2 gap-3.5">
             {widgets.map(w => {
-              const IconComponent = FluentIconMap[w.icon] || LayoutGrid;
-
               return (
                 <button
                   key={w.type_name}
@@ -59,7 +57,7 @@ export default function AddWidgetPanel({ context, onBack, onSelect }: AddWidgetP
                   bg-zinc-500/10 dark:bg-zinc-500/10 hover:bg-zinc-500/20 dark:hover:bg-zinc-500/20"
                 >
                   <div className="relative z-10 shrink-0 flex items-center justify-center">
-                    <IconComponent className="w-8 h-8 text-zinc-700 dark:text-zinc-200 group-hover:text-primary transition-colors" />
+                    <WidgetIcon type={w.type_name} className="w-8 h-8 opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all drop-shadow-sm" />
                   </div>
                   
                   <div className="relative z-10 flex flex-col min-w-0 text-left">

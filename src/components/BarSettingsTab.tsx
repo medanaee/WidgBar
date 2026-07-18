@@ -10,7 +10,7 @@ import { NumberInput } from "./ui/NumberInput";
 import { SettingCard, SettingCardNoLayout } from "./ui/SettingCard";
 import { VisualSelector } from "./ui/VisualSelector";
 import { ChevronUp24Regular, ChevronDown24Regular } from "@fluentui/react-icons";
-import { FluentIconMap } from '@/lib/widgetIcons';
+import { WidgetIcon } from './WidgetIcon';
 
 export default function BarSettingsTab({
   selectedMonitorId,
@@ -374,7 +374,6 @@ export default function BarSettingsTab({
                           ) : (
                             section.widgets.map((widget, i) => {
                               const wType = registry[widget.type];
-                              const IconComponent = wType ? (FluentIconMap[wType.icon] || LayoutGrid) : LayoutGrid;
                               return (
                                 <Draggable key={widget.id} draggableId={widget.id} index={i}>
                                   {(provided, snapshot) => (
@@ -399,10 +398,12 @@ export default function BarSettingsTab({
                                           <GripVertical className="w-4 h-4 text-zinc-400" />
                                         </div>
                                         <div className="shrink-0 flex items-center justify-center">
-                                          <IconComponent className="w-6 h-6 text-zinc-700 dark:text-zinc-200" />
+                                          <WidgetIcon type={widget.type} className="w-6 h-6 opacity-90 drop-shadow-sm" />
                                         </div>
                                         <div className="flex flex-col items-start">
-                                          <span className="text-xs font-medium text-zinc-900 dark:text-zinc-200 capitalize">{widget.type}</span>
+                                          <span className="text-xs font-medium text-zinc-900 dark:text-zinc-200 capitalize">
+                                            {wType ? t(wType.nameKey as any) : widget.type}
+                                          </span>
                                         </div>
                                       </div>
                                       <div className="flex items-center gap-1">

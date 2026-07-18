@@ -267,6 +267,57 @@ export default function ClockArea({ widgetId }: { widgetId: string }) {
         );
     }
 
+    const dateFormat = config.dateFormat || 'gregorian';
+
+    const getFormattedDate = () => {
+        if (dateFormat === 'none') return null;
+        try {
+            const isPersianOrIslamic = dateFormat === 'jalali' || dateFormat === 'islamic';
+            const calendarMap: Record<string, string> = {
+                gregorian: 'gregory',
+                jalali: 'persian',
+                islamic: 'islamic',
+                buddhist: 'buddhist',
+                chinese: 'chinese',
+                hebrew: 'hebrew',
+                indian: 'indian',
+                japanese: 'japanese'
+            };
+            const calendar = calendarMap[dateFormat] || 'gregory';
+            const locale = isPersianOrIslamic ? 'fa-IR' : undefined;
+
+            const formatter = new Intl.DateTimeFormat(locale, {
+                timeZone,
+                calendar,
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: calendar !== 'gregory' ? 'numeric' : undefined
+            });
+
+            if (isPersianOrIslamic) {
+                const parts = formatter.formatToParts(time);
+                const weekday = parts.find(p => p.type === 'weekday')?.value || '';
+                const day = parts.find(p => p.type === 'day')?.value || '';
+                const month = parts.find(p => p.type === 'month')?.value || '';
+                const year = parts.find(p => p.type === 'year')?.value || '';
+                
+                return `${weekday}، ${day} ${month} ${year}`;
+            }
+
+            return formatter.format(time);
+        } catch (e) {
+            return time.toLocaleDateString(undefined, { 
+                timeZone,
+                weekday: 'long', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+        }
+    };
+
+    const formattedDate = getFormattedDate();
+
     return (
         <div className="flex flex-col items-center justify-center w-full h-full text-zinc-800 dark:text-zinc-100 pointer-events-none">
             <div className="text-4xl font-semibold tracking-tight tabular-nums">
@@ -278,16 +329,16 @@ export default function ClockArea({ widgetId }: { widgetId: string }) {
                     hour12: !is24Hour
                 })}
             </div>
-            <div className="text-zinc-500 dark:text-zinc-400 text-sm mt-1 font-medium">
-                {time.toLocaleDateString(undefined, { 
-                    timeZone,
-                    weekday: 'long', 
-                    month: 'long', 
-                    day: 'numeric' 
-                })}
-            </div>
+            {formattedDate && (
+                <div 
+                    dir={dateFormat === 'jalali' || dateFormat === 'islamic' ? 'rtl' : 'ltr'}
+                    className="text-zinc-500 dark:text-zinc-400 text-sm mt-1 font-medium"
+                >
+                    {formattedDate}
+                </div>
+            )}
             {showTimezone && (
-                <div className="text-zinc-400 dark:text-zinc-500 text-xs mt-2 font-medium flex items-center gap-1.5 select-none">
+                <div className="text-zinc-400 dark:text-zinc-500 text-xs mt-1 font-medium flex items-center gap-1.5 select-none">
                     <Flag timezone={timeZone} className="text-sm" />
                     <span>{tzName}</span>
                 </div>

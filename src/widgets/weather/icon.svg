@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="100%" height="100%">
+  <defs>
+    <linearGradient id="weather-grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3B82F6" />
+      <stop offset="100%" stop-color="#2563EB" />
+    </linearGradient>
+    <linearGradient id="weather-sun" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FDE047" />
+      <stop offset="100%" stop-color="#F59E0B" />
+    </linearGradient>
+    <linearGradient id="weather-cloud" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#E2E8F0" />
+    </linearGradient>
+    <filter id="weather-shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000" flood-opacity="0.25" />
+    </filter>
+  </defs>
+  
+  <!-- True iOS/Figma G2 Squircle (R72, S1.0) -->
+  <path d="M 128 0 c 52.4677 0 78.7015 0 97.2975 13.0211 a 72.0000 72.0000 0 0 1 17.6814 17.6814 c 13.0211 18.5960 13.0211 44.8298 13.0211 97.2975 L 256 128 c 0 52.4677 0 78.7015 -13.0211 97.2975 a 72.0000 72.0000 0 0 1 -17.6814 17.6814 c -18.5960 13.0211 -44.8298 13.0211 -97.2975 13.0211 L 128 256 c -52.4677 0 -78.7015 0 -97.2975 -13.0211 a 72.0000 72.0000 0 0 1 -17.6814 -17.6814 c -13.0211 -18.5960 -13.0211 -44.8298 -13.0211 -97.2975 L 0 128 c 0 -52.4677 0 -78.7015 13.0211 -97.2975 a 72.0000 72.0000 0 0 1 17.6814 -17.6814 c 18.5960 -13.0211 44.8298 -13.0211 97.2975 -13.0211 Z" fill="url(#weather-grad1)" filter="url(#weather-shadow)"/>
+  
+  <!-- Balanced Sun -->
+  <circle cx="156" cy="104" r="48" fill="url(#weather-sun)" />
+  
+  <!-- Even Larger Cloud -->
+  <path d="M78 184 C48 184 48 138 78 138 C84 102 148 102 166 138 C198 138 198 184 166 184 Z" fill="url(#weather-cloud)" />
+</svg>

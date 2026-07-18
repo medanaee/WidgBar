@@ -2,8 +2,7 @@ import React from 'react';
 import { useTranslation, TranslationKey } from '../lib/i18n';
 import { Monitor } from '../types/layout';
 import { useWidgetRegistryStore } from '../stores/widgetRegistryStore';
-import { FluentIconMap } from '../lib/widgetIcons';
-import { ClockColor } from '@fluentui/react-icons';
+import { WidgetIcon } from './WidgetIcon';
 
 type ActiveTab = "home" | "settings" | "layout" | "appearance" | "widgets_library" | "ai_services";
 
@@ -42,7 +41,6 @@ function WidgetListItem({
   onClick: () => void 
 }) {
   const { t } = useTranslation();
-  const IconComp = FluentIconMap[w.icon] || ClockColor;
   
   return (
     <button
@@ -53,7 +51,7 @@ function WidgetListItem({
         }`}
     >
       <div className="shrink-0 flex items-center justify-center relative z-10">
-        <IconComp fontSize={28} />
+        <WidgetIcon type={w.type_name} className="w-7 h-7 opacity-90 drop-shadow-sm" />
       </div>
       <div className="flex flex-col min-w-0 relative z-10">
         <span className="font-semibold text-xs text-zinc-800 dark:text-zinc-200 capitalize leading-tight">

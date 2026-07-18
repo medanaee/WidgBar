@@ -3,7 +3,7 @@ import { useWidgetRegistryStore } from '../stores/widgetRegistryStore';
 import { LayoutGrid } from 'lucide-react';
 import { CutoutModal } from './ui/CutoutModal';
 import { useTranslation, TranslationKey } from '../lib/i18n';
-import { FluentIconMap } from '../lib/widgetIcons';
+import { WidgetIcon } from './WidgetIcon';
 
 interface AddWidgetModalProps {
   context: "bar" | "widgetArea";
@@ -39,7 +39,6 @@ export function AddWidgetModal({ isOpen, onClose, onSelect, context }: AddWidget
             <div className="p-4 text-center text-xs text-zinc-500">{t("noWidgets" as TranslationKey)}</div>
           ) : (
             widgets.map(w => {
-              const IconComponent = FluentIconMap[w.icon] || LayoutGrid;
               return (
                 <button
                   key={w.type_name}
@@ -50,7 +49,7 @@ export function AddWidgetModal({ isOpen, onClose, onSelect, context }: AddWidget
                   className="flex items-center gap-3 w-full p-2.5 rounded-lg hover:bg-zinc-500/20 dark:hover:bg-zinc-500/20 transition-colors text-left"
                 >
                   <div className="shrink-0 flex items-center justify-center">
-                    <IconComponent className="w-8 h-8 text-zinc-700 dark:text-zinc-200" />
+                    <WidgetIcon type={w.type_name} className="w-8 h-8 opacity-90 drop-shadow-sm" />
                   </div>
                   <div className="flex flex-col">
                     <span className="font-medium text-sm text-zinc-900 dark:text-zinc-100 capitalize">

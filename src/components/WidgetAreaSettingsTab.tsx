@@ -5,7 +5,7 @@ import { Settings as SettingsIcon, LayoutGrid, Plus, Trash2 } from 'lucide-react
 import { SettingCard } from "./ui/SettingCard";
 import { useLayoutStore } from "../stores/layoutStore";
 import { emit } from "@tauri-apps/api/event";
-import { FluentIconMap } from '@/lib/widgetIcons';
+import { WidgetIcon } from './WidgetIcon';
 
 
 
@@ -109,7 +109,6 @@ export default function WidgetAreaSettingsTab({
           <div className="flex flex-col gap-2">
             {monitors.find(m => m.id === selectedMonitorId)?.widgetArea.map(widget => {
               const wType = registry[widget.type];
-              const IconComponent = wType ? (FluentIconMap[wType.icon] || LayoutGrid) : LayoutGrid;
               return (
                 <div
                   key={widget.id}
@@ -125,10 +124,12 @@ export default function WidgetAreaSettingsTab({
                   <SettingCard>
                     <div className="flex items-center gap-3">
                       <div className="shrink-0 flex items-center justify-center">
-                        <IconComponent className="w-8 h-8 text-zinc-700 dark:text-zinc-200" />
+                        <WidgetIcon type={widget.type} className="w-8 h-8 opacity-90 drop-shadow-sm" />
                       </div>
                       <div className="flex flex-col items-start">
-                        <span className="text-sm font-medium text-zinc-900 dark:text-zinc-200 capitalize">{widget.type}</span>
+                        <span className="text-sm font-medium text-zinc-900 dark:text-zinc-200 capitalize">
+                          {wType ? t(wType.nameKey as any) : widget.type}
+                        </span>
                         <span className="text-[10px] text-zinc-500">
                           Size: {Math.round(widget.width)}x{Math.round(widget.height)}
                         </span>
