@@ -157,6 +157,7 @@ export default function LayoutSettingsTab({ selectedMonitorId }: { selectedMonit
                 currentLayout={currentLayout}
                 registry={registry}
                 t={t}
+                language={language}
                 handleMonitorToggle={handleMonitorToggle}
                 hoveredWidgetId={hoveredWidgetId}
                 setHoveredWidgetId={setHoveredWidgetId}

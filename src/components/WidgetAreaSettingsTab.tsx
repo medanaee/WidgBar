@@ -18,6 +18,7 @@ export default function WidgetAreaSettingsTab({
   currentLayout,
   registry,
   t,
+  language,
   handleMonitorToggle,
   hoveredWidgetId,
   setHoveredWidgetId,

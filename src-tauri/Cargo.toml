@@ -23,6 +23,7 @@ window-vibrancy = "0.7.1"
 tokio = { version = "1", features = ["full"] }
 raw-window-handle = "0.6"
 once_cell = "1.21.4"
+base64 = "0.22"
 tauri-plugin-shell = "2"
 tauri-plugin-single-instance = "2"
 windows-numerics = "0.3.1"
@@ -35,6 +36,9 @@ windows = { version = "0.62.2", features = [
     "Foundation",
     "Foundation_Numerics",
     "Management_Deployment",
+    "Media",
+    "Media_Control",
+    "Storage_Streams",
     "System",
     "UI",
     "UI_Composition",
@@ -43,6 +47,7 @@ windows = { version = "0.62.2", features = [
     "Win32_Foundation",
     "Win32_Graphics_Dwm",
     "Win32_Graphics_Gdi",
+    "Win32_Media_Audio",
     "Win32_System_Com",
     "Win32_System_LibraryLoader",
     "Win32_System_Ole",
@@ -54,7 +59,11 @@ windows = { version = "0.62.2", features = [
     "Win32_UI_Input",
     "Win32_UI_Input_KeyboardAndMouse",
     "Win32_UI_Shell",
-    "Win32_UI_WindowsAndMessaging"
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_Media_Audio",
+    "Win32_Media_Audio_Endpoints",
+    "Win32_System_Com",
+    "Win32_System_Com_StructuredStorage",
 ] }
 
 serde = { version = "1.0", features = ["derive"] }

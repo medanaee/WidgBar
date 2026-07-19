@@ -26,6 +26,9 @@ use crate::windows_pool::*;
 mod database;
 use crate::database::*;
 
+mod audio_control;
+mod media_control;
+
 mod locked_popups;
 use crate::locked_popups::*;
 mod system_monitor;
@@ -154,6 +157,23 @@ async fn request_window(
 #[tauri::command]
 fn exit_app() {
     std::process::exit(0);
+}
+
+#[tauri::command]
+fn get_system_volume() -> Result<f32, String> {
+    audio_control::get_volume()
+}
+
+#[tauri::command]
+fn set_system_volume(vol: f32) -> Result<(), String> {
+    audio_control::set_volume(vol)
+}
+
+#[tauri::command]
+async fn send_media_command(command: String, seek_pos_ms: Option<u32>) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || media_control::send_media_command(&command, seek_pos_ms))
+        .await
+        .map_err(|e| format!("Task failed: {}", e))?
 }
 
 #[tauri::command]
@@ -303,6 +323,9 @@ fn main() {
             close_locked_popup,
             execute_js_in_popup,
             exit_app,
+            get_system_volume,
+            set_system_volume,
+            send_media_command,
             proxy_request,
             stream_ai_request,
             system_monitor::get_system_stats
@@ -320,6 +343,9 @@ fn main() {
             let stats = std::sync::Arc::new(std::sync::Mutex::new(system_monitor::SystemStats::default()));
             system_monitor::start_monitor_thread(stats.clone());
             app.manage(system_monitor::SystemMonitorState { stats });
+            
+            #[cfg(target_os = "windows")]
+            media_control::start_media_listener(app.handle().clone());
 
             Ok(())
         })

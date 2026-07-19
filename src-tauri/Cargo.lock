@@ -4898,6 +4898,7 @@ dependencies = [
 name = "widg-bar"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "once_cell",
  "raw-window-handle",
  "reqwest 0.11.27",
