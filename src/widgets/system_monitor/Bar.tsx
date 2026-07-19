@@ -165,7 +165,7 @@ export default function SystemMonitorBar({ widgetId }: { widgetId: string }) {
             {/* CPU */}
             {enabledMetrics.includes('cpu') && (
                 <div 
-                    className={`flex items-center gap-1.5  px-1 py-0.5 transition-all text-xs ${isLarge ? 'flex-col justify-center h-10 min-w-[56px]' : 'h-7'} ${
+                    className={`flex items-start gap-1.5  px-1 py-0.5 transition-all text-xs ${isLarge ? 'flex-col justify-center h-10 min-w-15' : 'h-7'} ${
                         fillIndicatorsBar 
                             ? 'rounded-lg border border-white/5 bg-white/5 shadow-sm' 
                             : 'border border-transparent bg-transparent'
@@ -175,7 +175,7 @@ export default function SystemMonitorBar({ widgetId }: { widgetId: string }) {
                     <div className="flex items-center gap-1 leading-none">
                         <Cpu className="w-3.5 h-3.5 text-blue-400" />
                         {showLabelsBar && <span className="font-semibold text-[10px] text-white/70">CPU</span>}
-                        <span className="font-bold tabular-nums">{Math.round(stats.cpu_usage)}%</span>
+                        <span className="font-bold tabular-nums inline-block text-left min-w-7">{Math.round(stats.cpu_usage)}%</span>
                     </div>
                     {isLarge && showCpuChart && (
                         <div className="mt-0.5">
@@ -188,7 +188,7 @@ export default function SystemMonitorBar({ widgetId }: { widgetId: string }) {
             {/* RAM */}
             {enabledMetrics.includes('ram') && (
                 <div 
-                    className={`flex items-center gap-1.5  px-1 py-0.5 transition-all text-xs ${isLarge ? 'flex-col justify-center h-10 min-w-[56px]' : 'h-7'} ${
+                    className={`flex items-start gap-1.5  px-1 py-0.5 transition-all text-xs ${isLarge ? 'flex-col justify-center h-10 min-w-15' : 'h-7'} ${
                         fillIndicatorsBar 
                             ? 'rounded-lg border border-white/5 bg-white/5 shadow-sm' 
                             : 'border border-transparent bg-transparent'
@@ -198,7 +198,7 @@ export default function SystemMonitorBar({ widgetId }: { widgetId: string }) {
                     <div className="flex items-center gap-1 leading-none">
                         <Database className="w-3.5 h-3.5 text-emerald-400" />
                         {showLabelsBar && <span className="font-semibold text-[10px] text-white/70">RAM</span>}
-                        <span className="font-bold tabular-nums">
+                        <span className="font-bold tabular-nums inline-block text-left min-w-7">
                             {config.ramValueType === 'used' ? `${stats.ram_used_gb.toFixed(1)}G` : `${Math.round(stats.ram_usage)}%`}
                         </span>
                     </div>
@@ -213,7 +213,7 @@ export default function SystemMonitorBar({ widgetId }: { widgetId: string }) {
             {/* Disk */}
             {enabledMetrics.includes('disk') && (
                 <div 
-                    className={`flex items-center gap-1.5  px-1 py-0.5 transition-all text-xs ${isLarge ? 'flex-col justify-center h-10 min-w-[56px]' : 'h-7'} ${
+                    className={`flex items-center gap-1.5  px-1 py-0.5 transition-all text-xs ${isLarge ? 'flex-col justify-center h-10 min-w-[60px]' : 'h-7'} ${
                         fillIndicatorsBar 
                             ? 'rounded-lg border border-white/5 bg-white/5 shadow-sm' 
                             : 'border border-transparent bg-transparent'
@@ -223,7 +223,7 @@ export default function SystemMonitorBar({ widgetId }: { widgetId: string }) {
                     <div className="flex items-center gap-1 leading-none">
                         <HardDrive className="w-3.5 h-3.5 text-purple-400" />
                         {showLabelsBar && <span className="font-semibold text-[10px] text-white/70">DSK</span>}
-                        <span className="font-bold tabular-nums">
+                        <span className="font-bold tabular-nums inline-block text-right w-[38px]">
                             {config.diskValueType === 'used' ? `${stats.disk_used_gb.toFixed(0)}G` : `${Math.round(stats.disk_usage)}%`}
                         </span>
                     </div>
@@ -245,22 +245,24 @@ export default function SystemMonitorBar({ widgetId }: { widgetId: string }) {
                     }`}
                 >
                     <div className="flex items-center gap-1 leading-none">
-                        <ArrowDown className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                        {showLabelsBar && <span className="font-semibold text-[10px] text-white/70">NET</span>}
                         <div className="flex flex-col gap-0.5 items-start tabular-nums shrink-0">
                             <span className="font-bold text-xs flex items-center gap-0.5 leading-none">
-                                <ArrowDown className="w-2.5 h-2.5 text-amber-400" />
-                                {stats.net_download_kb > 1024 
-                                    ? `${(stats.net_download_kb / 1024).toFixed(1)}M` 
-                                    : `${Math.round(stats.net_download_kb)}K`
-                                }
+                                <ArrowDown className="w-2.5 h-2.5 text-amber-400 shrink-0" />
+                                <span className="inline-block text-right w-[42px]">
+                                    {stats.net_download_kb > 1024 
+                                        ? `${(stats.net_download_kb / 1024).toFixed(1)}M` 
+                                        : `${Math.round(stats.net_download_kb)}K`
+                                    }
+                                </span>
                             </span>
                             <span className="text-xs font-semibold text-white/60 flex items-center gap-0.5 leading-none">
-                                <ArrowUp className="w-2.5 h-2.5 text-orange-400" />
-                                {stats.net_upload_kb > 1024 
-                                    ? `${(stats.net_upload_kb / 1024).toFixed(1)}M` 
-                                    : `${Math.round(stats.net_upload_kb)}K`
-                                }
+                                <ArrowUp className="w-2.5 h-2.5 text-orange-400 shrink-0" />
+                                <span className="inline-block text-right w-[42px]">
+                                    {stats.net_upload_kb > 1024 
+                                        ? `${(stats.net_upload_kb / 1024).toFixed(1)}M` 
+                                        : `${Math.round(stats.net_upload_kb)}K`
+                                    }
+                                </span>
                             </span>
                         </div>
                     </div>

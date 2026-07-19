@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="100%" height="100%">
+  <defs>
+    <linearGradient id="cal-grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F97316" />
+      <stop offset="100%" stop-color="#EA580C" />
+    </linearGradient>
+    <linearGradient id="cal-grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFEDD5" />
+      <stop offset="100%" stop-color="#FED7AA" />
+    </linearGradient>
+    <filter id="cal-shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000" flood-opacity="0.25" />
+    </filter>
+  </defs>
+  
+  <!-- True iOS/Figma G2 Squircle (R72, S1.0) -->
+  <path d="M 128 0 c 52.4677 0 78.7015 0 97.2975 13.0211 a 72.0000 72.0000 0 0 1 17.6814 17.6814 c 13.0211 18.5960 13.0211 44.8298 13.0211 97.2975 L 256 128 c 0 52.4677 0 78.7015 -13.0211 97.2975 a 72.0000 72.0000 0 0 1 -17.6814 17.6814 c -18.5960 13.0211 -44.8298 13.0211 -97.2975 13.0211 L 128 256 c -52.4677 0 -78.7015 0 -97.2975 -13.0211 a 72.0000 72.0000 0 0 1 -17.6814 -17.6814 c -13.0211 -18.5960 -13.0211 -44.8298 -13.0211 -97.2975 L 0 128 c 0 -52.4677 0 -78.7015 13.0211 -97.2975 a 72.0000 72.0000 0 0 1 17.6814 -17.6814 c 18.5960 -13.0211 44.8298 -13.0211 97.2975 -13.0211 Z" fill="url(#cal-grad1)" filter="url(#cal-shadow)"/>
+  
+  <!-- Calendar Grid Sheet -->
+  <rect x="64" y="64" width="128" height="128" rx="16" fill="url(#cal-grad2)" />
+  <rect x="64" y="64" width="128" height="36" rx="0" fill="#fff" opacity="0.3" />
+  
+  <!-- Binder Rings -->
+  <rect x="92" y="44" width="12" height="28" rx="6" fill="#EA580C" />
+  <rect x="152" y="44" width="12" height="28" rx="6" fill="#EA580C" />
+  
+  <!-- Calendar Grid Dots -->
+  <circle cx="96" cy="120" r="8" fill="#EA580C" />
+  <circle cx="128" cy="120" r="8" fill="#EA580C" />
+  <circle cx="160" cy="120" r="8" fill="#EA580C" />
+  <circle cx="96" cy="152" r="8" fill="#EA580C" />
+  <circle cx="128" cy="152" r="8" fill="#EA580C" />
+  <circle cx="160" cy="152" r="8" fill="#EA580C" />
+</svg>

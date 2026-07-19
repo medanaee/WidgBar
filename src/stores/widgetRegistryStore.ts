@@ -39,6 +39,13 @@ export const WIDGET_TYPE_META: Record<string, WidgetTypeMeta> = {
     descriptionKey: 'widgetSystemMonitorDesc',
     can_be_in_bar: true,
     can_be_in_area: true,
+  },
+  calendar: {
+    type_name: 'calendar',
+    nameKey: 'widgetCalendar',
+    descriptionKey: 'widgetCalendarDesc',
+    can_be_in_bar: true,
+    can_be_in_area: true,
   }
 };
 
@@ -54,6 +61,7 @@ const SEED_DEFAULTS: Record<string, WidgetTypeSettings> = {
   ai: { default_width: 350, default_height: 400 },
   weather: { default_width: 300, default_height: 150 },
   system_monitor: { default_width: 300, default_height: 180 },
+  calendar: { default_width: 320, default_height: 220 },
 };
 
 // ── Combined type for consumers ──

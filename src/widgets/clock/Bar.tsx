@@ -44,7 +44,7 @@ export default function ClockBar({ widgetId }: { widgetId: string }) {
             // High Bar: Time on top, Flag + Timezone name underneath
             return (
                 <div onClick={handleRootClick} className="text-white flex flex-col items-center justify-center leading-none">
-                    <span className="text-sm font-semibold tracking-wide">{timeString}</span>
+                    <span className="text-sm font-semibold tracking-wide tabular-nums">{timeString}</span>
                     <span className="text-[10px] text-white/60 flex items-center gap-1 font-medium select-none">
                         <Flag timezone={timeZone} className="text-xs" />
                         <span>{tzName}</span>
@@ -55,7 +55,7 @@ export default function ClockBar({ widgetId }: { widgetId: string }) {
             // Low Bar: Flag and Time horizontally next to each other
             return (
                 <div onClick={handleRootClick} className="text-white text-sm font-medium tracking-wide flex items-center gap-2 select-none">
-                    <span>{timeString}</span>
+                    <span className="tabular-nums">{timeString}</span>
                     <Flag timezone={timeZone} className="text-base" />
                 </div>
             );
@@ -64,7 +64,7 @@ export default function ClockBar({ widgetId }: { widgetId: string }) {
 
     return (
         <div onClick={handleRootClick} className="text-white text-sm font-medium tracking-wide flex items-center gap-2">
-            <span>{timeString}</span>
+            <span className="tabular-nums">{timeString}</span>
         </div>
     );
 }

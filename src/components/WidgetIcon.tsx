@@ -3,12 +3,14 @@ import clockIcon from '../widgets/clock/icon.svg';
 import aiIcon from '../widgets/ai/icon.svg';
 import weatherIcon from '../widgets/weather/icon.svg';
 import systemMonitorIcon from '../widgets/system_monitor/icon.svg';
+import calendarIcon from '../widgets/calendar/icon.svg';
 
 const ICONS: Record<string, string> = {
     clock: clockIcon,
     ai: aiIcon,
     weather: weatherIcon,
-    system_monitor: systemMonitorIcon
+    system_monitor: systemMonitorIcon,
+    calendar: calendarIcon
 };
 
 interface WidgetIconProps {

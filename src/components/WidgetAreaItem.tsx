@@ -316,7 +316,7 @@ export default function WidgetAreaItem({
         
         if (delayTimeoutRef.current) clearTimeout(delayTimeoutRef.current);
         await new Promise<void>((resolve) => {
-            delayTimeoutRef.current = setTimeout(() => { resolve(); }, 150);
+            delayTimeoutRef.current = setTimeout(() => { resolve(); }, 50);
         });
 
         await invoke('start_change_region', { label: getCurrentWebviewWindow().label, widgetId: widget.id }).catch(console.error);

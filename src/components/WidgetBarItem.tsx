@@ -71,7 +71,7 @@ export default function WidgetBarItem({ widget, children }: Props) {
     };
 
     const constraints = useWidgetConstraintsStore(state => state.constraints[widget.id]);
-    const barPadding = constraints?.barPadding ?? (widget.type === 'system_monitor' ? 0 : 2);
+    const barPadding = constraints?.barPadding ?? 1;
     
     const paddingClass = {
         0: 'px-0',
