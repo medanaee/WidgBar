@@ -9,13 +9,13 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Titlebar } from "./Titlebar";
 import { CutoutProvider } from "./ui/CutoutProvider";
-import { useTranslation, TranslationKey } from "../lib/i18n";
+import { useTranslation } from "../lib/i18n";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { BotSparkleColor, PersonRegular, SendRegular, AddRegular, DeleteRegular, StopRegular } from '@fluentui/react-icons';
+import { PersonRegular, SendRegular, AddRegular, DeleteRegular, StopRegular } from '@fluentui/react-icons';
 import { CompanyLogo } from "./CompanyLogo";
 import EditAiServicePanel from "./tabs/EditAiServicePanel";
 import MarkdownChatContent from "./MarkdownChatContent";
-import { Settings as SettingsIcon } from "lucide-react";
+import { Settings as SettingsIcon, Pencil } from "lucide-react";
 
 interface ChatInputProps {
   onSend: (text: string) => void;
@@ -110,7 +110,7 @@ function ChatInput({
 export default function AiChatRoute() {
   console.log("Rendering AiChatRoute");
   const { instanceId } = useParams<{ instanceId: string }>();
-  const { data, sessionMessages, sessionsLoaded, loadMessagesForSession, removeSession } = useAiServicesStore();
+  const { data, sessionMessages, sessionsLoaded, loadMessagesForSession, removeSession, updateSession } = useAiServicesStore();
   const { language, t } = useTranslation();
   
   const instance = data.instances.find(i => i.id === instanceId);
@@ -119,6 +119,10 @@ export default function AiChatRoute() {
   const [activeSession, setActiveSession] = useState<ChatSession | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const renameInputRef = useRef<HTMLInputElement>(null);
+  const skipRenameCommitRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -288,6 +292,39 @@ export default function AiChatRoute() {
     }
   };
 
+  const startRenameSession = (session: ChatSession) => {
+    setRenamingSessionId(session.id);
+    setRenameValue(session.title);
+    requestAnimationFrame(() => {
+      renameInputRef.current?.focus();
+      renameInputRef.current?.select();
+    });
+  };
+
+  const commitRenameSession = () => {
+    if (skipRenameCommitRef.current) {
+      skipRenameCommitRef.current = false;
+      return;
+    }
+    if (!renamingSessionId) return;
+    const trimmed = renameValue.trim();
+    const session = sessions.find(s => s.id === renamingSessionId);
+    if (trimmed && session && trimmed !== session.title) {
+      updateSession(renamingSessionId, { title: trimmed, updatedAt: Date.now() });
+      if (activeSession?.id === renamingSessionId) {
+        setActiveSession({ ...activeSession, title: trimmed });
+      }
+    }
+    setRenamingSessionId(null);
+    setRenameValue("");
+  };
+
+  const cancelRenameSession = () => {
+    skipRenameCommitRef.current = true;
+    setRenamingSessionId(null);
+    setRenameValue("");
+  };
+
   const handleModelChange = (modelName: string) => {
     useAiServicesStore.getState().updateInstance(instance.id, { model: modelName });
     if (activeSession) {
@@ -342,28 +379,71 @@ export default function AiChatRoute() {
               <span>New Chat</span>
             </button>
             
-            <div className="flex-grow overflow-y-auto py-4 pr-1">
+            <div className="flex-grow overflow-y-auto py-4 pr-1 space-y-0.5">
               {sessions.map(s => (
                 <div 
                   key={s.id}
-                  className={`group flex items-center justify-between px-3 py-2 rounded-lg text-xs cursor-pointer transition-colors ${
-                    activeSession?.id === s.id 
-                      ? 'bg-zinc-500/10 dark:bg-white/5 font-semibold text-zinc-900 dark:text-zinc-100' 
-                      : 'text-zinc-500 hover:bg-zinc-500/5 hover:text-zinc-800 dark:hover:text-zinc-300'
+                  className={`group flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-colors ${
+                    renamingSessionId === s.id
+                      ? 'bg-zinc-500/10 dark:bg-white/5'
+                      : activeSession?.id === s.id 
+                        ? 'bg-zinc-500/10 dark:bg-white/5 font-semibold text-zinc-900 dark:text-zinc-100 cursor-pointer' 
+                        : 'text-zinc-500 hover:bg-zinc-500/5 hover:text-zinc-800 dark:hover:text-zinc-300 cursor-pointer'
                   }`}
-                  onClick={() => setActiveSession(s)}
+                  onClick={() => {
+                    if (renamingSessionId !== s.id) setActiveSession(s);
+                  }}
+                  onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    startRenameSession(s);
+                  }}
                 >
-                  <span className="truncate flex-1 pr-2 text-start">{s.title}</span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteSession(s.id);
-                    }}
-                    className="opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity p-0.5"
-                    title="Delete chat"
-                  >
-                    <DeleteRegular fontSize={14} />
-                  </button>
+                  {renamingSessionId === s.id ? (
+                    <input
+                      ref={renameInputRef}
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          commitRenameSession();
+                        } else if (e.key === 'Escape') {
+                          e.preventDefault();
+                          cancelRenameSession();
+                        }
+                      }}
+                      onBlur={commitRenameSession}
+                      className="flex-1 min-w-0 bg-white/40 dark:bg-zinc-900/40 border border-zinc-500/30 rounded-md px-1.5 py-0.5 text-xs outline-none focus:border-zinc-500/60 text-zinc-900 dark:text-zinc-100"
+                      maxLength={80}
+                    />
+                  ) : (
+                    <span className="truncate flex-1 pr-2 text-start">{s.title}</span>
+                  )}
+                  {renamingSessionId !== s.id && (
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          startRenameSession(s);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 hover:text-zinc-800 dark:hover:text-zinc-200 transition-opacity p-0.5"
+                        title={t('renameChat')}
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteSession(s.id);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity p-0.5"
+                        title="Delete chat"
+                      >
+                        <DeleteRegular fontSize={14} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

@@ -72,6 +72,7 @@ export default function WidgetBarItem({ widget, children }: Props) {
 
     const constraints = useWidgetConstraintsStore(state => state.constraints[widget.id]);
     const barPadding = constraints?.barPadding ?? 1;
+    const isHidden = constraints?.hiddenInBar === true;
     
     const paddingClass = {
         0: 'px-0',
@@ -80,6 +81,11 @@ export default function WidgetBarItem({ widget, children }: Props) {
         3: 'px-3',
         4: 'px-4'
     }[barPadding] ?? 'px-2';
+
+    // Keep children mounted so the widget can keep listening and un-hide itself
+    if (isHidden) {
+        return <div className="hidden" aria-hidden>{children}</div>;
+    }
 
     return (
         <div 

@@ -8,6 +8,10 @@ export interface WidgetConstraints {
   maxH?: number;
   aspectRatio?: number;
   barPadding?: number;
+  /** Hide this widget instance from the Bar shell */
+  hiddenInBar?: boolean;
+  /** Hide this widget instance from the desktop Area shell */
+  hiddenInArea?: boolean;
 }
 
 interface WidgetConstraintsState {
@@ -21,7 +25,10 @@ export const useWidgetConstraintsStore = create<WidgetConstraintsState>((set) =>
     set((state) => ({
       constraints: {
         ...state.constraints,
-        [id]: constraints
+        [id]: {
+          ...state.constraints[id],
+          ...constraints,
+        }
       }
     }))
 }));

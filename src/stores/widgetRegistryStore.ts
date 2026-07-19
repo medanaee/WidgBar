@@ -53,13 +53,27 @@ export const WIDGET_TYPE_META: Record<string, WidgetTypeMeta> = {
     descriptionKey: 'widgetMusicDesc',
     can_be_in_bar: true,
     can_be_in_area: true,
+  },
+  translate: {
+    type_name: 'translate',
+    nameKey: 'widgetTranslate',
+    descriptionKey: 'widgetTranslateDesc',
+    can_be_in_bar: true,
+    can_be_in_area: true,
   }
 };
 
 // ── DB-persisted settings per widget type ──
+export type TranslateToneSetting = 'default' | 'formal' | 'casual' | 'literary' | 'technical' | 'friendly';
+
 export interface WidgetTypeSettings {
   default_width: number;
   default_height: number;
+  /** Global translate engine defaults (translate widget type) */
+  useAi?: boolean;
+  aiInstanceId?: string;
+  aiModel?: string;
+  tone?: TranslateToneSetting;
 }
 
 // Seed defaults for first-time DB insertion
@@ -70,6 +84,12 @@ const SEED_DEFAULTS: Record<string, WidgetTypeSettings> = {
   system_monitor: { default_width: 300, default_height: 180 },
   calendar: { default_width: 320, default_height: 220 },
   music: { default_width: 320, default_height: 180 },
+  translate: {
+    default_width: 420,
+    default_height: 360,
+    useAi: false,
+    tone: 'default',
+  },
 };
 
 // ── Combined type for consumers ──
@@ -114,10 +134,13 @@ export const useWidgetRegistryStore = create<WidgetRegistryState>((set, get) => 
 
       // Seed new widget types into DB
       for (const key of Object.keys(WIDGET_TYPE_META)) {
+        const seed = SEED_DEFAULTS[key] || { default_width: 300, default_height: 150 };
         if (!dbSettings[key]) {
-          const seed = SEED_DEFAULTS[key] || { default_width: 300, default_height: 150 };
           await invoke('save_widget_registry', { id: key, data: JSON.stringify(seed) });
           dbSettings[key] = seed;
+        } else {
+          // Merge new default fields (e.g. translate engine) without overwriting user values
+          dbSettings[key] = { ...seed, ...dbSettings[key] };
         }
       }
 

@@ -188,7 +188,17 @@ export default function WidgetAreaItem({
 
     // Keep region updated on mount and coordinate changes (only when not actively dragging/resizing)
     useEffect(() => {
-        if (action !== null) return; 
+        if (action !== null) return;
+
+        const isHidden = constraints?.hiddenInArea === true;
+
+        if (isHidden) {
+            invoke('remove_region', {
+                label: getCurrentWebviewWindow().label,
+                widgetId: widget.id
+            }).catch(console.error);
+            return;
+        }
 
         const updateWidgetRegion = async () => {
             try {
@@ -208,7 +218,7 @@ export default function WidgetAreaItem({
 
         const timerId = setTimeout(updateWidgetRegion, 50);
         return () => clearTimeout(timerId);
-    }, [widget.id, widget.x, widget.y, widget.width, widget.height, action]);
+    }, [widget.id, widget.x, widget.y, widget.width, widget.height, action, constraints?.hiddenInArea]);
 
     // Drag Handlers
     const handleDragDown = async (e: React.PointerEvent<HTMLDivElement>) => {
@@ -460,9 +470,15 @@ export default function WidgetAreaItem({
     };
 
     const isInteracting = action !== null;
+    const isHidden = constraints?.hiddenInArea === true && !isEditMode;
     const isDark = settings?.theme === 'dark' || 
         (settings?.theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     const bgOpacity = (settings?.widgetBgOpacity ?? 80) / 100;
+
+    // Keep children mounted so the widget can keep listening and un-hide itself
+    if (isHidden) {
+        return <div className="hidden" aria-hidden>{children}</div>;
+    }
     
     return (
         <div

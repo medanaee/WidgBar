@@ -4,17 +4,23 @@ import Widget from './Widget';
 import { useState, useEffect } from 'react';
 import { AddWidgetModal } from "./AddWidgetModal";
 import { useSnapStore } from "../stores/snapStore";
+import { useWidgetConstraintsStore } from '../stores/widgetConstraintsStore';
 
 export default function WidgetsArea() {
     const { monitorId } = useParams<{ monitorId: string }>();
     const { layouts, currentLayout, updateWidget } = useLayoutStore();
     const monitor = layouts[currentLayout]?.monitors.find(m => m.id === monitorId);
+    const allConstraints = useWidgetConstraintsStore(state => state.constraints);
     
     // Resolve borrowing logic: if monitor borrows desktop widgets area layout, load target layout
     const targetMonitor = (monitor?.borrowAreaLayoutFrom && 
                            layouts[currentLayout]?.monitors.find(m => m.id === monitor.borrowAreaLayoutFrom && !m.borrowAreaLayoutFrom)) || monitor;
 
     const widgetsForThisWindow = targetMonitor?.widgetArea || [];
+    const isEditMode = targetMonitor?.isEditMode || monitor?.isEditMode || false;
+    const visibleWidgets = widgetsForThisWindow.filter(
+        w => isEditMode || !allConstraints[w.id]?.hiddenInArea
+    );
 
     // Global state to track which widget is currently on top (being interacted with)
     const [activeWidgetId, setActiveWidgetId] = useState<string | null>(null);
@@ -35,7 +41,7 @@ export default function WidgetsArea() {
                 <defs>
                     <mask id="desktop-holes">
                         <rect width="100%" height="100%" fill="white" />
-                        {widgetsForThisWindow.map(w => (
+                        {visibleWidgets.map(w => (
                             <rect key={`mask-${w.id}`} x={w.x} y={w.y} width={w.width} height={w.height} rx={24} fill="black" />
                         ))}
                     </mask>
@@ -73,7 +79,7 @@ export default function WidgetsArea() {
                     allWidgets={widgetsForThisWindow}
                     activeWidgetId={activeWidgetId}
                     setActiveWidgetId={setActiveWidgetId}
-                    isEditMode={targetMonitor?.isEditMode || monitor?.isEditMode || false}
+                    isEditMode={isEditMode}
                     onUpdate={(id, updates, broadcast) => updateWidget(targetMonitor!.id, id, updates, broadcast)}
                 />
             ))}

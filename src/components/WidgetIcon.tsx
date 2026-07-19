@@ -5,6 +5,7 @@ import weatherIcon from '../widgets/weather/icon.svg';
 import systemMonitorIcon from '../widgets/system_monitor/icon.svg';
 import calendarIcon from '../widgets/calendar/icon.svg';
 import musicIcon from '../widgets/music/icon.svg';
+import translateIcon from '../widgets/translate/icon.svg';
 
 const ICONS: Record<string, string> = {
     clock: clockIcon,
@@ -12,7 +13,8 @@ const ICONS: Record<string, string> = {
     weather: weatherIcon,
     system_monitor: systemMonitorIcon,
     calendar: calendarIcon,
-    music: musicIcon
+    music: musicIcon,
+    translate: translateIcon
 };
 
 interface WidgetIconProps {

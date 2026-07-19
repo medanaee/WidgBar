@@ -1,13 +1,42 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, emit, UnlistenFn } from '@tauri-apps/api/event';
 import { useAiServicesStore } from '../stores/aiServicesStore';
-import { AI_PROVIDERS, AiServiceInstance, ChatMessage, ChatSession } from '../types/ai';
+import { AI_PROVIDERS, ChatMessage, ChatSession } from '../types/ai';
 
 export const DEFAULT_SYSTEM_PROMPT = 
   "You are a helpful assistant. Respond using well-formatted Markdown. " +
   "For mathematical equations, always use LaTeX syntax: use $...$ for inline math (e.g. $E=mc^2$) " +
   "and $$...$$ for block display equations on separate lines (e.g. $$\\sum_{i=1}^n i = \\frac{n(n+1)}{2}$$). " +
   "Always keep code blocks and math LTR.";
+
+/** Options for one-shot (ephemeral) AI calls that never touch sessions/messages in DB */
+export interface PromptOnceOptions {
+  /** User message to send */
+  content: string;
+  /** Override model; falls back to instance.model */
+  model?: string;
+  /** Override temperature; falls back to instance.temperature */
+  temperature?: number;
+  /** Override system prompt; falls back to instance.systemPrompt then DEFAULT_SYSTEM_PROMPT */
+  systemPrompt?: string;
+  /** Override reasoning effort; falls back to instance.reasoningEffort. Pass false to force off. */
+  reasoningEffort?: 'low' | 'medium' | 'high' | false;
+  /**
+   * Optional prior turns (not persisted).
+   * The `content` field is always appended as the final user message.
+   */
+  messages?: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>;
+  /** Strip think / reasoning blocks from the reply. Default: true */
+  stripReasoning?: boolean;
+}
+
+function stripReasoningBlocks(text: string): string {
+  return text
+    .replace(/<think>[\s\S]*?(?:<\/think>|$)/gi, '')
+    .replace(/<thinking>[\s\S]*?(?:<\/thinking>|$)/gi, '')
+    .replace(/<reasoning>[\s\S]*?(?:<\/reasoning>|$)/gi, '')
+    .trim();
+}
 
 class AiServicesManager {
   
@@ -26,6 +55,65 @@ class AiServicesManager {
     };
     useAiServicesStore.getState().addSession(session);
     return session;
+  }
+
+  /**
+   * One-shot completion against an AI instance without creating/updating any session or messages.
+   * Uses the instance mainly for apiKey + provider; any omitted option falls back to instance defaults.
+   */
+  public async promptOnce(instanceId: string, options: PromptOnceOptions): Promise<string> {
+    const store = useAiServicesStore.getState();
+    const instance = store.data.instances.find(i => i.id === instanceId);
+    if (!instance) throw new Error("AI Instance not found");
+    if (!instance.apiKey) throw new Error("API Key is missing");
+
+    const provider = AI_PROVIDERS.find(p => p.id === instance.providerId);
+    if (!provider) throw new Error("Provider not found");
+
+    const model = options.model ?? instance.model;
+    if (!model) throw new Error("No model specified");
+
+    const temperature = options.temperature ?? instance.temperature ?? 0.7;
+    const systemPrompt =
+      options.systemPrompt ?? instance.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
+    // Explicit false disables reasoning; otherwise prefer override, then instance default
+    const reasoningEffort =
+      options.reasoningEffort === false
+        ? undefined
+        : options.reasoningEffort !== undefined
+          ? options.reasoningEffort
+          : instance.reasoningEffort;
+    const stripReasoning = options.stripReasoning !== false;
+
+    const history = (options.messages || []).filter(m => m.role !== 'system');
+    const messages: ChatMessage[] = [
+      ...history.map((m, i) => ({
+        id: `ephemeral_${i}`,
+        role: m.role as ChatMessage['role'],
+        content: m.content,
+        timestamp: Date.now(),
+      })),
+      {
+        id: 'ephemeral_user',
+        role: 'user' as const,
+        content: options.content,
+        timestamp: Date.now(),
+      },
+    ];
+
+    const raw = await this.callApiProviderOnce(
+      provider.id,
+      instance.apiKey,
+      messages,
+      model,
+      temperature,
+      systemPrompt,
+      reasoningEffort
+    );
+
+    const cleaned = stripReasoning ? stripReasoningBlocks(raw) : raw.trim();
+    if (!cleaned) throw new Error("Empty AI response");
+    return cleaned;
   }
 
   // Send a message via an instance (API or Web)
@@ -102,6 +190,109 @@ class AiServicesManager {
   public finishTyping(sessionId: string, messageId: string) {
     const store = useAiServicesStore.getState();
     store.updateMessageInSession(sessionId, messageId, { typing: false });
+  }
+
+  /** Non-streaming one-shot provider call (no session side-effects) */
+  private async callApiProviderOnce(
+    providerId: string,
+    apiKey: string,
+    messages: ChatMessage[],
+    model: string,
+    temperature: number,
+    systemPrompt: string,
+    reasoningEffort?: 'low' | 'medium' | 'high'
+  ): Promise<string> {
+    const requestMessages = [
+      ...(systemPrompt ? [{ role: 'system' as const, content: systemPrompt }] : []),
+      ...messages
+        .filter(m => m.role === 'user' || m.role === 'assistant')
+        .map(m => ({ role: m.role, content: m.content })),
+    ];
+
+    const applyReasoning = (body: Record<string, unknown>, targetModel: string) => {
+      if (!reasoningEffort) return;
+      body.reasoning_effort = reasoningEffort;
+      if (targetModel.toLowerCase().includes('glm')) {
+        body.thinking = { type: 'enabled' };
+      }
+    };
+
+    if (providerId === 'gemini-api') {
+      const geminiModel = model || 'gemini-1.5-flash';
+      const formattedContents = messages
+        .filter(m => m.role === 'user' || m.role === 'assistant')
+        .map(m => ({
+          role: m.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: m.content }],
+        }));
+
+      const requestBody: Record<string, unknown> = {
+        contents: formattedContents,
+        generationConfig: { temperature },
+      };
+      if (systemPrompt) {
+        requestBody.systemInstruction = { parts: [{ text: systemPrompt }] };
+      }
+
+      const res = await invoke<any>('proxy_request', {
+        url: `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: requestBody,
+      });
+
+      const content = res?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (typeof content !== 'string') throw new Error('Empty AI response');
+      return content;
+    }
+
+    let url: string;
+    let defaultModel: string;
+    switch (providerId) {
+      case 'openai-api':
+        url = 'https://api.openai.com/v1/chat/completions';
+        defaultModel = 'gpt-4o';
+        break;
+      case 'deepseek-api':
+        url = 'https://api.deepseek.com/chat/completions';
+        defaultModel = 'deepseek-chat';
+        break;
+      case 'groq-api':
+        url = 'https://api.groq.com/openai/v1/chat/completions';
+        defaultModel = 'llama-3.3-70b-specdec';
+        break;
+      case 'nvidia-api':
+        url = 'https://integrate.api.nvidia.com/v1/chat/completions';
+        defaultModel = 'meta/llama-3.1-8b-instruct';
+        break;
+      default:
+        throw new Error(`Provider ${providerId} API not implemented yet.`);
+    }
+
+    const targetModel = model || defaultModel;
+    const body: Record<string, unknown> = {
+      model: targetModel,
+      messages: requestMessages,
+      temperature,
+      stream: false,
+    };
+    applyReasoning(body, targetModel);
+
+    const res = await invoke<any>('proxy_request', {
+      url,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body,
+    });
+
+    const content =
+      res?.choices?.[0]?.message?.content ??
+      res?.choices?.[0]?.text;
+    if (typeof content !== 'string') throw new Error('Empty AI response');
+    return content;
   }
 
   private async callApiProviderStream(

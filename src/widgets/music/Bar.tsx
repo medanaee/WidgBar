@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { useWidgetInstanceStore } from '../../stores/widgetInstanceStore';
 import { useSettingsStore } from '../../stores/settingsStore';
+import { useUpdateWidgetConstraints } from '../../stores/widgetConstraintsStore';
 import { Music, Play, Pause, SkipBack, SkipForward } from 'lucide-react';
 
 interface MediaState {
@@ -18,6 +19,7 @@ interface MediaState {
 export default function MusicBar({ widgetId }: { widgetId: string }) {
     const config = useWidgetInstanceStore(state => state.instances[widgetId]) || {};
     const settings = useSettingsStore(state => state.settings) || {};
+    const updateConstraints = useUpdateWidgetConstraints(widgetId);
     const [media, setMedia] = useState<MediaState | null>(null);
     const [imgError, setImgError] = useState(false);
 
@@ -32,6 +34,16 @@ export default function MusicBar({ widgetId }: { widgetId: string }) {
 
     const barHeight = settings.barHeight || 36;
     const isLarge = barHeight >= 48;
+
+    const hasSession = !!(media && media.title);
+
+    // Hide from Bar when nothing is playing / no active session
+    useEffect(() => {
+        updateConstraints({ hiddenInBar: !hasSession });
+        return () => {
+            updateConstraints({ hiddenInBar: false });
+        };
+    }, [hasSession, updateConstraints]);
 
     // Listen to media updates from background thread
     useEffect(() => {
@@ -74,7 +86,6 @@ export default function MusicBar({ widgetId }: { widgetId: string }) {
     const handleCommand = async (cmd: string) => {
         try {
             await invoke('send_media_command', { command: cmd, seekPosMs: null });
-            // Immediate partial update to feel highly responsive
             if (cmd === 'toggle') {
                 setMedia(prev => prev ? { ...prev, is_playing: !prev.is_playing } : null);
             }
@@ -90,26 +101,32 @@ export default function MusicBar({ widgetId }: { widgetId: string }) {
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
-    if (!media || !media.title) {
-        return (
-            <div className="flex items-center gap-1.5 text-xs text-white/50 px-2 py-1 leading-none select-none">
-                <Music className="w-3.5 h-3.5" />
-                {isLarge && <span className="text-[10px]">No Media</span>}
-            </div>
-        );
+    if (!hasSession) {
+        return null;
     }
 
     const progressPercent = media.duration_ms > 0 
         ? Math.min(100, (media.position_ms / media.duration_ms) * 100)
         : 0;
 
+    const showFillProgress = barShowProgress && media.duration_ms > 0;
+    const progressFillStyle = showFillProgress
+        ? {
+            background: `linear-gradient(90deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.18) ${progressPercent}%, rgba(255, 255, 255, 0.05) ${progressPercent}%)`,
+          }
+        : undefined;
+    const boxClass = showFillProgress
+        ? 'rounded-lg border border-white/5 overflow-hidden'
+        : 'border border-transparent bg-transparent';
+
     if (isLarge) {
-        // High Bar Layout: Vertical stack/dynamic layout
         return (
-            <div className="flex items-center gap-2 h-10 px-2 py-0.5 rounded-lg border border-white/5 bg-white/5 text-white select-none">
-                {/* Cover art */}
+            <div
+                className={`relative flex items-center gap-2 h-10 px-2 py-0.5 text-white select-none ${boxClass}`}
+                style={progressFillStyle}
+            >
                 {barShowCover && (
-                    <div className="w-8 h-8 rounded bg-zinc-800/80 border border-white/5 overflow-hidden flex items-center justify-center shrink-0">
+                    <div className="relative z-10 w-8 h-8 rounded bg-zinc-800/80 border border-white/5 overflow-hidden flex items-center justify-center shrink-0">
                         {media.thumbnail_base64 && !imgError ? (
                             <img src={media.thumbnail_base64} alt="album art" className="w-full h-full object-cover" onError={() => setImgError(true)} />
                         ) : (
@@ -118,15 +135,13 @@ export default function MusicBar({ widgetId }: { widgetId: string }) {
                     </div>
                 )}
 
-                {/* Title & Artist */}
-                <div className="flex flex-col min-w-[70px] max-w-[120px] leading-tight text-left">
+                <div className="relative z-10 flex flex-col min-w-[70px] max-w-[120px] leading-tight text-left">
                     <span className="text-[10px] font-bold truncate block">{media.title}</span>
                     <span className="text-[8px] text-white/60 truncate block">{media.artist}</span>
                 </div>
 
-                {/* Controls */}
                 {barShowButtons && (
-                    <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <div className="relative z-10 flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                         <button onClick={() => handleCommand('prev')} className="p-1 hover:bg-white/10 rounded transition-colors text-white/80 hover:text-white">
                             <SkipBack className="w-3 h-3" />
                         </button>
@@ -139,31 +154,26 @@ export default function MusicBar({ widgetId }: { widgetId: string }) {
                     </div>
                 )}
 
-                {/* Progress bar and time */}
-                {(barShowProgress || barShowTime) && (
-                    <div className="flex flex-col gap-0.5 items-end justify-center shrink-0">
-                        {barShowTime && media.duration_ms > 0 && (
-                            <span className="text-[8px] text-white/50 font-medium tabular-nums">
-                                {formatTime(media.position_ms)} / {formatTime(media.duration_ms)}
-                            </span>
-                        )}
-                        {barShowProgress && media.duration_ms > 0 && (
-                            <div className="w-14 h-0.5 rounded-full bg-white/25 overflow-hidden">
-                                <div className="h-full bg-white transition-all duration-300" style={{ width: `${progressPercent}%` }} />
-                            </div>
-                        )}
+                {barShowTime && media.duration_ms > 0 && (
+                    <div className="relative z-10 flex flex-col gap-0.5 items-end justify-center shrink-0 ms-auto">
+                        <span className="text-[8px] text-white/50 font-medium tabular-nums">
+                            {formatTime(media.position_ms)} / {formatTime(media.duration_ms)}
+                        </span>
                     </div>
                 )}
             </div>
         );
     }
 
-    // Low Bar Layout: Inline Horizontal layout
     return (
-        <div className="flex items-center gap-1.5 h-7 rounded-md border border-transparent bg-transparent text-white select-none">
-            {/* Cover art */}
+        <div
+            className={`relative flex items-center gap-1.5 h-7 text-white select-none ${
+                showFillProgress ? 'px-1.5 rounded-md border border-white/5 overflow-hidden' : 'border border-transparent bg-transparent'
+            }`}
+            style={progressFillStyle}
+        >
             {barShowCover && (
-                <div className="w-5 h-5 rounded bg-zinc-800/80 border border-white/5 overflow-hidden flex items-center justify-center shrink-0">
+                <div className="relative z-10 w-5 h-5 rounded bg-zinc-800/80 border border-white/5 overflow-hidden flex items-center justify-center shrink-0">
                     {media.thumbnail_base64 && !imgError ? (
                         <img src={media.thumbnail_base64} alt="album art" className="w-full h-full object-cover" onError={() => setImgError(true)} />
                     ) : (
@@ -172,14 +182,12 @@ export default function MusicBar({ widgetId }: { widgetId: string }) {
                 </div>
             )}
 
-            {/* Title / Artist inline */}
-            <span className="text-[10px] font-bold truncate max-w-[90px]">
+            <span className="relative z-10 text-[10px] font-bold truncate max-w-[90px]">
                 {media.title} <span className="text-white/60 font-normal"> - {media.artist}</span>
             </span>
 
-            {/* Controls */}
             {barShowButtons && (
-                <div className="flex items-center gap-0.5 shrink-0 ml-1" onClick={(e) => e.stopPropagation()}>
+                <div className="relative z-10 flex items-center gap-0.5 shrink-0 ml-1" onClick={(e) => e.stopPropagation()}>
                     <button onClick={() => handleCommand('prev')} className="p-0.5 hover:bg-white/10 rounded transition-colors text-white/80 hover:text-white">
                         <SkipBack className="w-3 h-3" />
                     </button>
@@ -192,15 +200,8 @@ export default function MusicBar({ widgetId }: { widgetId: string }) {
                 </div>
             )}
 
-            {/* Time / Progress bar */}
-            {barShowProgress && media.duration_ms > 0 && (
-                <div className="w-10 h-0.5 rounded-full bg-white/20 overflow-hidden shrink-0 mx-1">
-                    <div className="h-full bg-white" style={{ width: `${progressPercent}%` }} />
-                </div>
-            )}
-
             {barShowTime && media.duration_ms > 0 && (
-                <span className="text-[10px] text-white/50 tabular-nums shrink-0 font-medium">
+                <span className="relative z-10 text-[10px] text-white/50 tabular-nums shrink-0 font-medium ms-auto">
                     {formatTime(media.position_ms)}
                 </span>
             )}

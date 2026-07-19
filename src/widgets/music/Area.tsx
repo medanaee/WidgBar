@@ -148,7 +148,7 @@ export default function MusicArea({ widgetId }: { widgetId: string }) {
     const isTimelineAvailable = duration > 0 && media && media.title;
 
     return (
-        <div className="w-full h-full relative rounded-2xl overflow-hidden border border-zinc-500/10 dark:border-zinc-500/10 flex flex-col justify-between text-zinc-900 dark:text-zinc-100 p-4 select-none group shadow-lg transition-all duration-300 hover:shadow-2xl hover:border-zinc-500/20">
+        <div className="w-full h-full relative rounded-2xl overflow-hidden border border-zinc-500/10 dark:border-zinc-500/10 flex flex-col text-zinc-900 dark:text-zinc-100 p-4 select-none group shadow-lg transition-all duration-300 hover:shadow-2xl hover:border-zinc-500/20">
             {/* coverAsBackground Background Layer */}
             {coverAsBackground && media?.thumbnail_base64 && (
                 <div 
@@ -161,7 +161,7 @@ export default function MusicArea({ widgetId }: { widgetId: string }) {
             )}
 
             {/* Top row: Track Info */}
-            <div className="relative z-10 flex gap-4 items-center">
+            <div className="relative z-10 flex gap-4 items-center shrink-0">
                 {/* Album Cover Art */}
                 {(!coverAsBackground || !media?.thumbnail_base64) && (
                     <div className="w-16 h-16 rounded-xl border border-zinc-500/15 overflow-hidden flex items-center justify-center shrink-0 bg-zinc-800/20 shadow-md">
@@ -194,9 +194,11 @@ export default function MusicArea({ widgetId }: { widgetId: string }) {
                 </div>
             </div>
 
-            {/* Middle: Controls & Volume */}
-            <div className="relative z-10 flex flex-col gap-3 my-auto pt-2" onClick={(e) => e.stopPropagation()}>
-                {/* Playback Buttons */}
+            {/* Middle: Playback Controls — fills remaining space */}
+            <div
+                className="relative z-10 flex-1 flex justify-center items-center min-h-0 py-2"
+                onClick={(e) => e.stopPropagation()}
+            >
                 <div className="flex justify-center items-center gap-4">
                     <button 
                         disabled={!media?.title}
@@ -220,9 +222,41 @@ export default function MusicArea({ widgetId }: { widgetId: string }) {
                         <SkipForward className="w-5 h-5 fill-current" />
                     </button>
                 </div>
+            </div>
 
-                {/* Volume Slider (Always available) */}
-                <div className="flex items-center gap-2.5 px-1 pt-1">
+            {/* Bottom: sliders stick to bottom (seek only when available) */}
+            <div
+                className="relative z-10 mt-auto shrink-0 flex flex-col gap-2.5 pt-1"
+                onClick={(e) => e.stopPropagation()}
+            >
+                {isTimelineAvailable && (
+                    <div className="flex flex-col gap-1">
+                        <div className="flex items-center group/seek relative">
+                            <input 
+                                type="range"
+                                min={0}
+                                max={duration}
+                                value={currentPosition}
+                                onMouseDown={handleSeekStart}
+                                onMouseUp={handleSeekEnd}
+                                onTouchStart={handleSeekStart}
+                                onTouchEnd={handleSeekEnd}
+                                onChange={handleSeekChange}
+                                className="w-full h-1 bg-zinc-500/15 dark:bg-zinc-500/25 rounded-full appearance-none cursor-pointer accent-zinc-900 dark:accent-zinc-100 outline-none transition-all"
+                            />
+                            <div 
+                                className="absolute left-0 top-0 h-1 bg-zinc-900 dark:bg-white rounded-full pointer-events-none"
+                                style={{ width: `${progressPercent}%` }}
+                            />
+                        </div>
+                        <div className="flex justify-between items-center text-[10px] text-zinc-400 dark:text-zinc-500 font-semibold tabular-nums px-0.5">
+                            <span>{formatTime(currentPosition)}</span>
+                            <span>{formatTime(duration)}</span>
+                        </div>
+                    </div>
+                )}
+
+                <div className="flex items-center gap-2.5 px-0.5">
                     <VolumeIcon />
                     <div className="flex-1 relative flex items-center group/vol">
                         <input 
@@ -241,36 +275,6 @@ export default function MusicArea({ widgetId }: { widgetId: string }) {
                     <span className="text-[10px] text-zinc-400 w-6 text-right tabular-nums font-semibold">{volume}%</span>
                 </div>
             </div>
-
-            {/* Bottom: Seek Slider (Only visible if timeline is available) */}
-            {isTimelineAvailable ? (
-                <div className="relative z-10 flex flex-col gap-1 pt-2" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex items-center group/seek relative">
-                        <input 
-                            type="range"
-                            min={0}
-                            max={duration}
-                            value={currentPosition}
-                            onMouseDown={handleSeekStart}
-                            onMouseUp={handleSeekEnd}
-                            onTouchStart={handleSeekStart}
-                            onTouchEnd={handleSeekEnd}
-                            onChange={handleSeekChange}
-                            className="w-full h-1 bg-zinc-500/15 dark:bg-zinc-500/25 rounded-full appearance-none cursor-pointer accent-zinc-900 dark:accent-zinc-100 outline-none transition-all"
-                        />
-                        <div 
-                            className="absolute left-0 top-0 h-1 bg-zinc-900 dark:bg-white rounded-full pointer-events-none"
-                            style={{ width: `${progressPercent}%` }}
-                        />
-                    </div>
-                    <div className="flex justify-between items-center text-[10px] text-zinc-400 dark:text-zinc-500 font-semibold tabular-nums px-0.5">
-                        <span>{formatTime(currentPosition)}</span>
-                        <span>{formatTime(duration)}</span>
-                    </div>
-                </div>
-            ) : (
-                <div className="h-[26px]" /> /* spacer to maintain layout size when slider is hidden */
-            )}
         </div>
     );
 }
