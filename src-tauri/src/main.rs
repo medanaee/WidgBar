@@ -177,6 +177,11 @@ async fn send_media_command(command: String, seek_pos_ms: Option<u32>) -> Result
 }
 
 #[tauri::command]
+fn get_current_media_state() -> Result<Option<media_control::MediaState>, String> {
+    media_control::get_current_media_state()
+}
+
+#[tauri::command]
 async fn proxy_request(
     url: String,
     method: String,
@@ -326,6 +331,7 @@ fn main() {
             get_system_volume,
             set_system_volume,
             send_media_command,
+            get_current_media_state,
             proxy_request,
             stream_ai_request,
             system_monitor::get_system_stats

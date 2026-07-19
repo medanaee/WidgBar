@@ -48,14 +48,41 @@ export default function MusicBar({ widgetId }: { widgetId: string }) {
     // Listen to media updates from background thread
     useEffect(() => {
         let unlisten: (() => void) | undefined;
+        let cancelled = false;
         
         const setupListener = async () => {
+            try {
+                const initial = await invoke<MediaState | null>('get_current_media_state');
+                if (!cancelled && initial) setMedia(initial);
+            } catch {
+                // ignore — listener will fill in
+            }
+
             unlisten = await listen<MediaState | null>('media_update', (event) => {
                 setMedia(prev => {
                     const res = event.payload;
                     if (!res) return null;
-                    if (!prev || prev.title !== res.title) return res;
-                    return res;
+                    // New track (or first update): take full payload including thumbnail
+                    if (!prev || prev.title !== res.title || prev.artist !== res.artist) {
+                        return res;
+                    }
+                    // Same track: update playback only — keep existing thumbnail string (avoids RAM climb)
+                    if (
+                        prev.is_playing === res.is_playing &&
+                        prev.position_ms === res.position_ms &&
+                        prev.duration_ms === res.duration_ms &&
+                        prev.album === res.album
+                    ) {
+                        return prev;
+                    }
+                    return {
+                        ...prev,
+                        is_playing: res.is_playing,
+                        position_ms: res.position_ms,
+                        duration_ms: res.duration_ms,
+                        album: res.album || prev.album,
+                        thumbnail_base64: res.thumbnail_base64 ?? prev.thumbnail_base64,
+                    };
                 });
             });
         };
@@ -63,6 +90,7 @@ export default function MusicBar({ widgetId }: { widgetId: string }) {
         setupListener();
         
         return () => {
+            cancelled = true;
             if (unlisten) unlisten();
         };
     }, []);

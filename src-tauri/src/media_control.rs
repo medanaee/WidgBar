@@ -18,6 +18,9 @@ static CACHE: Lazy<Mutex<MediaCache>> = Lazy::new(|| Mutex::new(MediaCache {
     thumbnail_base64: None,
 }));
 
+/// Full last-known state (incl. thumbnail) for one-shot fetch on widget mount.
+static LAST_STATE: Lazy<Mutex<Option<MediaState>>> = Lazy::new(|| Mutex::new(None));
+
 #[cfg(target_os = "windows")]
 use windows::Storage::Streams::{Buffer, IBuffer, DataReader};
 
@@ -30,6 +33,10 @@ pub struct MediaState {
     pub position_ms: u32,
     pub duration_ms: u32,
     pub thumbnail_base64: Option<String>,
+}
+
+pub fn get_last_media_state() -> Option<MediaState> {
+    LAST_STATE.lock().ok().and_then(|g| g.clone())
 }
 
 #[cfg(target_os = "windows")]
@@ -46,6 +53,7 @@ pub fn start_media_listener(app_handle: tauri::AppHandle) {
                 let manager_result = GlobalSystemMediaTransportControlsSessionManager::RequestAsync();
                 
                 if manager_result.is_err() {
+                    if let Ok(mut g) = LAST_STATE.lock() { *g = None; }
                     let _ = app_handle.emit("media_update", None::<MediaState>);
                     tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
                     continue;
@@ -55,6 +63,7 @@ pub fn start_media_listener(app_handle: tauri::AppHandle) {
                 let manager = match manager_op.await {
                     Ok(m) => m,
                     Err(_) => {
+                        if let Ok(mut g) = LAST_STATE.lock() { *g = None; }
                         let _ = app_handle.emit("media_update", None::<MediaState>);
                         tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
                         continue;
@@ -64,6 +73,7 @@ pub fn start_media_listener(app_handle: tauri::AppHandle) {
                 let session = match manager.GetCurrentSession() {
                     Ok(s) => s,
                     Err(_) => {
+                        if let Ok(mut g) = LAST_STATE.lock() { *g = None; }
                         let _ = app_handle.emit("media_update", None::<MediaState>);
                         tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
                         continue;
@@ -74,12 +84,14 @@ pub fn start_media_listener(app_handle: tauri::AppHandle) {
                     Ok(async_op) => match async_op.await {
                         Ok(p) => p,
                         Err(_) => {
+                            if let Ok(mut g) = LAST_STATE.lock() { *g = None; }
                             let _ = app_handle.emit("media_update", None::<MediaState>);
                             tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
                             continue;
                         }
                     },
                     Err(_) => {
+                        if let Ok(mut g) = LAST_STATE.lock() { *g = None; }
                         let _ = app_handle.emit("media_update", None::<MediaState>);
                         tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
                         continue;
@@ -130,19 +142,20 @@ pub fn start_media_listener(app_handle: tauri::AppHandle) {
                 }
                 
                 let mut thumbnail_base64 = None;
-                let mut needs_fetch = false;
+                let mut track_changed = false;
                 
                 if let Ok(cache) = CACHE.lock() {
                     if cache.title == title && cache.artist == artist {
-                        thumbnail_base64 = cache.thumbnail_base64.clone();
+                        // Same track: do NOT resend thumbnail over IPC (huge payload every second)
+                        track_changed = false;
                     } else {
-                        needs_fetch = true;
+                        track_changed = true;
                     }
                 } else {
-                    needs_fetch = true;
+                    track_changed = true;
                 }
             
-                if needs_fetch {
+                if track_changed {
                     if let Ok(thumbnail_ref) = properties.Thumbnail() {
                         if let Ok(async_op) = thumbnail_ref.OpenReadAsync() {
                             if let Ok(stream) = async_op.await {
@@ -165,7 +178,8 @@ pub fn start_media_listener(app_handle: tauri::AppHandle) {
                                     }
                                 };
             
-                                if size > 0 && size < 5 * 1024 * 1024 {
+                                // Cap cover size harder — base64 balloons ~33% and is sent to every webview
+                                if size > 0 && size < 512 * 1024 {
                                     if let Ok(buffer) = Buffer::Create(size as u32) {
                                         let read_op = stream.ReadAsync(&buffer, size as u32, windows::Storage::Streams::InputStreamOptions::None);
                                         if let Ok(read_result) = read_op {
@@ -193,6 +207,25 @@ pub fn start_media_listener(app_handle: tauri::AppHandle) {
                     }
                 }
                 
+                // Keep a full snapshot (with cover) for late-mounting widgets
+                let full_thumbnail = if track_changed {
+                    thumbnail_base64.clone()
+                } else {
+                    CACHE.lock().ok().and_then(|c| c.thumbnail_base64.clone())
+                };
+                let full_state = MediaState {
+                    title: title.clone(),
+                    artist: artist.clone(),
+                    album: album.clone(),
+                    is_playing,
+                    position_ms,
+                    duration_ms,
+                    thumbnail_base64: full_thumbnail,
+                };
+                if let Ok(mut g) = LAST_STATE.lock() {
+                    *g = Some(full_state);
+                }
+
                 let state = MediaState {
                     title,
                     artist,
@@ -200,6 +233,7 @@ pub fn start_media_listener(app_handle: tauri::AppHandle) {
                     is_playing,
                     position_ms,
                     duration_ms,
+                    // Only include thumbnail when the track changed; periodic ticks stay tiny
                     thumbnail_base64,
                 };
                 
@@ -277,9 +311,13 @@ pub fn send_media_command(command: &str, seek_pos_ms: Option<u32>) -> Result<(),
     }).join().unwrap_or(Err("Thread panicked".to_string()))
 }
 
+#[cfg(target_os = "windows")]
+pub fn get_current_media_state() -> Result<Option<MediaState>, String> {
+    Ok(get_last_media_state())
+}
+
 #[cfg(not(target_os = "windows"))]
-pub async fn get_current_media_state() -> Result<Option<MediaState>, String> {
-    // Dummy fallback for non-Windows platforms
+pub fn get_current_media_state() -> Result<Option<MediaState>, String> {
     Ok(None)
 }
 
