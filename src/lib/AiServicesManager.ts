@@ -1,7 +1,13 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, emit, UnlistenFn } from '@tauri-apps/api/event';
 import { useAiServicesStore } from '../stores/aiServicesStore';
-import { AI_PROVIDERS, ChatMessage, ChatSession } from '../types/ai';
+import {
+  AI_PROVIDERS,
+  ChatMessage,
+  ChatSession,
+  SessionAttachment,
+  SessionAttachmentKind,
+} from '../types/ai';
 
 export const DEFAULT_SYSTEM_PROMPT = 
   "You are a helpful assistant. Respond using well-formatted Markdown. " +
@@ -30,12 +36,34 @@ export interface PromptOnceOptions {
   stripReasoning?: boolean;
 }
 
+export type AddAttachInput = {
+  kind: SessionAttachmentKind;
+  name: string;
+  content: string;
+  mimeType?: string;
+};
+
 function stripReasoningBlocks(text: string): string {
   return text
     .replace(/<think>[\s\S]*?(?:<\/think>|$)/gi, '')
     .replace(/<thinking>[\s\S]*?(?:<\/thinking>|$)/gi, '')
     .replace(/<reasoning>[\s\S]*?(?:<\/reasoning>|$)/gi, '')
     .trim();
+}
+
+/** Build the user message string from draft prompt + attachments */
+export function composeDraftContent(prompt: string, attachments: SessionAttachment[]): string {
+  const parts: string[] = [];
+  for (const att of attachments) {
+    if (att.kind === 'text') {
+      parts.push(`--- Attachment: ${att.name} ---\n${att.content}`);
+    } else {
+      parts.push(`--- File: ${att.name}${att.mimeType ? ` (${att.mimeType})` : ''} ---\n${att.content}`);
+    }
+  }
+  const trimmed = prompt.trim();
+  if (trimmed) parts.push(trimmed);
+  return parts.join('\n\n').trim();
 }
 
 class AiServicesManager {
@@ -55,6 +83,66 @@ class AiServicesManager {
     };
     useAiServicesStore.getState().addSession(session);
     return session;
+  }
+
+  /**
+   * Update the unsent prompt text for a session draft.
+   */
+  public updateMessage(sessionId: string, prompt: string): void {
+    const store = useAiServicesStore.getState();
+    if (!store.data.sessions.find(s => s.id === sessionId)) {
+      throw new Error('Session not found');
+    }
+    store.patchSessionDraft(sessionId, { prompt });
+  }
+
+  /**
+   * Add an attachment (text snippet or file placeholder) to a session draft.
+   * Other widgets call this to inject content into a chat session.
+   */
+  public addAttach(sessionId: string, input: AddAttachInput): SessionAttachment {
+    const store = useAiServicesStore.getState();
+    if (!store.data.sessions.find(s => s.id === sessionId)) {
+      throw new Error('Session not found');
+    }
+    const draft = store.getSessionDraft(sessionId);
+    const attachment: SessionAttachment = {
+      id: crypto.randomUUID(),
+      kind: input.kind,
+      name: input.name.trim() || (input.kind === 'file' ? 'File' : 'Note'),
+      content: input.content,
+      mimeType: input.mimeType,
+      createdAt: Date.now(),
+    };
+    store.patchSessionDraft(sessionId, {
+      attachments: [...draft.attachments, attachment],
+    });
+    return attachment;
+  }
+
+  /** Clear all draft attachments for a session (keeps the prompt). */
+  public clearAttachments(sessionId: string): void {
+    const store = useAiServicesStore.getState();
+    if (!store.data.sessions.find(s => s.id === sessionId)) {
+      throw new Error('Session not found');
+    }
+    store.patchSessionDraft(sessionId, { attachments: [] });
+  }
+
+  /**
+   * Send the current session draft (prompt + all attachments) and clear the draft.
+   * Uses the same streaming path as sendMessage.
+   */
+  public async send(instanceId: string, sessionId: string): Promise<ChatMessage> {
+    const store = useAiServicesStore.getState();
+    const draft = store.getSessionDraft(sessionId);
+    const content = composeDraftContent(draft.prompt, draft.attachments);
+    if (!content) {
+      throw new Error('Draft is empty');
+    }
+    // Clear immediately on send so the composer empties before streaming finishes
+    store.clearSessionDraft(sessionId);
+    return this.sendMessage(instanceId, sessionId, content);
   }
 
   /**

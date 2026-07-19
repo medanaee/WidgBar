@@ -1,31 +1,23 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
 import { useWidgetInstanceStore } from '../../stores/widgetInstanceStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useUpdateWidgetConstraints } from '../../stores/widgetConstraintsStore';
 import { Music, Play, Pause, SkipBack, SkipForward } from 'lucide-react';
-
-interface MediaState {
-    title: string;
-    artist: string;
-    album: string;
-    is_playing: boolean;
-    position_ms: number;
-    duration_ms: number;
-    thumbnail_base64: string | null;
-}
+import { useMediaSession } from './useMediaSession';
 
 export default function MusicBar({ widgetId }: { widgetId: string }) {
     const config = useWidgetInstanceStore(state => state.instances[widgetId]) || {};
     const settings = useSettingsStore(state => state.settings) || {};
     const updateConstraints = useUpdateWidgetConstraints(widgetId);
-    const [media, setMedia] = useState<MediaState | null>(null);
-    const [imgError, setImgError] = useState(false);
+    const media = useMediaSession({
+        pulsePosition: (config.barShowProgress ?? true) || (config.barShowTime ?? true),
+    });
+    const [imgError, setImgError] = React.useState(false);
 
     useEffect(() => {
         setImgError(false);
-    }, [media?.title, media?.artist]);
+    }, [media.coverKey]);
 
     const barShowCover = config.barShowCover ?? true;
     const barShowTime = config.barShowTime ?? true;
@@ -35,90 +27,21 @@ export default function MusicBar({ widgetId }: { widgetId: string }) {
     const barHeight = settings.barHeight || 36;
     const isLarge = barHeight >= 48;
 
-    const hasSession = !!(media && media.title);
-
-    // Hide from Bar when nothing is playing / no active session
     useEffect(() => {
-        updateConstraints({ hiddenInBar: !hasSession });
+        updateConstraints({ hiddenInBar: !media.hasSession });
         return () => {
             updateConstraints({ hiddenInBar: false });
         };
-    }, [hasSession, updateConstraints]);
-
-    // Listen to media updates from background thread
-    useEffect(() => {
-        let unlisten: (() => void) | undefined;
-        let cancelled = false;
-        
-        const setupListener = async () => {
-            try {
-                const initial = await invoke<MediaState | null>('get_current_media_state');
-                if (!cancelled && initial) setMedia(initial);
-            } catch {
-                // ignore — listener will fill in
-            }
-
-            unlisten = await listen<MediaState | null>('media_update', (event) => {
-                setMedia(prev => {
-                    const res = event.payload;
-                    if (!res) return null;
-                    // New track (or first update): take full payload including thumbnail
-                    if (!prev || prev.title !== res.title || prev.artist !== res.artist) {
-                        return res;
-                    }
-                    // Same track: update playback only — keep existing thumbnail string (avoids RAM climb)
-                    if (
-                        prev.is_playing === res.is_playing &&
-                        prev.position_ms === res.position_ms &&
-                        prev.duration_ms === res.duration_ms &&
-                        prev.album === res.album
-                    ) {
-                        return prev;
-                    }
-                    return {
-                        ...prev,
-                        is_playing: res.is_playing,
-                        position_ms: res.position_ms,
-                        duration_ms: res.duration_ms,
-                        album: res.album || prev.album,
-                        thumbnail_base64: res.thumbnail_base64 ?? prev.thumbnail_base64,
-                    };
-                });
-            });
-        };
-        
-        setupListener();
-        
-        return () => {
-            cancelled = true;
-            if (unlisten) unlisten();
-        };
-    }, []);
-
-    // Local increment of track position while playing
-    useEffect(() => {
-        if (!media || !media.is_playing) return;
-
-        const interval = setInterval(() => {
-            setMedia(prev => {
-                if (!prev) return null;
-                const nextPos = prev.position_ms + 250;
-                if (nextPos >= prev.duration_ms) return prev;
-                return { ...prev, position_ms: nextPos };
-            });
-        }, 250);
-
-        return () => clearInterval(interval);
-    }, [media?.is_playing, media?.title]);
+    }, [media.hasSession, updateConstraints]);
 
     const handleCommand = async (cmd: string) => {
         try {
             await invoke('send_media_command', { command: cmd, seekPosMs: null });
             if (cmd === 'toggle') {
-                setMedia(prev => prev ? { ...prev, is_playing: !prev.is_playing } : null);
+                media.setPlayingOptimistic(!media.is_playing);
             }
         } catch (e) {
-            console.error("Failed to send media command", e);
+            console.error('Failed to send media command', e);
         }
     };
 
@@ -129,11 +52,11 @@ export default function MusicBar({ widgetId }: { widgetId: string }) {
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
-    if (!hasSession) {
+    if (!media.hasSession) {
         return null;
     }
 
-    const progressPercent = media.duration_ms > 0 
+    const progressPercent = media.duration_ms > 0
         ? Math.min(100, (media.position_ms / media.duration_ms) * 100)
         : 0;
 
@@ -155,8 +78,8 @@ export default function MusicBar({ widgetId }: { widgetId: string }) {
             >
                 {barShowCover && (
                     <div className="relative z-10 w-8 h-8 rounded bg-zinc-800/80 border border-white/5 overflow-hidden flex items-center justify-center shrink-0">
-                        {media.thumbnail_base64 && !imgError ? (
-                            <img src={media.thumbnail_base64} alt="album art" className="w-full h-full object-cover" onError={() => setImgError(true)} />
+                        {media.coverUrl && !imgError ? (
+                            <img key={media.coverKey} src={media.coverUrl} alt="" className="w-full h-full object-cover" onError={() => setImgError(true)} />
                         ) : (
                             <Music className="w-3.5 h-3.5 text-white/40" />
                         )}
@@ -202,8 +125,8 @@ export default function MusicBar({ widgetId }: { widgetId: string }) {
         >
             {barShowCover && (
                 <div className="relative z-10 w-5 h-5 rounded bg-zinc-800/80 border border-white/5 overflow-hidden flex items-center justify-center shrink-0">
-                    {media.thumbnail_base64 && !imgError ? (
-                        <img src={media.thumbnail_base64} alt="album art" className="w-full h-full object-cover" onError={() => setImgError(true)} />
+                    {media.coverUrl && !imgError ? (
+                        <img key={media.coverKey} src={media.coverUrl} alt="" className="w-full h-full object-cover" onError={() => setImgError(true)} />
                     ) : (
                         <Music className="w-2.5 h-2.5 text-white/40" />
                     )}

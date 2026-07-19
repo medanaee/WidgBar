@@ -16,6 +16,7 @@ export default function WidgetBarItem({ widget, children }: Props) {
     const settings = useSettingsStore(state => state.settings);
     const animate = settings?.barAnimate !== false;
     const [isHighlighted, setIsHighlighted] = useState(false);
+    const constraints = useWidgetConstraintsStore(state => state.constraints[widget.id]);
 
     useEffect(() => {
         const unlisten = listen('widget-highlight', (event: any) => {
@@ -52,6 +53,9 @@ export default function WidgetBarItem({ widget, children }: Props) {
             }
         }
 
+        const closeOnBlur = constraints?.closeOnBlur ?? true;
+        const alwaysOnTop = constraints?.alwaysOnTop ?? false;
+
         try {
             await invoke('request_popup', {
                 x: x,
@@ -59,7 +63,8 @@ export default function WidgetBarItem({ widget, children }: Props) {
                 width: width,
                 height: height,
                 route: `/popup/${widget.type}/${widget.id}`,
-                closeOnBlur: true,
+                closeOnBlur,
+                alwaysOnTop,
                 xIsCenter: true,
                 animated: true,
                 belowBar: true,
@@ -70,7 +75,6 @@ export default function WidgetBarItem({ widget, children }: Props) {
         }
     };
 
-    const constraints = useWidgetConstraintsStore(state => state.constraints[widget.id]);
     const barPadding = constraints?.barPadding ?? 1;
     const isHidden = constraints?.hiddenInBar === true;
     

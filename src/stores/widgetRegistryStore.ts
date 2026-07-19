@@ -60,7 +60,14 @@ export const WIDGET_TYPE_META: Record<string, WidgetTypeMeta> = {
     descriptionKey: 'widgetTranslateDesc',
     can_be_in_bar: true,
     can_be_in_area: true,
-  }
+  },
+  clipboard: {
+    type_name: 'clipboard',
+    nameKey: 'widgetClipboard',
+    descriptionKey: 'widgetClipboardDesc',
+    can_be_in_bar: true,
+    can_be_in_area: false,
+  },
 };
 
 // ── DB-persisted settings per widget type ──
@@ -74,6 +81,8 @@ export interface WidgetTypeSettings {
   aiInstanceId?: string;
   aiModel?: string;
   tone?: TranslateToneSetting;
+  /** Global clipboard → AI target session */
+  aiSessionId?: string;
 }
 
 // Seed defaults for first-time DB insertion
@@ -90,6 +99,7 @@ const SEED_DEFAULTS: Record<string, WidgetTypeSettings> = {
     useAi: false,
     tone: 'default',
   },
+  clipboard: { default_width: 360, default_height: 420 },
 };
 
 // ── Combined type for consumers ──

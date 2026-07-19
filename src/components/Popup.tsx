@@ -16,10 +16,23 @@ export default function Popup() {
     }
 
     return (
-        <div key={`${widgetType}_${widgetId}`} className="w-screen h-screen flex items-center justify-center overflow-hidden bg-transparent">
-             <Suspense fallback={<div className="w-full h-full flex items-center justify-center text-white/50 animate-pulse">Loading...</div>}>
-                 {InnerComponent && <InnerComponent widgetId={widgetId} />}
-             </Suspense>
+        <div
+            key={`${widgetType}_${widgetId}`}
+            className="fixed inset-0 flex flex-col overflow-hidden bg-transparent"
+        >
+            <Suspense
+                fallback={
+                    <div className="flex-1 flex items-center justify-center text-white/50 animate-pulse">
+                        Loading...
+                    </div>
+                }
+            >
+                {InnerComponent && (
+                    <div className="flex-1 min-h-0 w-full flex flex-col">
+                        <InnerComponent widgetId={widgetId} />
+                    </div>
+                )}
+            </Suspense>
         </div>
     );
 }

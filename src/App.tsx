@@ -14,6 +14,7 @@ import { useSettingsStore } from "./stores/settingsStore";
 import { useWidgetRegistryStore } from "./stores/widgetRegistryStore";
 import { useWidgetInstanceStore } from "./stores/widgetInstanceStore";
 import { useAiServicesStore } from "./stores/aiServicesStore";
+import { useClipboardStore } from "./stores/clipboardStore";
 import AiChatRoute from "./components/AiChatRoute";
 
 interface BackendMonitorInfo {
@@ -61,6 +62,7 @@ function AppContent() {
         useWidgetInstanceStore.getState().fetchInstances();
         useWidgetRegistryStore.getState().fetchRegistry();
         useAiServicesStore.getState().fetchAndSyncData();
+        useClipboardStore.getState().fetchHistory();
     }, []);
 
     useEffect(() => {

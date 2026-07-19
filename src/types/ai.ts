@@ -29,6 +29,36 @@ export interface ChatMessage {
   streamingEventId?: string;
 }
 
+/** Attachment sitting in a session's unsent draft (injected by widgets or added manually). */
+export type SessionAttachmentKind = 'text' | 'file';
+
+export interface SessionAttachment {
+  id: string;
+  kind: SessionAttachmentKind;
+  /** Short label shown on the chip */
+  name: string;
+  /** Text body, or file path / placeholder for files */
+  content: string;
+  mimeType?: string;
+  createdAt: number;
+}
+
+/** Per-session composer state — prompt + attachments before send */
+export interface SessionDraft {
+  prompt: string;
+  attachments: SessionAttachment[];
+}
+
+/** Stable empty draft — never allocate a new object in Zustand selectors */
+export const EMPTY_SESSION_DRAFT: SessionDraft = Object.freeze({
+  prompt: '',
+  attachments: Object.freeze([]) as unknown as SessionAttachment[],
+}) as SessionDraft;
+
+export function emptySessionDraft(): SessionDraft {
+  return { prompt: '', attachments: [] };
+}
+
 export interface ChatSession {
   id: string;
   instanceId: string;

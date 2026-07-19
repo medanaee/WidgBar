@@ -4,7 +4,7 @@ use std::fs;
 use tauri::{AppHandle, Manager};
 
 // Helper function to get the absolute database path and initialize connection
-fn get_db_connection(app: &AppHandle) -> std::result::Result<Connection, String> {
+pub(crate) fn get_db_connection(app: &AppHandle) -> std::result::Result<Connection, String> {
     let app_data_dir = app
         .path()
         .app_data_dir()
@@ -138,6 +138,32 @@ fn init_database(app: &AppHandle) -> std::result::Result<(), String> {
         [],
     )
     .map_err(|e| format!("Failed to create table ai_messages: {}", e))?;
+
+    // Drop legacy Rust-owned clipboard rows (history now lives in a JSON blob for the FE store)
+    let _ = conn.execute("DROP TABLE IF EXISTS clipboard_items", []);
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS clipboard_history (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            data TEXT NOT NULL
+         )",
+        [],
+    )
+    .map_err(|e| format!("Failed to create table clipboard_history: {}", e))?;
+
+    let mut stmt_clip = conn
+        .prepare("SELECT COUNT(*) FROM clipboard_history WHERE id = 1")
+        .map_err(|e| format!("Failed to prepare clipboard_history check: {}", e))?;
+    let count_clip: i64 = stmt_clip
+        .query_row([], |row| row.get(0))
+        .map_err(|e| format!("Failed to query clipboard_history: {}", e))?;
+    if count_clip == 0 {
+        conn.execute(
+            "INSERT INTO clipboard_history (id, data) VALUES (1, '{\"items\":[],\"maxHistory\":50}')",
+            [],
+        )
+        .map_err(|e| format!("Failed to seed clipboard_history: {}", e))?;
+    }
 
     // Migration logic for legacy `ai_data` table
     let legacy_data: Result<String, _> = conn.query_row(
@@ -422,6 +448,30 @@ pub async fn delete_widget_registry(app: AppHandle, id: String) -> std::result::
         "DELETE FROM widget_registry WHERE id = ?1",
         rusqlite::params![id],
     ).map_err(|e| format!("Failed to delete widget_registry: {}", e))?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn load_clipboard_history(app: AppHandle) -> std::result::Result<String, String> {
+    init_database(&app)?;
+    let conn = get_db_connection(&app)?;
+    let mut stmt = conn
+        .prepare("SELECT data FROM clipboard_history WHERE id = 1")
+        .map_err(|e| format!("Failed to prepare clipboard_history select: {}", e))?;
+    let data = stmt
+        .query_row([], |row| row.get::<_, String>(0))
+        .map_err(|e| format!("Failed to query clipboard_history: {}", e))?;
+    Ok(data)
+}
+
+#[tauri::command]
+pub async fn save_clipboard_history(app: AppHandle, data: String) -> std::result::Result<(), String> {
+    let conn = get_db_connection(&app)?;
+    conn.execute(
+        "INSERT OR REPLACE INTO clipboard_history (id, data) VALUES (1, ?1)",
+        rusqlite::params![data],
+    )
+    .map_err(|e| format!("Failed to save clipboard_history: {}", e))?;
     Ok(())
 }
 

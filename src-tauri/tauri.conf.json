@@ -14,7 +14,11 @@
       
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["$APPCACHE/**", "$APPLOCALDATA/**", "$RESOURCE/**"]
+      }
     }
   },
   "bundle": {

@@ -11,12 +11,12 @@ export default defineConfig(async () => ({
   plugins: [
     react(),
     tailwindcss(),
-    // visualizer({
-    //   open: true,
-    //   filename: "bundle-stats.html",
-    //   gzipSize: true,
-    //   brotliSize: true,
-    // }),
+    visualizer({
+      open: true,
+      filename: "bundle-stats.html",
+      gzipSize: true,
+      brotliSize: true,
+    }),
   ],
   resolve: {
     alias: {

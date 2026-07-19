@@ -12,6 +12,10 @@ export interface WidgetConstraints {
   hiddenInBar?: boolean;
   /** Hide this widget instance from the desktop Area shell */
   hiddenInArea?: boolean;
+  /** Popup stays above other windows (default false) */
+  alwaysOnTop?: boolean;
+  /** Hide popup when it loses focus (default true) */
+  closeOnBlur?: boolean;
 }
 
 interface WidgetConstraintsState {

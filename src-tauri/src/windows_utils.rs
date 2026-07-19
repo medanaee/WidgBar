@@ -191,6 +191,49 @@ pub fn make_window_no_activate(hwnd: HWND) {
     }
 }
 
+/// Toggle WS_EX_NOACTIVATE so the window can receive clicks without stealing focus.
+/// Does not change z-order (safe for temporary use on bar / popup widgets).
+#[cfg(target_os = "windows")]
+pub fn set_hwnd_no_activate(hwnd: HWND, enabled: bool) {
+    unsafe {
+        let current_style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+        let target_style = if enabled {
+            current_style | WS_EX_NOACTIVATE.0 as isize
+        } else {
+            current_style & !(WS_EX_NOACTIVATE.0 as isize)
+        };
+
+        if target_style == current_style {
+            return;
+        }
+
+        SetWindowLongPtrW(hwnd, GWL_EXSTYLE, target_style);
+        let _ = SetWindowPos(
+            hwnd,
+            Some(HWND(std::ptr::null_mut())),
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
+        );
+    }
+}
+
+#[tauri::command]
+pub fn set_window_no_activate(window: WebviewWindow, enabled: bool) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        let hwnd_val = window.hwnd().map_err(|e| e.to_string())?;
+        set_hwnd_no_activate(HWND(hwnd_val.0 as _), enabled);
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = (window, enabled);
+    }
+    Ok(())
+}
+
 #[cfg(target_os = "windows")]
 pub fn make_window_click_through(hwnd: HWND) {
     unsafe {

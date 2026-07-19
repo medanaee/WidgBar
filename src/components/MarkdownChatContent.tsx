@@ -196,10 +196,10 @@ function MarkdownChatContent({
   }
 
   // Adjust font sizes and paddings based on isWidget flag
-  const h1Class = isWidget ? "text-[13px] font-bold mt-2 mb-1" : "text-lg font-bold mt-2 mb-1";
-  const h2Class = isWidget ? "text-[12px] font-bold mt-2 mb-1" : "text-base font-bold mt-2 mb-1";
-  const h3Class = isWidget ? "text-[11px] font-bold mt-1.5 mb-1" : "text-sm font-bold mt-1.5 mb-1";
-  const codeInlineClass = isWidget ? "bg-zinc-500/10 dark:bg-white/10 rounded px-1 py-0.5 font-mono text-[9px]" : "bg-zinc-500/20 dark:bg-white/20 rounded px-1.5 py-0.5 font-mono text-[10px]";
+  const h1Class = isWidget ? "text-[13px] font-bold mt-2 mb-1 text-zinc-900 dark:text-zinc-100" : "text-lg font-bold mt-2 mb-1 text-zinc-900 dark:text-zinc-100";
+  const h2Class = isWidget ? "text-[12px] font-bold mt-2 mb-1 text-zinc-900 dark:text-zinc-100" : "text-base font-bold mt-2 mb-1 text-zinc-900 dark:text-zinc-100";
+  const h3Class = isWidget ? "text-[11px] font-bold mt-1.5 mb-1 text-zinc-900 dark:text-zinc-100" : "text-sm font-bold mt-1.5 mb-1 text-zinc-900 dark:text-zinc-100";
+  const codeInlineClass = isWidget ? "bg-zinc-500/10 dark:bg-white/10 rounded px-1 py-0.5 font-mono text-[9px] text-zinc-800 dark:text-zinc-200" : "bg-zinc-500/20 dark:bg-white/20 rounded px-1.5 py-0.5 font-mono text-[10px] text-zinc-800 dark:text-zinc-200";
   const codeBlockContainerClass = isWidget 
     ? "relative my-1.5 rounded border border-zinc-500/20 overflow-hidden bg-zinc-100 dark:bg-black/30" 
     : "relative my-2 rounded-lg overflow-hidden bg-zinc-50 dark:bg-black/30 border border-zinc-500/20";
@@ -207,18 +207,20 @@ function MarkdownChatContent({
     ? "flex items-center justify-between px-2 py-1 bg-zinc-200 dark:bg-white/5 border-b border-zinc-500/20" 
     : "flex items-center justify-between px-3 py-1.5  bg-zinc-200 dark:bg-white/5 border-b border-zinc-500/20";
   const codeBlockLangClass = isWidget ? "text-[8px] font-mono text-zinc-500 dark:text-zinc-400 uppercase" : "text-[9px] font-mono text-zinc-400 uppercase";
-  const codeBlockPreClass = isWidget ? "p-2 overflow-x-auto text-[9px] text-zinc-800 dark:text-zinc-300 font-mono" : "p-3 overflow-x-auto text-[10px] text-zinc-850 dark:text-zinc-300 font-mono";
-  const quoteClass = isWidget ? "border-l-2 border-zinc-500/30 pl-2 italic opacity-80 my-1" : "border-l-2 border-zinc-500/40 pl-3 italic opacity-80 my-1";
+  const codeBlockPreClass = isWidget ? "p-2 overflow-x-auto text-[9px] text-zinc-800 dark:text-zinc-300 font-mono" : "p-3 overflow-x-auto text-[10px] text-zinc-800 dark:text-zinc-300 font-mono";
+  const quoteClass = isWidget ? "border-l-2 border-zinc-500/30 pl-2 italic opacity-80 my-1 text-zinc-700 dark:text-zinc-300" : "border-l-2 border-zinc-500/40 pl-3 italic opacity-80 my-1 text-zinc-700 dark:text-zinc-300";
 
   const markdownComponents: any = {
-    p: ({node, ...props}: any) => <p dir="auto" {...props} />,
-    a: ({node, ...props}: any) => <a className="text-blue-500 hover:underline" target="_blank" rel="noreferrer" {...props} />,
-    ul: ({node, ...props}: any) => <ul className="list-disc list-inside w-[calc(100%-1px)]" dir="auto" {...props} />,
-    ol: ({node, ...props}: any) => <ol className="list-decimal list-inside w-[calc(100%-1px)]" dir="auto" {...props} />,
-    li: ({node, ...props}: any) => <li className="mb-0.5" dir="auto" {...props} />,
+    p: ({node, ...props}: any) => <p className="text-zinc-800 dark:text-zinc-100" dir="auto" {...props} />,
+    a: ({node, ...props}: any) => <a className="text-blue-500 dark:text-sky-400 hover:underline" target="_blank" rel="noreferrer" {...props} />,
+    ul: ({node, ...props}: any) => <ul className="list-disc list-inside w-[calc(100%-1px)] text-zinc-800 dark:text-zinc-100" dir="auto" {...props} />,
+    ol: ({node, ...props}: any) => <ol className="list-decimal list-inside w-[calc(100%-1px)] text-zinc-800 dark:text-zinc-100" dir="auto" {...props} />,
+    li: ({node, ...props}: any) => <li className="mb-0.5 text-zinc-800 dark:text-zinc-100" dir="auto" {...props} />,
     h1: ({node, ...props}: any) => <h1 className={h1Class} dir="auto" {...props} />,
     h2: ({node, ...props}: any) => <h2 className={h2Class} dir="auto" {...props} />,
     h3: ({node, ...props}: any) => <h3 className={h3Class} dir="auto" {...props} />,
+    strong: ({node, ...props}: any) => <strong className="font-semibold text-zinc-900 dark:text-zinc-50" {...props} />,
+    em: ({node, ...props}: any) => <em className="italic text-zinc-800 dark:text-zinc-200" {...props} />,
     code: ({node, className, children, ...props}: any) => {
       const match = /language-(\w+)/.exec(className || '');
       const isInline = !match && !className?.includes('language-');
@@ -243,12 +245,12 @@ function MarkdownChatContent({
     },
     table: ({node, ...props}: any) => (
       <div className="overflow-x-auto my-2 rounded border border-zinc-500/20">
-        <table className="min-w-full divide-y divide-zinc-500/20" {...props} />
+        <table className="min-w-full divide-y divide-zinc-500/20 text-zinc-800 dark:text-zinc-100" {...props} />
       </div>
     ),
     thead: ({node, ...props}: any) => <thead className="bg-zinc-500/10 dark:bg-white/5" {...props} />,
-    th: ({node, ...props}: any) => <th className="px-3 py-2 text-left text-[10px] font-semibold tracking-wider" {...props} />,
-    td: ({node, ...props}: any) => <td className="px-3 py-2 text-[10px] border-t border-zinc-500/10" {...props} />,
+    th: ({node, ...props}: any) => <th className="px-3 py-2 text-left text-[10px] font-semibold tracking-wider text-zinc-800 dark:text-zinc-100" {...props} />,
+    td: ({node, ...props}: any) => <td className="px-3 py-2 text-[10px] border-t border-zinc-500/10 text-zinc-700 dark:text-zinc-200" {...props} />,
     blockquote: ({node, ...props}: any) => <blockquote className={quoteClass} dir="auto" {...props} />,
     hr: ({node, ...props}: any) => <hr className="border-t border-zinc-500/15 dark:border-white/10 my-3" {...props} />,
   };
@@ -270,7 +272,7 @@ function MarkdownChatContent({
   }
 
   return (
-    <div className="flex flex-col gap-1 w-full">
+    <div className="flex flex-col gap-1 w-full text-zinc-800 dark:text-zinc-100">
       {parts.map((part, i) => {
         if (part.type === 'think') {
           return <ThinkBlock key={i} content={part.content} isWidget={isWidget} markdownComponents={markdownComponents} />;

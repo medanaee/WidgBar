@@ -1,27 +1,17 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
 import { useWidgetInstanceStore } from '../../stores/widgetInstanceStore';
 import { useTranslation } from '../../lib/i18n';
-import { 
-    Music, Play, Pause, SkipBack, SkipForward, 
-    Volume2, Volume1, VolumeX, Disc 
+import {
+    Play, Pause, SkipBack, SkipForward,
+    Volume2, Volume1, VolumeX, Disc,
 } from 'lucide-react';
-
-interface MediaState {
-    title: string;
-    artist: string;
-    album: string;
-    is_playing: boolean;
-    position_ms: number;
-    duration_ms: number;
-    thumbnail_base64: string | null;
-}
+import { useMediaSession } from './useMediaSession';
 
 export default function MusicArea({ widgetId }: { widgetId: string }) {
     const config = useWidgetInstanceStore(state => state.instances[widgetId]) || {};
-    const [media, setMedia] = useState<MediaState | null>(null);
-    const [volume, setVolume] = useState<number>(50); // 0 to 100
+    const media = useMediaSession();
+    const [volume, setVolume] = useState(50);
     const [isDraggingSeek, setIsDraggingSeek] = useState(false);
     const [dragSeekVal, setDragSeekVal] = useState(0);
     const [imgError, setImgError] = useState(false);
@@ -31,80 +21,15 @@ export default function MusicArea({ widgetId }: { widgetId: string }) {
 
     useEffect(() => {
         setImgError(false);
-    }, [media?.title, media?.artist]);
+    }, [media.coverKey]);
 
-    // Listen to media updates from background thread
-    useEffect(() => {
-        let unlisten: (() => void) | undefined;
-        let cancelled = false;
-        
-        const setupListener = async () => {
-            try {
-                const initial = await invoke<MediaState | null>('get_current_media_state');
-                if (!cancelled && initial) setMedia(initial);
-            } catch {
-                // ignore — listener will fill in
-            }
-
-            unlisten = await listen<MediaState | null>('media_update', (event) => {
-                setMedia(prev => {
-                    const res = event.payload;
-                    if (!res) return null;
-                    if (!prev || prev.title !== res.title || prev.artist !== res.artist) {
-                        return res;
-                    }
-                    if (
-                        prev.is_playing === res.is_playing &&
-                        prev.position_ms === res.position_ms &&
-                        prev.duration_ms === res.duration_ms &&
-                        prev.album === res.album
-                    ) {
-                        return prev;
-                    }
-                    return {
-                        ...prev,
-                        is_playing: res.is_playing,
-                        position_ms: res.position_ms,
-                        duration_ms: res.duration_ms,
-                        album: res.album || prev.album,
-                        thumbnail_base64: res.thumbnail_base64 ?? prev.thumbnail_base64,
-                    };
-                });
-            });
-        };
-        
-        setupListener();
-        
-        return () => {
-            cancelled = true;
-            if (unlisten) unlisten();
-        };
-    }, []);
-
-    // Local increment of track position while playing (smooth updates between polls)
-    useEffect(() => {
-        if (!media || !media.is_playing || isDraggingSeek) return;
-
-        const interval = setInterval(() => {
-            setMedia(prev => {
-                if (!prev) return null;
-                const nextPos = prev.position_ms + 250;
-                if (nextPos >= prev.duration_ms) return prev;
-                return { ...prev, position_ms: nextPos };
-            });
-        }, 250);
-
-        return () => clearInterval(interval);
-    }, [media?.is_playing, media?.title, isDraggingSeek]);
-
-    // Fetch master volume on mount and periodically
     useEffect(() => {
         const fetchVolume = async () => {
             try {
                 const vol = await invoke<number>('get_system_volume');
                 setVolume(Math.round(vol * 100));
             } catch (e) {
-                console.error("Failed to fetch system volume", e);
+                console.error('Failed to fetch system volume', e);
             }
         };
 
@@ -117,10 +42,10 @@ export default function MusicArea({ widgetId }: { widgetId: string }) {
         try {
             await invoke('send_media_command', { command: cmd, seekPosMs: null });
             if (cmd === 'toggle') {
-                setMedia(prev => prev ? { ...prev, is_playing: !prev.is_playing } : null);
+                media.setPlayingOptimistic(!media.is_playing);
             }
         } catch (e) {
-            console.error("Failed to send command", e);
+            console.error('Failed to send command', e);
         }
     };
 
@@ -130,16 +55,16 @@ export default function MusicArea({ widgetId }: { widgetId: string }) {
 
     const handleSeekStart = () => {
         setIsDraggingSeek(true);
-        if (media) setDragSeekVal(media.position_ms);
+        setDragSeekVal(media.position_ms);
     };
 
     const handleSeekEnd = async () => {
         setIsDraggingSeek(false);
         try {
             await invoke('send_media_command', { command: 'seek', seekPosMs: dragSeekVal });
-            setMedia(prev => prev ? { ...prev, position_ms: dragSeekVal } : null);
+            media.setPositionOptimistic(dragSeekVal);
         } catch (e) {
-            console.error("Failed to seek", e);
+            console.error('Failed to seek', e);
         }
     };
 
@@ -149,7 +74,7 @@ export default function MusicArea({ widgetId }: { widgetId: string }) {
         try {
             await invoke('set_system_volume', { vol: val / 100 });
         } catch (e) {
-            console.error("Failed to set system volume", e);
+            console.error('Failed to set system volume', e);
         }
     };
 
@@ -161,8 +86,8 @@ export default function MusicArea({ widgetId }: { widgetId: string }) {
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
-    const currentPosition = isDraggingSeek ? dragSeekVal : (media?.position_ms || 0);
-    const duration = media?.duration_ms || 0;
+    const currentPosition = isDraggingSeek ? dragSeekVal : media.position_ms;
+    const duration = media.duration_ms;
     const progressPercent = duration > 0 ? (currentPosition / duration) * 100 : 0;
 
     const VolumeIcon = () => {
@@ -171,48 +96,44 @@ export default function MusicArea({ widgetId }: { widgetId: string }) {
         return <Volume2 className="w-4 h-4 text-zinc-400" />;
     };
 
-    const isTimelineAvailable = duration > 0 && media && media.title;
+    const isTimelineAvailable = duration > 0 && media.hasSession;
 
     return (
         <div className="w-full h-full relative rounded-2xl overflow-hidden border border-zinc-500/10 dark:border-zinc-500/10 flex flex-col text-zinc-900 dark:text-zinc-100 p-4 select-none group shadow-lg transition-all duration-300 hover:shadow-2xl hover:border-zinc-500/20">
-            {/* coverAsBackground Background Layer */}
-            {coverAsBackground && media?.thumbnail_base64 && (
-                <div 
+            {coverAsBackground && media.coverUrl && (
+                <div
                     className="absolute inset-0 z-0 bg-cover bg-center transition-all duration-700 scale-100"
-                    style={{ backgroundImage: `url(${media.thumbnail_base64})` }}
+                    style={{ backgroundImage: `url(${media.coverUrl})` }}
                 >
-                    {/* Overlay to make it lighter in light mode, darker in dark mode for readability */}
                     <div className="absolute inset-0 bg-white/70 dark:bg-zinc-950/80 transition-colors duration-300" />
                 </div>
             )}
 
-            {/* Top row: Track Info */}
             <div className="relative z-10 flex gap-4 items-center shrink-0">
-                {/* Album Cover Art */}
-                {(!coverAsBackground || !media?.thumbnail_base64) && (
+                {(!coverAsBackground || !media.coverUrl) && (
                     <div className="w-16 h-16 rounded-xl border border-zinc-500/15 overflow-hidden flex items-center justify-center shrink-0 bg-zinc-800/20 shadow-md">
-                        {media?.thumbnail_base64 && !imgError ? (
-                            <img 
-                                src={media.thumbnail_base64} 
-                                alt="cover" 
-                                className={`w-full h-full object-cover transition-transform duration-500 ${media.is_playing ? 'scale-105' : 'scale-100'}`} 
+                        {media.coverUrl && !imgError ? (
+                            <img
+                                key={media.coverKey}
+                                src={media.coverUrl}
+                                alt=""
+                                className={`w-full h-full object-cover transition-transform duration-500 ${media.is_playing ? 'scale-105' : 'scale-100'}`}
                                 onError={() => setImgError(true)}
                             />
                         ) : (
-                            <Disc className={`w-8 h-8 text-zinc-400/80 ${media?.is_playing ? 'animate-spin' : ''}`} style={{ animationDuration: '6s' }} />
+                            <Disc className={`w-8 h-8 text-zinc-400/80 ${media.is_playing ? 'animate-spin' : ''}`} style={{ animationDuration: '6s' }} />
                         )}
                     </div>
                 )}
 
-                {/* Metadata */}
                 <div className="flex-1 min-w-0 flex flex-col text-left">
                     <span className="text-sm font-bold truncate block tracking-wide">
-                        {media?.title || t("musicNoSession")}
+                        {media.title || t('musicNoSession')}
                     </span>
                     <span className="text-xs text-zinc-500 dark:text-zinc-400 truncate block mt-0.5 font-medium">
-                        {media?.artist || t("musicStartPlayer")}
+                        {media.artist || t('musicStartPlayer')}
                     </span>
-                    {media?.album && (
+                    {media.album && (
                         <span className="text-[10px] text-zinc-400 dark:text-zinc-500 truncate block mt-0.5">
                             {media.album}
                         </span>
@@ -220,29 +141,28 @@ export default function MusicArea({ widgetId }: { widgetId: string }) {
                 </div>
             </div>
 
-            {/* Middle: Playback Controls — fills remaining space */}
             <div
                 className="relative z-10 flex-1 flex justify-center items-center min-h-0 py-2"
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex justify-center items-center gap-4">
-                    <button 
-                        disabled={!media?.title}
-                        onClick={() => handleCommand('prev')} 
+                    <button
+                        disabled={!media.hasSession}
+                        onClick={() => handleCommand('prev')}
                         className="p-2 text-zinc-500 hover:text-zinc-950 dark:hover:text-zinc-100 disabled:opacity-40 hover:bg-zinc-500/5 dark:hover:bg-white/5 rounded-xl transition-all"
                     >
                         <SkipBack className="w-5 h-5 fill-current" />
                     </button>
-                    <button 
-                        disabled={!media?.title}
-                        onClick={() => handleCommand('toggle')} 
+                    <button
+                        disabled={!media.hasSession}
+                        onClick={() => handleCommand('toggle')}
                         className="p-3.5 bg-zinc-900/10 dark:bg-white/10 hover:bg-zinc-900/15 dark:hover:bg-white/15 text-zinc-900 dark:text-white rounded-full transition-all disabled:opacity-40 shadow-inner flex items-center justify-center border border-zinc-500/10"
                     >
-                        {media?.is_playing ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-0.5" />}
+                        {media.is_playing ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-0.5" />}
                     </button>
-                    <button 
-                        disabled={!media?.title}
-                        onClick={() => handleCommand('next')} 
+                    <button
+                        disabled={!media.hasSession}
+                        onClick={() => handleCommand('next')}
                         className="p-2 text-zinc-500 hover:text-zinc-950 dark:hover:text-zinc-100 disabled:opacity-40 hover:bg-zinc-500/5 dark:hover:bg-white/5 rounded-xl transition-all"
                     >
                         <SkipForward className="w-5 h-5 fill-current" />
@@ -250,7 +170,6 @@ export default function MusicArea({ widgetId }: { widgetId: string }) {
                 </div>
             </div>
 
-            {/* Bottom: sliders stick to bottom (seek only when available) */}
             <div
                 className="relative z-10 mt-auto shrink-0 flex flex-col gap-2.5 pt-1"
                 onClick={(e) => e.stopPropagation()}
@@ -258,7 +177,7 @@ export default function MusicArea({ widgetId }: { widgetId: string }) {
                 {isTimelineAvailable && (
                     <div className="flex flex-col gap-1">
                         <div className="flex items-center group/seek relative">
-                            <input 
+                            <input
                                 type="range"
                                 min={0}
                                 max={duration}
@@ -270,7 +189,7 @@ export default function MusicArea({ widgetId }: { widgetId: string }) {
                                 onChange={handleSeekChange}
                                 className="w-full h-1 bg-zinc-500/15 dark:bg-zinc-500/25 rounded-full appearance-none cursor-pointer accent-zinc-900 dark:accent-zinc-100 outline-none transition-all"
                             />
-                            <div 
+                            <div
                                 className="absolute left-0 top-0 h-1 bg-zinc-900 dark:bg-white rounded-full pointer-events-none"
                                 style={{ width: `${progressPercent}%` }}
                             />
@@ -285,7 +204,7 @@ export default function MusicArea({ widgetId }: { widgetId: string }) {
                 <div className="flex items-center gap-2.5 px-0.5">
                     <VolumeIcon />
                     <div className="flex-1 relative flex items-center group/vol">
-                        <input 
+                        <input
                             type="range"
                             min={0}
                             max={100}
@@ -293,7 +212,7 @@ export default function MusicArea({ widgetId }: { widgetId: string }) {
                             onChange={handleVolumeChange}
                             className="w-full h-1 bg-zinc-500/15 dark:bg-zinc-500/25 rounded-full appearance-none cursor-pointer accent-zinc-800 dark:accent-zinc-200 outline-none transition-all focus:outline-none"
                         />
-                        <div 
+                        <div
                             className="absolute left-0 top-0 h-1 bg-zinc-700 dark:bg-zinc-300 rounded-full pointer-events-none"
                             style={{ width: `${volume}%` }}
                         />

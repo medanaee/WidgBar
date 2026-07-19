@@ -11,7 +11,7 @@ export default function TranslateBar({ widgetId: _widgetId }: { widgetId: string
   const Icon = isLarge ? LocalLanguage20Regular : LocalLanguage16Regular;
 
   return (
-    <div className="text-white text-sm font-medium tracking-wide flex items-center gap-1.5 select-none">
+    <div className="text-zinc-800 dark:text-zinc-100 text-sm font-medium tracking-wide flex items-center gap-1.5 select-none">
       <Icon />
       <span className={isLarge ? 'text-sm' : 'text-xs'}>{t('widgetTranslate')}</span>
     </div>

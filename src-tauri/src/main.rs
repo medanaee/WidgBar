@@ -28,6 +28,7 @@ use crate::database::*;
 
 mod audio_control;
 mod media_control;
+mod clipboard_history;
 
 mod locked_popups;
 use crate::locked_popups::*;
@@ -177,8 +178,13 @@ async fn send_media_command(command: String, seek_pos_ms: Option<u32>) -> Result
 }
 
 #[tauri::command]
-fn get_current_media_state() -> Result<Option<media_control::MediaState>, String> {
+fn get_current_media_state() -> Result<Option<media_control::MediaTick>, String> {
     media_control::get_current_media_state()
+}
+
+#[tauri::command]
+fn get_media_cover_data_url() -> Result<Option<String>, String> {
+    media_control::get_media_cover_data_url()
 }
 
 #[tauri::command]
@@ -285,6 +291,7 @@ fn main() {
             }
         }))
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_autostart::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             request_popup,
             hide_popup,
@@ -332,6 +339,13 @@ fn main() {
             set_system_volume,
             send_media_command,
             get_current_media_state,
+            get_media_cover_data_url,
+            load_clipboard_history,
+            save_clipboard_history,
+            clipboard_history::clipboard_paste_text,
+            clipboard_history::clipboard_paste_image,
+            clipboard_history::clipboard_delete_image_files,
+            set_window_no_activate,
             proxy_request,
             stream_ai_request,
             system_monitor::get_system_stats
@@ -352,6 +366,8 @@ fn main() {
             
             #[cfg(target_os = "windows")]
             media_control::start_media_listener(app.handle().clone());
+
+            clipboard_history::start_clipboard_watcher(app.handle().clone());
 
             Ok(())
         })

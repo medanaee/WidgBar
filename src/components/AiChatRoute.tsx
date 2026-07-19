@@ -3,109 +3,18 @@ import { useAiServicesStore } from "../stores/aiServicesStore";
 import { useEffect, useState, useRef } from "react";
 import { aiManager } from "../lib/AiServicesManager";
 import { invoke } from "@tauri-apps/api/core";
-import { emit } from "@tauri-apps/api/event";
 import { ChatSession } from "../types/ai";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Titlebar } from "./Titlebar";
 import { CutoutProvider } from "./ui/CutoutProvider";
 import { useTranslation } from "../lib/i18n";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { PersonRegular, SendRegular, AddRegular, DeleteRegular, StopRegular } from '@fluentui/react-icons';
+import { PersonRegular, AddRegular, DeleteRegular } from '@fluentui/react-icons';
 import { CompanyLogo } from "./CompanyLogo";
 import EditAiServicePanel from "./tabs/EditAiServicePanel";
 import MarkdownChatContent from "./MarkdownChatContent";
+import SessionComposer from "./ai/SessionComposer";
 import { Settings as SettingsIcon, Pencil } from "lucide-react";
-
-interface ChatInputProps {
-  onSend: (text: string) => void;
-  isSending: boolean;
-  isLoadingModels: boolean;
-  models: string[];
-  currentModel: string;
-  onModelChange: (model: string) => void;
-}
-
-function ChatInput({
-  onSend,
-  isSending,
-  isLoadingModels,
-  models,
-  currentModel,
-  onModelChange
-}: ChatInputProps) {
-  const [val, setVal] = useState("");
-
-  const handleSend = () => {
-    if (!val.trim()) return;
-    onSend(val);
-    setVal("");
-  };
-
-
-
-  return (
-    <div className="p-3 bg-white/30 dark:bg-zinc-900/30 border-t border-zinc-500/15 dark:border-white/5 flex items-end gap-2 shrink-0">
-      {isLoadingModels ? (
-        <span className="text-[10px] text-zinc-400 animate-pulse w-32 text-center mb-2">Loading models...</span>
-      ) : models.length > 0 ? (
-        <div className="mb-0.5">
-          <Select
-            value={currentModel}
-            onValueChange={onModelChange}
-          >
-            <SelectTrigger className="w-40 h-9 text-[10px] bg-white/20 dark:bg-zinc-900/20 border-zinc-500/20 text-zinc-700 dark:text-zinc-300">
-              <SelectValue placeholder="Select Model" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {models.map(m => (
-                  <SelectItem key={m} value={m} className="text-[10px] truncate max-w-[200px]">
-                    {m.split('/').pop()}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
-      ) : null}
-
-      <textarea 
-        value={val}
-        dir = "auto"
-        onChange={(e) => setVal(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handleSend();
-          }
-        }}
-        placeholder="Type a message..."
-        rows={1}
-        className="flex-1 bg-white/20 dark:bg-zinc-900/20 border border-zinc-500/20 dark:border-white/10 text-xs focus:outline-none focus:border-zinc-500/50 rounded-lg px-3 py-2 resize-none [field-sizing:content] min-h-[36px] max-h-[120px] leading-relaxed dark:text-white"
-        disabled={isSending}
-      />
-      <Button 
-        size="icon" 
-        onClick={() => {
-          if (isSending) {
-            emit('ai-abort-stream').catch(console.error);
-          } else {
-            handleSend();
-          }
-        }} 
-        disabled={!isSending && !val.trim()}
-        className={`flex items-center justify-center rounded-lg h-9 w-9 shrink-0 ${
-          isSending 
-            ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20' 
-            : 'bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-100'
-        }`}
-      >
-        {isSending ? <StopRegular fontSize={16} /> : <SendRegular fontSize={16} />}
-      </Button>
-    </div>
-  );
-}
 
 export default function AiChatRoute() {
   console.log("Rendering AiChatRoute");
@@ -266,18 +175,6 @@ export default function AiChatRoute() {
   if (!instance) {
     return <div className="p-8 text-center text-red-500">AI Service Instance not found.</div>;
   }
-
-  const handleSend = async (msg: string) => {
-    if (!activeSession) return;
-    setIsSending(true);
-    try {
-      await aiManager.sendMessage(instance.id, activeSession.id, msg);
-    } catch (e: any) {
-      console.error(e);
-    } finally {
-      setIsSending(false);
-    }
-  };
 
   const handleNewSession = () => {
     const newSession = aiManager.createSession(instance.id, `Chat ${sessions.length + 1}`);
@@ -520,13 +417,21 @@ export default function AiChatRoute() {
               <div ref={messagesEndRef} />
             </div>
 
-            <ChatInput 
-              onSend={handleSend}
+            <SessionComposer
+              instanceId={instance.id}
+              sessionId={activeSession?.id ?? null}
               isSending={isSending}
-              isLoadingModels={isLoadingModels}
-              models={models}
-              currentModel={instance.model || currentSession?.model || defaultModel}
-              onModelChange={handleModelChange}
+              onSendingChange={setIsSending}
+              onSessionCreated={(id) => {
+                const s = useAiServicesStore.getState().data.sessions.find(x => x.id === id);
+                if (s) setActiveSession(s);
+              }}
+              modelPicker={{
+                isLoadingModels,
+                models,
+                currentModel: instance.model || currentSession?.model || defaultModel,
+                onModelChange: handleModelChange,
+              }}
             />
           </div>
         </div>

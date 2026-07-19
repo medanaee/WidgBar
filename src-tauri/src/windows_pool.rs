@@ -10,6 +10,8 @@ pub struct PoolWindow {
     is_busy: bool,
     close_on_blur: bool,
     is_dynamic: bool,
+    /// Route currently shown in this pool window (for toggle-to-hide)
+    current_route: Option<String>,
 }
 pub struct PoolState {
     windows: Mutex<Vec<PoolWindow>>,
@@ -85,6 +87,7 @@ pub fn init_reserved_windows(app: AppHandle) {
                                 w.hide().ok();
                             }
                             win.is_busy = false;
+                            win.current_route = None;
                             println!("Window {} teleported off-screen due to blur", label_clone);
                         }
                     }
@@ -97,6 +100,7 @@ pub fn init_reserved_windows(app: AppHandle) {
             is_busy: false,
             close_on_blur: false,
             is_dynamic: false,
+            current_route: None,
         });
     }
 
@@ -202,6 +206,38 @@ pub async fn request_popup(
         "Popup requested at ({}, {}) with size {}x{}, route: {}, close_on_blur: {}, x_is_center: {}, animated: {}, below_bar: {}, center: {}, resizable: {}, skip_taskbar: {}, always_on_top: {}",
         x, y, width, height, route, close_on_blur, x_is_center, animated, below_bar, center, resizable, skip_taskbar, always_on_top
     );
+
+    // Same route already open → hide (toggle) instead of requesting again
+    {
+        let mut pool = state.windows.lock().unwrap();
+        let found = pool
+            .iter()
+            .find(|w| w.is_busy && w.current_route.as_ref() == Some(&route))
+            .map(|w| (w.label.clone(), w.is_dynamic));
+        if let Some((label, is_dynamic)) = found {
+            if is_dynamic {
+                if let Some(idx) = pool.iter().position(|w| w.label == label) {
+                    pool.remove(idx);
+                }
+                drop(pool);
+                if let Some(w) = app.get_webview_window(&label) {
+                    w.close().ok();
+                }
+            } else {
+                if let Some(win) = pool.iter_mut().find(|w| w.label == label) {
+                    win.is_busy = false;
+                    win.current_route = None;
+                }
+                drop(pool);
+                if let Some(w) = app.get_webview_window(&label) {
+                    w.hide().ok();
+                }
+            }
+            println!("Toggled off popup for route {}", route);
+            return Ok(label);
+        }
+    }
+
     let mut selected_label = None;
     let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
 
@@ -211,6 +247,7 @@ pub async fn request_popup(
             if !win.is_busy {
                 win.is_busy = true;
                 win.close_on_blur = close_on_blur;
+                win.current_route = Some(route.clone());
                 selected_label = Some(win.label.clone());
                 break;
             }
@@ -272,6 +309,7 @@ pub async fn request_popup(
                                         } else {
                                             let _ = w.hide();
                                             win.is_busy = false;
+                                            win.current_route = None;
                                         }
                                     }
                                 }
@@ -292,6 +330,7 @@ pub async fn request_popup(
                     is_busy: true,
                     close_on_blur,
                     is_dynamic: true,
+                    current_route: Some(route.clone()),
                 });
             }
             
@@ -459,6 +498,7 @@ pub async fn hide_popup(
                 remove_idx = Some(i);
             } else {
                 win.is_busy = false;
+                win.current_route = None;
                 if let Some(w) = app.get_webview_window(&target_label) {
                     w.hide().ok();
                 }

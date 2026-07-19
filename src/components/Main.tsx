@@ -16,6 +16,7 @@ import { SettingCard } from "./ui/SettingCard";
 import LayoutSettingsTab from "./tabs/LayoutSettingsTab";
 import AiServicesTab from "./tabs/AiServicesTab";
 import { Slider } from "./ui/slider";
+import { disable as disableAutostart, enable as enableAutostart, isEnabled as isAutostartEnabled } from "@tauri-apps/plugin-autostart";
 
 
 export default function Main() {
@@ -31,6 +32,7 @@ export default function Main() {
   const [selectedMonitorId, setSelectedMonitorId] = useState<string | null>(null);
   const [settingsTab, setSettingsTab] = useState<"general" | "bar" | "widgets">("general");
   const [selectedWidgetType, setSelectedWidgetType] = useState<string | null>(null);
+  const [launchAtStartup, setLaunchAtStartup] = useState(false);
 
   useEffect(() => {
     if (activeTab === "layout" && !selectedMonitorId && monitors.length > 0) {
@@ -38,8 +40,24 @@ export default function Main() {
     }
   }, [activeTab, monitors, selectedMonitorId]);
 
+  useEffect(() => {
+    isAutostartEnabled()
+      .then(setLaunchAtStartup)
+      .catch(console.error);
+  }, []);
+
   const handleToggleTheme = (checked: boolean) => {
     updateSettings({ theme: checked ? "dark" : "light" });
+  };
+
+  const handleToggleStartup = async (checked: boolean) => {
+    try {
+      if (checked) await enableAutostart();
+      else await disableAutostart();
+      setLaunchAtStartup(checked);
+    } catch (e) {
+      console.error("Failed to update launch at startup", e);
+    }
   };
 
   return (
@@ -111,6 +129,17 @@ export default function Main() {
                           </SelectGroup>
                         </SelectContent>
                       </Select>
+                    </SettingCard>
+
+                    <SettingCard>
+                      <div>
+                        <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{t("launchAtStartup")}</h3>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">{t("launchAtStartupDesc")}</p>
+                      </div>
+                      <Switch
+                        checked={launchAtStartup}
+                        onCheckedChange={handleToggleStartup}
+                      />
                     </SettingCard>
                   </div>
                 )}
