@@ -180,9 +180,60 @@ export default function BarSettingsTab({
 
       {monitors.find(m => m.id === selectedMonitorId)?.has_bar && (() => {
         const currentMon = monitors.find(m => m.id === selectedMonitorId)!;
+        const isBorrowing = !!currentMon.borrowBarLayoutFrom;
         return (
           <div className="space-y-4 pt-4 border-t border-zinc-500/20">
-            {/* Bar Configuration */}
+            {/* Borrow Bar Layout */}
+            <SettingCard>
+              <div className="flex-grow min-w-0 pr-3">
+                <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                  {t("borrowBarLayout")}
+                </h3>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  {t("borrowBarLayoutDesc")}
+                </p>
+              </div>
+              <Select
+                value={currentMon.borrowBarLayoutFrom || "none"}
+                onValueChange={(val) => {
+                  const borrowId = val === "none" ? undefined : val;
+                  handleUpdateBarConfig(selectedMonitorId, { borrowBarLayoutFrom: borrowId });
+                }}
+              >
+                <SelectTrigger className="w-56 h-8 text-xs bg-transparent border-zinc-500/20">
+                  <SelectValue placeholder="Select monitor" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="none" className="text-xs">
+                      {t("borrowNone")}
+                    </SelectItem>
+                    {monitors
+                      .filter((m: any) => m.id !== selectedMonitorId && m.has_bar && !m.borrowBarLayoutFrom)
+                      .map((m: any, idx: number) => (
+                        <SelectItem key={m.id} value={m.id} className="text-xs">
+                          {t("borrowMonitorLabel")} {idx + 1} ({m.name || m.id})
+                        </SelectItem>
+                      ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </SettingCard>
+
+            {/* Warning Banner */}
+            {isBorrowing && (
+              <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs flex flex-col gap-1 leading-normal animate-in fade-in duration-200">
+                <span className="font-semibold">
+                  {t("borrowBarLayoutWarning")}
+                </span>
+                <span>
+                  {t("borrowBarLayoutWarningDesc")}
+                </span>
+              </div>
+            )}
+
+            <div className={`space-y-4 ${isBorrowing ? "pointer-events-none opacity-50 select-none" : ""}`}>
+              {/* Bar Configuration */}
             <SettingCardNoLayout>
               <h4 className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Layout Settings</h4>
               <div className="flex items-center justify-between">
@@ -437,6 +488,7 @@ export default function BarSettingsTab({
                 )}
               </div>
             </DragDropContext>
+          </div>
           </div>
         );
       })()}

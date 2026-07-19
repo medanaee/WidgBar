@@ -11,13 +11,18 @@ export default function Bar() {
   const { layouts, currentLayout } = useLayoutStore();
   const settings = useSettingsStore(state => state.settings);
   const monitor = layouts[currentLayout]?.monitors.find(m => m.id === monitorId);
-  const barSections = monitor?.barSections || [];
-  const justify = monitor?.barJustify || "space-between";
-  const sectionSpacing = monitor?.barSectionSpacing ?? 16;
+  
+  // Resolve borrowing logic: if monitor borrows bar layout, load target layout
+  const targetMonitor = (monitor?.borrowBarLayoutFrom && 
+                         layouts[currentLayout]?.monitors.find(m => m.id === monitor.borrowBarLayoutFrom && !m.borrowBarLayoutFrom)) || monitor;
+
+  const barSections = targetMonitor?.barSections || [];
+  const justify = targetMonitor?.barJustify || "space-between";
+  const sectionSpacing = targetMonitor?.barSectionSpacing ?? 16;
   const isSpacingJustify = ["start", "end", "center"].includes(justify);
   const animate = settings?.barAnimate !== false;
-  const showButton = monitor?.showMainWindowButton !== false;
-  const separator = monitor?.barSeparator || "none";
+  const showButton = targetMonitor?.showMainWindowButton !== false;
+  const separator = targetMonitor?.barSeparator || "none";
   const showSeparator = isSpacingJustify && separator !== "none";
 
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);

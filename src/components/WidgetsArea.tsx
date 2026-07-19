@@ -9,7 +9,12 @@ export default function WidgetsArea() {
     const { monitorId } = useParams<{ monitorId: string }>();
     const { layouts, currentLayout, updateWidget } = useLayoutStore();
     const monitor = layouts[currentLayout]?.monitors.find(m => m.id === monitorId);
-    const widgetsForThisWindow = monitor?.widgetArea || [];
+    
+    // Resolve borrowing logic: if monitor borrows desktop widgets area layout, load target layout
+    const targetMonitor = (monitor?.borrowAreaLayoutFrom && 
+                           layouts[currentLayout]?.monitors.find(m => m.id === monitor.borrowAreaLayoutFrom && !m.borrowAreaLayoutFrom)) || monitor;
+
+    const widgetsForThisWindow = targetMonitor?.widgetArea || [];
 
     // Global state to track which widget is currently on top (being interacted with)
     const [activeWidgetId, setActiveWidgetId] = useState<string | null>(null);
@@ -68,8 +73,8 @@ export default function WidgetsArea() {
                     allWidgets={widgetsForThisWindow}
                     activeWidgetId={activeWidgetId}
                     setActiveWidgetId={setActiveWidgetId}
-                    isEditMode={monitor?.isEditMode || false}
-                    onUpdate={(id, updates, broadcast) => updateWidget(monitorId!, id, updates, broadcast)}
+                    isEditMode={targetMonitor?.isEditMode || monitor?.isEditMode || false}
+                    onUpdate={(id, updates, broadcast) => updateWidget(targetMonitor!.id, id, updates, broadcast)}
                 />
             ))}
         </div>

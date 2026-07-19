@@ -58,6 +58,8 @@ export interface Monitor {
   isEditMode?: boolean;
   showMainWindowButton?: boolean;
   barSeparator?: "none" | "line" | "dot";
+  borrowBarLayoutFrom?: string;
+  borrowAreaLayoutFrom?: string;
 }
 
 export interface LayoutData {

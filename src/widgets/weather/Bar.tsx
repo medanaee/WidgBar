@@ -103,7 +103,7 @@ export default function WeatherBar({ widgetId }: { widgetId: string }) {
     }
 
     return (
-        <div onClick={handleRootClick} className="text-white text-sm font-medium tracking-wide flex items-center gap-1.5 select-none">
+        <div onClick={handleRootClick} className="text-white text-sm font-medium tracking-wide flex items-center gap-0.5 select-none">
             <Icon className="w-4 h-4 text-white/90" />
             <span>{temp}°</span>
             {showCityName && (

@@ -69,6 +69,16 @@ export const translations = {
     calToday: "Today",
     calTodaysEvents: "Today's Events",
     calNoEvents: "No events scheduled for today.",
+    borrowBarLayout: "Borrow Bar Layout",
+    borrowBarLayoutDesc: "Mirror the Bar layout of another monitor (syncs live).",
+    borrowBarLayoutWarning: "⚠️ Bar layout is borrowed",
+    borrowBarLayoutWarningDesc: "This monitor mirrors its Bar layout from another monitor. Local settings are disabled; please customize the source monitor instead.",
+    borrowWidgetLayout: "Borrow Widget Layout",
+    borrowWidgetLayoutDesc: "Mirror the Desktop widgets layout of another monitor.",
+    borrowWidgetLayoutWarning: "⚠️ Widget layout is borrowed",
+    borrowWidgetLayoutWarningDesc: "This monitor mirrors its Desktop widgets layout from another monitor. Local settings are disabled; please customize the source monitor instead.",
+    borrowNone: "None (Independent)",
+    borrowMonitorLabel: "Monitor",
   },
   fa: {
     home: "خانه",
@@ -138,6 +148,16 @@ export const translations = {
     calToday: "امروز",
     calTodaysEvents: "رویدادهای امروز",
     calNoEvents: "مناسبتی برای امروز ثبت نشده است.",
+    borrowBarLayout: "قرض گرفتن لایه بار",
+    borrowBarLayoutDesc: "کپی کردن لایه بار مانیتور دیگر (تغییرات به صورت زنده همگام می‌شوند).",
+    borrowBarLayoutWarning: "⚠️ لایه بار این مانیتور قرض گرفته شده است",
+    borrowBarLayoutWarningDesc: "این مانیتور لایه‌ی نوار خود را از مانیتور دیگر کپی می‌کند. تنظیمات در این مانیتور غیرفعال هستند و برای هرگونه تغییر باید مانیتور اصلی را ویرایش کنید.",
+    borrowWidgetLayout: "قرض گرفتن لایه ویجت‌ها",
+    borrowWidgetLayoutDesc: "کپی کردن لایه ویجت‌های دسکتاپ مانیتور دیگر.",
+    borrowWidgetLayoutWarning: "⚠️ لایه ویجت‌های این مانیتور قرض گرفته شده است",
+    borrowWidgetLayoutWarningDesc: "این مانیتور لایه‌ی ویجت‌های دسکتاپ خود را از مانیتور دیگر کپی می‌کند. تنظیمات در این مانیتور غیرفعال هستند و برای هرگونه تغییر باید مانیتور اصلی را ویرایش کنید.",
+    borrowNone: "پیش‌فرض (عدم قرض گرفتن)",
+    borrowMonitorLabel: "مانیتور",
   }
 } as const;
 

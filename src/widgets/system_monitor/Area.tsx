@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useWidgetInstanceStore } from '../../stores/widgetInstanceStore';
 import { useUpdateWidgetConstraints } from '../../stores/widgetConstraintsStore';
-import { Cpu, Database, HardDrive, ArrowUp, ArrowDown } from 'lucide-react';
+import { Cpu, Database, HardDrive, ArrowUp, ArrowDown, Globe } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area as RechartsArea, YAxis } from 'recharts';
 
 interface SystemStats {
@@ -231,7 +231,7 @@ export default function SystemMonitorArea({ widgetId }: { widgetId: string }) {
                     <div className="flex flex-col justify-between p-3 rounded-xl bg-white/40 dark:bg-zinc-500/10 border border-zinc-500/10 dark:border-zinc-500/10 shadow-sm  hover:bg-white/60 dark:hover:bg-zinc-500/20 transition-all pointer-events-auto">
                         <div className="flex justify-between items-start">
                             <div className="flex items-center gap-1.5">
-                                <ArrowDown className="w-4 h-4 text-amber-500/80" />
+                                <Globe className="w-4 h-4 text-amber-500/80" />
                                 <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">NET</span>
                             </div>
                             <div className="flex flex-col items-end leading-none">

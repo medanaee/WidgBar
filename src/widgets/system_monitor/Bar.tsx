@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useWidgetInstanceStore } from '../../stores/widgetInstanceStore';
 import { useSettingsStore } from '../../stores/settingsStore';
-import { Cpu, Database, HardDrive, ArrowUp, ArrowDown } from 'lucide-react';
+import { Cpu, Database, HardDrive, ArrowUp, ArrowDown, Globe } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area as RechartsArea, YAxis } from 'recharts';
 import { useUpdateWidgetConstraints } from '../../stores/widgetConstraintsStore';
 
@@ -102,7 +102,8 @@ export default function SystemMonitorBar({ widgetId }: { widgetId: string }) {
                             dataKey="value" 
                             stroke={color} 
                             strokeWidth={1.2}
-                            fill="none" 
+                            fill={color}
+                            fillOpacity={0.2}
                             isAnimationActive={false}
                         />
                     </AreaChart>
@@ -130,7 +131,8 @@ export default function SystemMonitorBar({ widgetId }: { widgetId: string }) {
                             type="monotone" 
                             dataKey="down" 
                             stroke="#f59e0b" 
-                            fill="none" 
+                            fill="#f59e0b" 
+                            fillOpacity={0.15}
                             strokeWidth={1.2}
                             isAnimationActive={false}
                         />
@@ -138,7 +140,8 @@ export default function SystemMonitorBar({ widgetId }: { widgetId: string }) {
                             type="monotone" 
                             dataKey="up" 
                             stroke="#f97316" 
-                            fill="none" 
+                            fill="#f97316" 
+                            fillOpacity={0.15}
                             strokeWidth={1.2}
                             isAnimationActive={false}
                         />
@@ -165,7 +168,7 @@ export default function SystemMonitorBar({ widgetId }: { widgetId: string }) {
             {/* CPU */}
             {enabledMetrics.includes('cpu') && (
                 <div 
-                    className={`flex items-start gap-1.5  px-1 py-0.5 transition-all text-xs ${isLarge ? 'flex-col justify-center h-10 min-w-15' : 'h-7'} ${
+                    className={`flex items-center gap-0.5 px-1 py-0.5 transition-all text-xs ${isLarge ? 'flex-col justify-center h-10 min-w-15' : 'h-7'} ${
                         fillIndicatorsBar 
                             ? 'rounded-lg border border-white/5 bg-white/5 shadow-sm' 
                             : 'border border-transparent bg-transparent'
@@ -188,7 +191,7 @@ export default function SystemMonitorBar({ widgetId }: { widgetId: string }) {
             {/* RAM */}
             {enabledMetrics.includes('ram') && (
                 <div 
-                    className={`flex items-start gap-1.5  px-1 py-0.5 transition-all text-xs ${isLarge ? 'flex-col justify-center h-10 min-w-15' : 'h-7'} ${
+                    className={`flex items-center gap-0.5 px-1 py-0.5 transition-all text-xs ${isLarge ? 'flex-col justify-center h-10 min-w-15' : 'h-7'} ${
                         fillIndicatorsBar 
                             ? 'rounded-lg border border-white/5 bg-white/5 shadow-sm' 
                             : 'border border-transparent bg-transparent'
@@ -213,7 +216,7 @@ export default function SystemMonitorBar({ widgetId }: { widgetId: string }) {
             {/* Disk */}
             {enabledMetrics.includes('disk') && (
                 <div 
-                    className={`flex items-center gap-1.5  px-1 py-0.5 transition-all text-xs ${isLarge ? 'flex-col justify-center h-10 min-w-[60px]' : 'h-7'} ${
+                    className={`flex items-center gap-0.5 px-1 py-0.5 transition-all text-xs ${isLarge ? 'flex-col justify-center h-10 min-w-15' : 'h-7'} ${
                         fillIndicatorsBar 
                             ? 'rounded-lg border border-white/5 bg-white/5 shadow-sm' 
                             : 'border border-transparent bg-transparent'
@@ -223,7 +226,7 @@ export default function SystemMonitorBar({ widgetId }: { widgetId: string }) {
                     <div className="flex items-center gap-1 leading-none">
                         <HardDrive className="w-3.5 h-3.5 text-purple-400" />
                         {showLabelsBar && <span className="font-semibold text-[10px] text-white/70">DSK</span>}
-                        <span className="font-bold tabular-nums inline-block text-right w-[38px]">
+                        <span className="font-bold tabular-nums inline-block text-left min-w-7">
                             {config.diskValueType === 'used' ? `${stats.disk_used_gb.toFixed(0)}G` : `${Math.round(stats.disk_usage)}%`}
                         </span>
                     </div>
@@ -238,17 +241,19 @@ export default function SystemMonitorBar({ widgetId }: { widgetId: string }) {
             {/* Network */}
             {enabledMetrics.includes('net') && (
                 <div 
-                    className={`flex items-center gap-1.5 px-1 py-0.5 transition-all text-xs ${isLarge ? 'flex-row justify-center h-10' : 'h-7'} ${
+                    className={`flex items-center gap-0.5 px-1 py-0.5 transition-all text-xs ${isLarge ? 'flex-row justify-center h-10' : 'h-7'} ${
                         fillIndicatorsBar 
                             ? 'rounded-lg border border-white/5 bg-white/5 shadow-sm' 
                             : 'border border-transparent bg-transparent'
                     }`}
                 >
                     <div className="flex items-center gap-1 leading-none">
+                        <Globe className="w-3.5 h-3.5 text-amber-400" />
+                        {showLabelsBar && <span className="font-semibold text-[10px] text-white/70">NET</span>}
                         <div className="flex flex-col gap-0.5 items-start tabular-nums shrink-0">
                             <span className="font-bold text-xs flex items-center gap-0.5 leading-none">
                                 <ArrowDown className="w-2.5 h-2.5 text-amber-400 shrink-0" />
-                                <span className="inline-block text-right w-[42px]">
+                                <span className="inline-block text-left min-w-9">
                                     {stats.net_download_kb > 1024 
                                         ? `${(stats.net_download_kb / 1024).toFixed(1)}M` 
                                         : `${Math.round(stats.net_download_kb)}K`
@@ -257,7 +262,7 @@ export default function SystemMonitorBar({ widgetId }: { widgetId: string }) {
                             </span>
                             <span className="text-xs font-semibold text-white/60 flex items-center gap-0.5 leading-none">
                                 <ArrowUp className="w-2.5 h-2.5 text-orange-400 shrink-0" />
-                                <span className="inline-block text-right w-[42px]">
+                                <span className="inline-block text-left min-w-9">
                                     {stats.net_upload_kb > 1024 
                                         ? `${(stats.net_upload_kb / 1024).toFixed(1)}M` 
                                         : `${Math.round(stats.net_upload_kb)}K`
