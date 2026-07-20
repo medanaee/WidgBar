@@ -264,10 +264,10 @@ export default function ClipboardArea({ widgetId: _widgetId }: { widgetId: strin
 
     return (
         <div className="w-full h-full min-h-0 flex flex-col select-none overflow-hidden">
-            <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-2 border-b border-zinc-500/15">
-                <div className="flex items-center gap-1.5 min-w-0">
-                    <Clipboard className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
-                    <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-100 truncate">
+            <div data-tauri-drag-region  className="shrink-0 flex items-center justify-between gap-2 px-3 py-2 border-b border-zinc-500/15">
+                <div data-tauri-drag-region  className="flex items-center gap-1.5 min-w-0">
+                    <Clipboard data-tauri-drag-region className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+                    <span data-tauri-drag-region  className="text-xs font-semibold text-zinc-800 dark:text-zinc-100 truncate">
                         {t('widgetClipboard')}
                     </span>
                 </div>

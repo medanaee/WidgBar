@@ -300,6 +300,14 @@ async fn stream_ai_request(
     Ok(())
 }
 
+#[tauri::command]
+fn start_background_watchers(app_handle: tauri::AppHandle) {
+    println!("[system] Frontend requested background watchers to start.");
+    
+    media_control::start_media_listener(app_handle.clone());
+    clipboard_history::start_clipboard_watcher(app_handle);
+}
+
 fn main() {
     tauri::Builder::default()
         .manage(LockedPopupsState {
@@ -372,6 +380,7 @@ fn main() {
             system_monitor::get_system_stats,
             save_attachment_file,
             read_attachment_file,
+            start_background_watchers
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -386,11 +395,6 @@ fn main() {
             let stats = std::sync::Arc::new(std::sync::Mutex::new(system_monitor::SystemStats::default()));
             system_monitor::start_monitor_thread(stats.clone());
             app.manage(system_monitor::SystemMonitorState { stats });
-            
-            // #[cfg(target_os = "windows")]
-            media_control::start_media_listener(app.handle().clone());
-
-            clipboard_history::start_clipboard_watcher(app.handle().clone());
 
             Ok(())
         })

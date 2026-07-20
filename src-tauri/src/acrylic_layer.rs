@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use tauri::WebviewWindow;
 use tauri::{AppHandle, Manager, State};
 use tauri::{WebviewUrl, WebviewWindowBuilder};
+use tauri::Emitter;
 
 use windows::core::Interface;
 use windows::System::DispatcherQueueController;
@@ -517,7 +518,13 @@ pub async fn create_bar(app: AppHandle, monitor_id: String, height: u32) -> Resu
         }
     }
 
+    
     window.show().ok();
+    
+    let _ = app.emit(
+        "window_created_from_rust",
+        serde_json::json!({ "label": label.clone() }),
+    );
 
     let mut state = get_layout_state().lock().unwrap();
     state.bars.insert(
@@ -528,6 +535,7 @@ pub async fn create_bar(app: AppHandle, monitor_id: String, height: u32) -> Resu
             label,
         },
     );
+
 
     Ok(id)
 }
@@ -651,6 +659,11 @@ pub async fn create_widget_area(app: AppHandle, monitor_id: String) -> Result<St
             make_window_click_through(hwnd);
         }
     }
+    
+    let _ = app.emit(
+        "window_created_from_rust",
+        serde_json::json!({ "label": label.clone() }),
+    );
 
     let mut state = get_layout_state().lock().unwrap();
     state.widget_areas.insert(
@@ -661,6 +674,7 @@ pub async fn create_widget_area(app: AppHandle, monitor_id: String) -> Result<St
             label,
         },
     );
+
 
     Ok(id)
 }

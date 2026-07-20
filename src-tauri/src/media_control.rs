@@ -94,6 +94,7 @@ pub fn start_media_listener(app_handle: tauri::AppHandle) {
     }
 
     std::thread::spawn(move || {
+        // std::thread::sleep(std::time::Duration::from_millis(3000));
         unsafe {
             // 2. PRINCIPLED FIX: Use RoInitialize instead of CoInitializeEx.
             // SMTC (Media Controls) is a WinRT API. WinRT components must be initialized 
