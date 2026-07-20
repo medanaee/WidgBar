@@ -23,7 +23,10 @@ export interface AiServiceInstance {
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
+  /** Visible prompt text (attachments are separate chips in the UI). */
   content: string;
+  /** Attachments shown as chips; still included when talking to the model. */
+  attachments?: SessionAttachment[];
   timestamp: number;
   typing?: boolean;
   streamingEventId?: string;

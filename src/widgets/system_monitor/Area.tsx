@@ -43,7 +43,7 @@ export default function SystemMonitorArea({ widgetId }: { widgetId: string }) {
 
     const enabledMetrics = config.enabledMetrics || ['cpu', 'ram', 'disk', 'net'];
     const showChartsArea = config.showChartsArea ?? true;
-    const isCompact = (config.areaLayout as string) === 'compact';
+    const isCompact = (config.areaLayout as string || 'compact') === 'compact';
 
     useEffect(() => {
         if (!containerElement) return;

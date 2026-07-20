@@ -13,6 +13,7 @@ import { PersonRegular, AddRegular, DeleteRegular } from '@fluentui/react-icons'
 import { CompanyLogo } from "./CompanyLogo";
 import EditAiServicePanel from "./tabs/EditAiServicePanel";
 import MarkdownChatContent from "./MarkdownChatContent";
+import ChatUserMessage from "./ai/ChatUserMessage";
 import SessionComposer from "./ai/SessionComposer";
 import { Settings as SettingsIcon, Pencil } from "lucide-react";
 
@@ -390,18 +391,27 @@ export default function AiChatRoute() {
                   <div 
                     className={`max-w-[80%] text-[11px] leading-relaxed border overflow-hidden ${
                       msg.role === 'user' 
-                        ? 'px-4 py-1 bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-900 border-zinc-700 dark:border-zinc-300' 
+                        ? 'px-2 py-2 bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-900 border-zinc-700 dark:border-zinc-300' 
                         : 'px-4 py-3 bg-white/40 dark:bg-zinc-900/40 border-zinc-500/10 dark:border-white/5'
                     }`}
                     style={{ borderRadius: '16px', cornerShape: 'squircle' } as React.CSSProperties}
                     
                   >
                     <div className="flex flex-col gap-2 overflow-x-auto overflow-y-hidden break-words">
-                      <MarkdownChatContent
-                        content={msg.content}
-                        streamingEventId={msg.streamingEventId}
-                        onScrollToBottom={scrollToBottomIfEnabled}
-                      />
+                      {msg.role === 'user' ? (
+                        <ChatUserMessage
+                          message={msg}
+                          inBubble
+                          isWidget={false}
+                          onScrollToBottom={scrollToBottomIfEnabled}
+                        />
+                      ) : (
+                        <MarkdownChatContent
+                          content={msg.content}
+                          streamingEventId={msg.streamingEventId}
+                          onScrollToBottom={scrollToBottomIfEnabled}
+                        />
+                      )}
                     </div>
                   </div>
                   {msg.role === 'user' && (

@@ -7,6 +7,7 @@ import { CompanyLogo } from '../../components/CompanyLogo';
 import { invoke } from '@tauri-apps/api/core';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import MarkdownChatContent from '../../components/MarkdownChatContent';
+import ChatUserMessage from '../../components/ai/ChatUserMessage';
 import SessionComposer from '../../components/ai/SessionComposer';
 import { CutoutProvider } from '../../components/ui/CutoutProvider';
 
@@ -146,12 +147,21 @@ export default function AiArea({ widgetId }: { widgetId: string }) {
                                     </div>
                                     <div className="text-zinc-700 dark:text-zinc-300 leading-normal overflow-hidden w-full px-2">
                                         <div className="flex flex-col gap-1.5 overflow-x-auto overflow-y-hidden break-words">
-                                            <MarkdownChatContent
-                                                content={msg.content}
-                                                streamingEventId={msg.streamingEventId}
-                                                isWidget={true}
-                                                onScrollToBottom={scrollToBottomIfEnabled}
-                                            />
+                                            {msg.role === 'user' ? (
+                                                <ChatUserMessage
+                                                    message={msg}
+                                                    isWidget
+                                                    onScrollToBottom={scrollToBottomIfEnabled}
+                                                    topOffset={8}
+                                                />
+                                            ) : (
+                                                <MarkdownChatContent
+                                                    content={msg.content}
+                                                    streamingEventId={msg.streamingEventId}
+                                                    isWidget={true}
+                                                    onScrollToBottom={scrollToBottomIfEnabled}
+                                                />
+                                            )}
                                         </div>
                                     </div>
                                 </div>

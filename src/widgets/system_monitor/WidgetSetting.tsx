@@ -10,7 +10,7 @@ export default function SystemMonitorWidgetSetting({ widgetId }: { widgetId: str
     const { t, language } = useTranslation();
 
     const showChartsArea = config.showChartsArea ?? true;
-    const areaLayout = (config.areaLayout as 'normal' | 'compact') || 'normal';
+    const areaLayout = (config.areaLayout as 'normal' | 'compact') || 'compact';
 
     const handleUpdate = (updates: Record<string, unknown>) => {
         updateInstance(widgetId, { ...config, ...updates });

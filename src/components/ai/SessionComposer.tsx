@@ -1,11 +1,21 @@
 import { useState, useEffect, useRef } from 'react';
 import { emit } from '@tauri-apps/api/event';
-import { SendRegular, StopRegular, AddRegular, DismissRegular, DocumentRegular, NoteRegular } from '@fluentui/react-icons';
+import {
+  SendRegular,
+  StopRegular,
+  AddRegular,
+  DocumentRegular,
+  NoteRegular,
+} from '@fluentui/react-icons';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { CutoutModal } from '../ui/CutoutModal';
 import { useAiServicesStore } from '../../stores/aiServicesStore';
 import { aiManager } from '../../lib/AiServicesManager';
 import { SessionAttachment, EMPTY_SESSION_DRAFT } from '../../types/ai';
+import { AttachmentChips } from './AttachmentChips';
+import { readTextFileFromInput, TEXT_FILE_ACCEPT } from '../../lib/textFileAttach';
+import { invoke } from '@tauri-apps/api/core';
 
 /** Stable empty attachments ref for Zustand selectors */
 const EMPTY_ATTACHMENTS: SessionAttachment[] = EMPTY_SESSION_DRAFT.attachments;
@@ -39,16 +49,19 @@ export default function SessionComposer({
   compact = false,
   modelPicker,
 }: SessionComposerProps) {
+  const [attachMenuOpen, setAttachMenuOpen] = useState(false);
   const [attachOpen, setAttachOpen] = useState(false);
   const [attachName, setAttachName] = useState('');
   const [attachBody, setAttachBody] = useState('');
   const [localSessionId, setLocalSessionId] = useState<string | null>(null);
   const [localPrompt, setLocalPrompt] = useState('');
+  const [fileError, setFileError] = useState<string | null>(null);
   const promptDirtyRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const localPromptRef = useRef(localPrompt);
   localPromptRef.current = localPrompt;
   const prevSessionRef = useRef<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const effectiveSessionId = sessionId || localSessionId;
 
@@ -66,17 +79,16 @@ export default function SessionComposer({
   );
   const removeAttachmentFromDraft = useAiServicesStore((s) => s.removeAttachmentFromDraft);
 
-  // Load prompt when switching sessions (don't clobber mid-keystroke after lazy create)
+  const hasContent = !!localPrompt.trim() || attachments.length > 0;
+
   useEffect(() => {
     const prev = prevSessionRef.current;
     prevSessionRef.current = effectiveSessionId;
 
-    // Lazy create: null → new id while typing — keep local text
     if (promptDirtyRef.current && !prev && effectiveSessionId) {
       return;
     }
 
-    // Real switch while dirty — flush previous session first
     if (prev && prev !== effectiveSessionId && promptDirtyRef.current) {
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);
@@ -95,7 +107,6 @@ export default function SessionComposer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveSessionId]);
 
-  // Remote draft updates (other window) while not typing
   useEffect(() => {
     if (!promptDirtyRef.current) {
       setLocalPrompt(storePrompt);
@@ -121,7 +132,14 @@ export default function SessionComposer({
     promptDirtyRef.current = false;
   };
 
-  const hasContent = !!localPrompt.trim() || attachments.length > 0;
+  const flushPendingPrompt = (sid: string) => {
+    if (!promptDirtyRef.current) return;
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    flushPromptToStore(sid, localPrompt);
+  };
 
   const handlePromptChange = (value: string) => {
     const id = ensureSession();
@@ -146,7 +164,6 @@ export default function SessionComposer({
     const attachmentsSnapshot = draftBefore.attachments;
     if (!promptSnapshot.trim() && attachmentsSnapshot.length === 0) return;
 
-    // Empty composer immediately on send press
     setLocalPrompt('');
     promptDirtyRef.current = false;
     flushPromptToStore(sid, promptSnapshot);
@@ -156,7 +173,6 @@ export default function SessionComposer({
       await aiManager.send(instanceId, sid);
     } catch (e) {
       console.error(e);
-      // Restore draft if send failed after we already cleared the UI
       setLocalPrompt(promptSnapshot);
       promptDirtyRef.current = true;
       useAiServicesStore.getState().setSessionDraft(sid, {
@@ -168,25 +184,26 @@ export default function SessionComposer({
     }
   };
 
-  const openAttachModal = () => {
+  const openTextAttachModal = () => {
+    setAttachMenuOpen(false);
     ensureSession();
     setAttachName('');
     setAttachBody('');
     setAttachOpen(true);
   };
 
+  const openFilePicker = () => {
+    setAttachMenuOpen(false);
+    setFileError(null);
+    ensureSession();
+    fileInputRef.current?.click();
+  };
+
   const confirmAttach = () => {
     const sid = ensureSession();
     const body = attachBody.trim();
     if (!body) return;
-    // Persist pending prompt before attach sync
-    if (promptDirtyRef.current) {
-      if (saveTimerRef.current) {
-        clearTimeout(saveTimerRef.current);
-        saveTimerRef.current = null;
-      }
-      flushPromptToStore(sid, localPrompt);
-    }
+    flushPendingPrompt(sid);
     aiManager.addAttach(sid, {
       kind: 'text',
       name: attachName.trim() || 'Note',
@@ -197,6 +214,34 @@ export default function SessionComposer({
     setAttachBody('');
   };
 
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const sid = ensureSession();
+      flushPendingPrompt(sid);
+      const parsed = await readTextFileFromInput(file);
+      
+      const savedPath = await invoke<string>('save_attachment_file', {
+        sessionId: sid,
+        fileName: parsed.name,
+        content: parsed.content,
+      });
+
+      aiManager.addAttach(sid, {
+        kind: 'file',
+        name: parsed.name,
+        content: savedPath,
+        mimeType: parsed.mimeType,
+      });
+      setFileError(null);
+    } catch (err: any) {
+      console.error(err);
+      setFileError(err?.message || 'Failed to attach file');
+    }
+  };
+
   const removeAttach = (id: string) => {
     const sid = ensureSession();
     removeAttachmentFromDraft(sid, id);
@@ -204,56 +249,71 @@ export default function SessionComposer({
 
   return (
     <>
-      <div
-        className={`shrink-0 ${
-          compact
-            ? 'pt-0'
-            : ''
-        }`}
-      >
+      <div className={`shrink-0 overflow-visible ${compact ? 'pt-0' : ''}`}>
         <div
-          className={`border-t border-zinc-500/20 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 shadow-sm overflow-hidden ${
+          className={`border-t border-zinc-500/20 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 shadow-sm overflow-visible z-10 ${
             compact ? 'rounded-2xl' : ''
           }`}
         >
-          {/* Attachments row */}
           <div className="flex items-center gap-1.5 px-2.5 pt-2 overflow-x-auto min-h-[36px]">
-              <button
-                type="button"
-                onClick={openAttachModal}
-                disabled={isSending}
-                title="Add text attachment"
-                className="shrink-0 inline-flex items-center gap-1 h-7 px-2 rounded-lg text-[10px] font-medium bg-zinc-900/5 dark:bg-white/5 hover:bg-zinc-900/10 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-300 border border-zinc-500/15 transition-colors disabled:opacity-40"
-              >
-                <AddRegular fontSize={14} />
-                <span>Attach</span>
-              </button>
-
-              {attachments.map((att: SessionAttachment) => (
-                <div
-                  key={att.id}
-                  className="shrink-0 group inline-flex items-center gap-1 max-w-[160px] h-7 pl-2 pr-1 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-800 dark:text-sky-200"
-                  title={att.kind === 'text' ? att.content.slice(0, 200) : att.name}
+            <Popover open={attachMenuOpen} onOpenChange={setAttachMenuOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  disabled={isSending}
+                  className="shrink-0 inline-flex items-center gap-1 h-7 px-2 rounded-lg text-[10px] font-medium bg-zinc-900/5 dark:bg-white/5 hover:bg-zinc-900/10 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-300 border border-zinc-500/15 transition-colors disabled:opacity-40"
                 >
-                  {att.kind === 'file' ? (
-                    <DocumentRegular fontSize={12} className="shrink-0 opacity-80" />
-                  ) : (
-                    <NoteRegular fontSize={12} className="shrink-0 opacity-80" />
-                  )}
-                  <span className="text-[10px] font-medium truncate">{att.name}</span>
+                  <AddRegular fontSize={14} />
+                  <span>Attach</span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                side="top"
+                align="start"
+                sideOffset={6}
+                className="w-40 p-1 min-w-[140px] rounded-xl border border-zinc-500/20 bg-white/95 dark:bg-zinc-900/95 shadow-lg backdrop-blur-md z-50 pointer-events-auto"
+              >
+                <div className="flex flex-col gap-0.5">
                   <button
                     type="button"
-                    onClick={() => removeAttach(att.id)}
-                    className="flex justify-center items-center h-4 w-4 rounded-md hover:bg-sky-500/20 text-sky-700/70 dark:text-sky-300/70"
-                    aria-label="Remove attachment"
+                    onClick={openTextAttachModal}
+                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[11px] text-zinc-800 dark:text-zinc-100 hover:bg-zinc-500/10 text-start"
                   >
-                    <DismissRegular fontSize={12} />
+                    <NoteRegular fontSize={14} />
+                    Text
+                  </button>
+                  <button
+                    type="button"
+                    onClick={openFilePicker}
+                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[11px] text-zinc-800 dark:text-zinc-100 hover:bg-zinc-500/10 text-start"
+                  >
+                    <DocumentRegular fontSize={14} />
+                    File
                   </button>
                 </div>
-              ))}
-            </div>
+              </PopoverContent>
+            </Popover>
 
-          {/* Input row */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={TEXT_FILE_ACCEPT}
+              className="hidden"
+              onChange={handleFileSelected}
+            />
+
+            <AttachmentChips
+              attachments={attachments}
+              onRemove={removeAttach}
+              compact={compact}
+              topOffset={compact ? 8 : 36}
+            />
+          </div>
+
+          {fileError && (
+            <div className="px-2.5 pt-1 text-[10px] text-red-500">{fileError}</div>
+          )}
+
           <div className={`flex items-end gap-2 px-2.5 pb-2.5 ${attachments.length ? 'pt-1' : 'pt-1'}`}>
             {modelPicker && (
               modelPicker.isLoadingModels ? (

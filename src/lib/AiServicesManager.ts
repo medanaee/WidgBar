@@ -52,18 +52,33 @@ function stripReasoningBlocks(text: string): string {
 }
 
 /** Build the user message string from draft prompt + attachments */
-export function composeDraftContent(prompt: string, attachments: SessionAttachment[]): string {
+export async function composeDraftContent(prompt: string, attachments: SessionAttachment[]): Promise<string> {
   const parts: string[] = [];
   for (const att of attachments) {
     if (att.kind === 'text') {
       parts.push(`--- Attachment: ${att.name} ---\n${att.content}`);
     } else {
-      parts.push(`--- File: ${att.name}${att.mimeType ? ` (${att.mimeType})` : ''} ---\n${att.content}`);
+      let fileContent = att.content;
+      try {
+        fileContent = await invoke<string>('read_attachment_file', { path: att.content });
+      } catch (err) {
+        console.error('Failed to read attached file from disk:', err);
+        fileContent = `(Failed to read file: ${att.name})`;
+      }
+      parts.push(`--- File: ${att.name}${att.mimeType ? ` (${att.mimeType})` : ''} ---\n${fileContent}`);
     }
   }
   const trimmed = prompt.trim();
   if (trimmed) parts.push(trimmed);
   return parts.join('\n\n').trim();
+}
+
+/** Content sent to the model (prompt + attachments expanded). */
+export async function messageWireContent(message: ChatMessage): Promise<string> {
+  if (message.attachments && message.attachments.length > 0) {
+    return composeDraftContent(message.content, message.attachments);
+  }
+  return message.content;
 }
 
 class AiServicesManager {
@@ -136,13 +151,15 @@ class AiServicesManager {
   public async send(instanceId: string, sessionId: string): Promise<ChatMessage> {
     const store = useAiServicesStore.getState();
     const draft = store.getSessionDraft(sessionId);
-    const content = composeDraftContent(draft.prompt, draft.attachments);
-    if (!content) {
+    const prompt = draft.prompt;
+    const attachments = [...draft.attachments];
+    const wire = await composeDraftContent(prompt, attachments);
+    if (!wire) {
       throw new Error('Draft is empty');
     }
     // Clear immediately on send so the composer empties before streaming finishes
     store.clearSessionDraft(sessionId);
-    return this.sendMessage(instanceId, sessionId, content);
+    return this.sendMessage(instanceId, sessionId, prompt, attachments);
   }
 
   /**
@@ -208,7 +225,8 @@ class AiServicesManager {
   public async sendMessage(
     instanceId: string, 
     sessionId: string, 
-    content: string
+    content: string,
+    attachments: SessionAttachment[] = [],
   ): Promise<ChatMessage> {
     const store = useAiServicesStore.getState();
     const instance = store.data.instances.find(i => i.id === instanceId);
@@ -220,11 +238,12 @@ class AiServicesManager {
     const provider = AI_PROVIDERS.find(p => p.id === instance.providerId);
     if (!provider) throw new Error("Provider not found");
 
-    // 1. Add User Message
+    // 1. Add User Message (UI shows prompt + chips; model gets wire content)
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
       role: 'user',
       content,
+      attachments: attachments.length > 0 ? attachments : undefined,
       timestamp: Date.now(),
     };
 
@@ -290,12 +309,15 @@ class AiServicesManager {
     systemPrompt: string,
     reasoningEffort?: 'low' | 'medium' | 'high'
   ): Promise<string> {
-    const requestMessages = [
+    const requestMessages: Array<{ role: 'user' | 'assistant' | 'system', content: string }> = [
       ...(systemPrompt ? [{ role: 'system' as const, content: systemPrompt }] : []),
-      ...messages
-        .filter(m => m.role === 'user' || m.role === 'assistant')
-        .map(m => ({ role: m.role, content: m.content })),
     ];
+
+    for (const m of messages) {
+      if (m.role === 'user' || m.role === 'assistant') {
+        requestMessages.push({ role: m.role, content: await messageWireContent(m) });
+      }
+    }
 
     const applyReasoning = (body: Record<string, unknown>, targetModel: string) => {
       if (!reasoningEffort) return;
@@ -307,12 +329,15 @@ class AiServicesManager {
 
     if (providerId === 'gemini-api') {
       const geminiModel = model || 'gemini-1.5-flash';
-      const formattedContents = messages
-        .filter(m => m.role === 'user' || m.role === 'assistant')
-        .map(m => ({
-          role: m.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: m.content }],
-        }));
+      const formattedContents = [];
+      for (const m of messages) {
+        if (m.role === 'user' || m.role === 'assistant') {
+          formattedContents.push({
+            role: m.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: await messageWireContent(m) }],
+          });
+        }
+      }
 
       const requestBody: Record<string, unknown> = {
         contents: formattedContents,
@@ -395,10 +420,21 @@ class AiServicesManager {
   ): Promise<string> {
     if (!apiKey) throw new Error("API Key is missing");
 
-    const requestMessages = [
+    const requestMessages: Array<{ role: 'user' | 'assistant' | 'system', content: string }> = [
       ...(systemPrompt ? [{ role: 'system' as const, content: systemPrompt }] : []),
-      ...messages.map(m => ({ role: m.role, content: m.content }))
     ];
+
+    const geminiFormattedContents = [];
+
+    for (const m of messages) {
+      const wire = await messageWireContent(m);
+      requestMessages.push({ role: m.role, content: wire });
+      
+      geminiFormattedContents.push({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: wire }]
+      });
+    }
 
     let fullText = "";
     let isReasoning = false;
@@ -484,14 +520,10 @@ class AiServicesManager {
           eventId
         });
       } else if (providerId === 'gemini-api') {
-        const formattedContents = messages.map(m => ({
-          role: m.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: m.content }]
-        }));
         const geminiModel = model || 'gemini-1.5-flash';
         
         const requestBody: any = {
-          contents: formattedContents,
+          contents: geminiFormattedContents,
           generationConfig: {
              ...(temperature !== undefined && { temperature })
           }
