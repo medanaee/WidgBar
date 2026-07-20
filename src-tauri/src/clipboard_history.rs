@@ -55,7 +55,6 @@ fn remove_image_files(path: &str) {
     let _ = std::fs::remove_file(&thumb);
 }
 
-/// Saves full-quality PNG + a small PNG thumb. Returns full path.
 fn save_clipboard_image(rgba: &[u8], width: u32, height: u32) -> Result<PathBuf, String> {
     let dir = IMAGE_DIR
         .lock()
@@ -199,13 +198,14 @@ fn read_clipboard_image() -> Option<(Vec<u8>, u32, u32)> {
                 ..Default::default()
             };
 
-            let mut bgra = vec![0u8; (width * height * 4) as usize];
+            // Only allocate one buffer for the image
+            let mut buffer = vec![0u8; (width * height * 4) as usize];
             let ok = GetDIBits(
                 hdc,
                 hbmp,
                 0,
                 height,
-                Some(bgra.as_mut_ptr() as *mut _),
+                Some(buffer.as_mut_ptr() as *mut _),
                 &mut bmi,
                 DIB_RGB_COLORS,
             );
@@ -216,15 +216,15 @@ fn read_clipboard_image() -> Option<(Vec<u8>, u32, u32)> {
                 return None;
             }
 
-            let mut rgba = vec![0u8; bgra.len()];
-            for i in 0..(width * height) as usize {
-                let o = i * 4;
-                rgba[o] = bgra[o + 2];
-                rgba[o + 1] = bgra[o + 1];
-                rgba[o + 2] = bgra[o];
-                rgba[o + 3] = 255;
+            // OPTIMIZATION: In-place BGRA to RGBA conversion using chunks
+            // This avoids creating a second vector and allows LLVM to vectorize the loop (SIMD).
+            for chunk in buffer.chunks_exact_mut(4) {
+                chunk.swap(0, 2); // Swap Blue (0) and Red (2)
+                chunk[3] = 255;   // Set Alpha to fully opaque
             }
-            Some((rgba, width, height))
+            
+            // The buffer is now RGBA
+            Some((buffer, width, height))
         })();
         let _ = CloseClipboard();
         result
@@ -281,16 +281,15 @@ fn set_clipboard_image_from_file(path: &str) -> Result<(), String> {
     };
 
     let dyn_img = image::open(path).map_err(|e| e.to_string())?;
-    let rgba = dyn_img.to_rgba8();
-    let width = rgba.width();
-    let height = rgba.height();
-    let mut bgra = vec![0u8; (width * height * 4) as usize];
-    for (i, px) in rgba.pixels().enumerate() {
-        let o = i * 4;
-        bgra[o] = px[2];
-        bgra[o + 1] = px[1];
-        bgra[o + 2] = px[0];
-        bgra[o + 3] = px[3];
+    let width = dyn_img.width();
+    let height = dyn_img.height();
+    
+    // OPTIMIZATION: Get the raw underlying buffer instead of iterating over pixels
+    let mut buffer = dyn_img.into_rgba8().into_raw();
+
+    // OPTIMIZATION: In-place RGBA to BGRA conversion
+    for chunk in buffer.chunks_exact_mut(4) {
+        chunk.swap(0, 2); // Swap Red (0) and Blue (2)
     }
 
     unsafe {
@@ -299,7 +298,7 @@ fn set_clipboard_image_from_file(path: &str) -> Result<(), String> {
         let hbmp = CreateCompatibleBitmap(screen, width as i32, height as i32);
         let old = SelectObject(hdc, HGDIOBJ(hbmp.0));
 
-        let mut bmi = BITMAPINFO {
+        let bmi = BITMAPINFO {
             bmiHeader: BITMAPINFOHEADER {
                 biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
                 biWidth: width as i32,
@@ -317,7 +316,7 @@ fn set_clipboard_image_from_file(path: &str) -> Result<(), String> {
             hbmp,
             0,
             height,
-            bgra.as_ptr() as *const _,
+            buffer.as_ptr() as *const _,
             &bmi,
             DIB_RGB_COLORS,
         );

@@ -93,13 +93,13 @@ export default function MusicBar({ widgetId }: { widgetId: string }) {
 
                 {barShowButtons && (
                     <div className="relative z-10 flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-                        <button onClick={() => handleCommand('prev')} className="p-1 hover:bg-white/10 rounded transition-colors text-white/80 hover:text-white">
+                        <button onClick={(e) => { e.stopPropagation(); handleCommand('prev'); }} className="p-1 hover:bg-white/10 rounded transition-colors text-white/80 hover:text-white">
                             <SkipBack className="w-3 h-3" />
                         </button>
-                        <button onClick={() => handleCommand('toggle')} className="p-1.5 bg-white/10 hover:bg-white/20 rounded-full transition-all text-white">
+                        <button onClick={(e) => { e.stopPropagation(); handleCommand('toggle'); }} className="p-1.5 bg-white/10 hover:bg-white/20 rounded-full transition-all text-white">
                             {media.is_playing ? <Pause className="w-2.5 h-2.5" /> : <Play className="w-2.5 h-2.5" />}
                         </button>
-                        <button onClick={() => handleCommand('next')} className="p-1 hover:bg-white/10 rounded transition-colors text-white/80 hover:text-white">
+                        <button onClick={(e) => { e.stopPropagation(); handleCommand('next'); }} className="p-1 hover:bg-white/10 rounded transition-colors text-white/80 hover:text-white">
                             <SkipForward className="w-3 h-3" />
                         </button>
                     </div>
@@ -139,13 +139,13 @@ export default function MusicBar({ widgetId }: { widgetId: string }) {
 
             {barShowButtons && (
                 <div className="relative z-10 flex items-center gap-0.5 shrink-0 ml-1" onClick={(e) => e.stopPropagation()}>
-                    <button onClick={() => handleCommand('prev')} className="p-0.5 hover:bg-white/10 rounded transition-colors text-white/80 hover:text-white">
+                    <button onClick={(e) => { e.stopPropagation(); handleCommand('prev'); }} className="p-0.5 hover:bg-white/10 rounded transition-colors text-white/80 hover:text-white">
                         <SkipBack className="w-3 h-3" />
                     </button>
-                    <button onClick={() => handleCommand('toggle')} className="p-0.5 hover:bg-white/10 rounded transition-colors text-white">
+                    <button onClick={(e) => { e.stopPropagation(); handleCommand('toggle'); }} className="p-0.5 hover:bg-white/10 rounded transition-colors text-white">
                         {media.is_playing ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
                     </button>
-                    <button onClick={() => handleCommand('next')} className="p-0.5 hover:bg-white/10 rounded transition-colors text-white/80 hover:text-white">
+                    <button onClick={(e) => { e.stopPropagation(); handleCommand('next'); }} className="p-0.5 hover:bg-white/10 rounded transition-colors text-white/80 hover:text-white">
                         <SkipForward className="w-3 h-3" />
                     </button>
                 </div>

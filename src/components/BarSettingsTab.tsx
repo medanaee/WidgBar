@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useLayoutStore } from '../stores/layoutStore';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
-import { GripVertical, Plus, Trash2, LayoutGrid, Settings } from 'lucide-react';
+import { GripVertical, Plus, Trash2, LayoutGrid, Settings, Link2 } from 'lucide-react';
+import { NoticeBanner } from './ui/NoticeBanner';
 import { emit } from "@tauri-apps/api/event";
 import { Switch } from "@/components/ui/switch";
 import { TabsContent } from "@/components/ui/tabs";
@@ -220,16 +221,13 @@ export default function BarSettingsTab({
               </Select>
             </SettingCard>
 
-            {/* Warning Banner */}
             {isBorrowing && (
-              <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs flex flex-col gap-1 leading-normal animate-in fade-in duration-200">
-                <span className="font-semibold">
-                  {t("borrowBarLayoutWarning")}
-                </span>
-                <span>
-                  {t("borrowBarLayoutWarningDesc")}
-                </span>
-              </div>
+              <NoticeBanner
+                tone="primary"
+                icon={Link2}
+                title={t("borrowBarLayoutWarning")}
+                description={t("borrowBarLayoutWarningDesc")}
+              />
             )}
 
             <div className={`space-y-4 ${isBorrowing ? "pointer-events-none opacity-50 select-none" : ""}`}>

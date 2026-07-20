@@ -47,7 +47,7 @@ fn start_animation(start_y: f64, end_y: f64, x :f64, win_clone: tauri::WebviewWi
 }
 
 pub fn init_reserved_windows(app: AppHandle) {
-    let num_window_reserved = 2;
+    let num_window_reserved = 1;
     let mut pool_tracker = Vec::new();
     for i in 0..num_window_reserved {
         let label = format!("pool_win_{}", i);

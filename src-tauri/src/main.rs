@@ -210,23 +210,6 @@ fn set_system_volume(vol: f32) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn send_media_command(command: String, seek_pos_ms: Option<u32>) -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(move || media_control::send_media_command(&command, seek_pos_ms))
-        .await
-        .map_err(|e| format!("Task failed: {}", e))?
-}
-
-#[tauri::command]
-fn get_current_media_state() -> Result<Option<media_control::MediaTick>, String> {
-    media_control::get_current_media_state()
-}
-
-#[tauri::command]
-fn get_media_cover_data_url() -> Result<Option<String>, String> {
-    media_control::get_media_cover_data_url()
-}
-
-#[tauri::command]
 async fn proxy_request(
     url: String,
     method: String,
@@ -376,9 +359,8 @@ fn main() {
             exit_app,
             get_system_volume,
             set_system_volume,
-            send_media_command,
-            get_current_media_state,
-            get_media_cover_data_url,
+            media_control::send_media_command,
+            media_control::get_media_snapshot,
             load_clipboard_history,
             save_clipboard_history,
             clipboard_history::clipboard_paste_text,
@@ -405,7 +387,7 @@ fn main() {
             system_monitor::start_monitor_thread(stats.clone());
             app.manage(system_monitor::SystemMonitorState { stats });
             
-            #[cfg(target_os = "windows")]
+            // #[cfg(target_os = "windows")]
             media_control::start_media_listener(app.handle().clone());
 
             clipboard_history::start_clipboard_watcher(app.handle().clone());

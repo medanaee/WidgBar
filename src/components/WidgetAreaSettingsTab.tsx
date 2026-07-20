@@ -1,8 +1,9 @@
 import React from 'react';
 import { Switch } from "@/components/ui/switch";
 import { TabsContent } from "@/components/ui/tabs";
-import { Settings as SettingsIcon, LayoutGrid, Plus, Trash2 } from 'lucide-react';
+import { Settings as SettingsIcon, LayoutGrid, Plus, Trash2, Link2 } from 'lucide-react';
 import { SettingCard } from "./ui/SettingCard";
+import { NoticeBanner } from "./ui/NoticeBanner";
 import { useLayoutStore } from "../stores/layoutStore";
 import { emit } from "@tauri-apps/api/event";
 import { WidgetIcon } from './WidgetIcon';
@@ -100,16 +101,13 @@ export default function WidgetAreaSettingsTab({
               </Select>
             </SettingCard>
 
-            {/* Warning Banner */}
             {isBorrowing && (
-              <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs flex flex-col gap-1 leading-normal animate-in fade-in duration-200">
-                <span className="font-semibold">
-                  {t("borrowWidgetLayoutWarning")}
-                </span>
-                <span>
-                  {t("borrowWidgetLayoutWarningDesc")}
-                </span>
-              </div>
+              <NoticeBanner
+                tone="yellow"
+                icon={Link2}
+                title={t("borrowWidgetLayoutWarning")}
+                description={t("borrowWidgetLayoutWarningDesc")}
+              />
             )}
 
             {/* Rest of Settings */}

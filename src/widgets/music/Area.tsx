@@ -133,11 +133,6 @@ export default function MusicArea({ widgetId }: { widgetId: string }) {
                     <span className="text-xs text-zinc-500 dark:text-zinc-400 truncate block mt-0.5 font-medium">
                         {media.artist || t('musicStartPlayer')}
                     </span>
-                    {media.album && (
-                        <span className="text-[10px] text-zinc-400 dark:text-zinc-500 truncate block mt-0.5">
-                            {media.album}
-                        </span>
-                    )}
                 </div>
             </div>
 

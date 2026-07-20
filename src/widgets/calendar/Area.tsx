@@ -119,7 +119,7 @@ export default function CalendarArea({ widgetId }: { widgetId: string }) {
         // Saturday is start of week in Farsi, Sunday in English
         const isFarsiCalendar = mainCalendar === 'persian' || mainCalendar === 'islamic-umalqura';
         const startOffset = (language === 'fa' || isFarsiCalendar) ? (firstDay.getDay() + 1) % 7 : firstDay.getDay();
-        
+
         const activeLocale = isFarsiCalendar ? 'fa-IR' : locale;
         const titleStr = new Intl.DateTimeFormat(activeLocale, { calendar: mainCalendar, month: 'long', year: 'numeric' }).format(viewDate);
 
@@ -171,8 +171,8 @@ export default function CalendarArea({ widgetId }: { widgetId: string }) {
     return (
         <div className="flex flex-col w-full h-full text-zinc-800 dark:text-zinc-100 p-4 font-sans select-none overflow-hidden relative">
             {/* Header Switcher */}
-            <div className="flex items-center justify-between mb-2 shrink-0 border-b border-zinc-500/5 pb-1">
-                <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
+            <div className="flex items-center justify-between mb-2 shrink-0 border-b border-zinc-500/20 pb-2">
+                <span className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
                     {t("calDateEvents" as TranslationKey)}
                 </span>
                 <button
@@ -196,7 +196,7 @@ export default function CalendarArea({ widgetId }: { widgetId: string }) {
                             <span className="text-lg font-bold leading-tight tracking-tight text-zinc-800 dark:text-zinc-100 text-start" dir="auto">
                                 {mainDateFormatted}
                             </span>
-                            
+
                             {/* Secondary Calendars */}
                             {secondaryDates.length > 0 && (
                                 <div className="mt-2.5 space-y-1 border-t border-zinc-500/10 pt-2 text-left">
@@ -235,12 +235,9 @@ export default function CalendarArea({ widgetId }: { widgetId: string }) {
                             </div>
 
                             <div className="flex items-center gap-1.5">
-                                <span className="text-xs font-bold text-zinc-800 dark:text-zinc-100" dir="auto">
+                                <span onClick={resetToToday} className="text-xs font-bold text-zinc-800 dark:text-zinc-100 hover:bg-zinc-500/20 px-2 py-1 rounded-lg" dir="auto">
                                     {gridData.title}
                                 </span>
-                                <button onClick={resetToToday} className="p-0.5 hover:bg-zinc-500/10 dark:hover:bg-zinc-500/20 rounded-sm text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200" title="Go to Today">
-                                    <RotateCcw className="w-3.5 h-3.5" />
-                                </button>
                             </div>
 
                             <div className="flex items-center gap-1">
@@ -261,11 +258,10 @@ export default function CalendarArea({ widgetId }: { widgetId: string }) {
                                     const isFarsi = language === 'fa' || mainCalendar === 'persian' || mainCalendar === 'islamic-umalqura';
                                     const isWeekend = isFarsi ? i === 6 : (i === 0 || i === 6);
                                     return (
-                                        <div 
-                                            key={i} 
-                                            className={`text-[10px] font-bold py-0.5 ${
-                                                isWeekend ? 'text-red-500 dark:text-red-400' : 'text-zinc-400 dark:text-zinc-500'
-                                            }`}
+                                        <div
+                                            key={i}
+                                            className={`text-[10px] font-bold py-0.5 ${isWeekend ? 'text-red-500 dark:text-red-400' : 'text-zinc-400 dark:text-zinc-500'
+                                                }`}
                                         >
                                             {d}
                                         </div>
@@ -284,18 +280,17 @@ export default function CalendarArea({ widgetId }: { widgetId: string }) {
                                     const isWeekend = isFarsi ? dayOfWeek === 5 : (dayOfWeek === 0 || dayOfWeek === 6);
 
                                     return (
-                                        <div 
-                                            key={day.date.toDateString()} 
+                                        <div
+                                            key={day.date.toDateString()}
                                             className="h-full flex items-center justify-center"
                                         >
-                                            <div 
-                                                className={`text-xs font-semibold rounded-md flex items-center justify-center transition-all w-7 h-7 ${
-                                                    day.isToday 
-                                                        ? 'bg-primary text-primary-foreground font-bold shadow-xs' 
+                                            <div
+                                                className={`text-xs font-semibold rounded-md flex items-center justify-center transition-all w-7 h-7 aspect-square ${day.isToday
+                                                        ? 'bg-primary/50 text-primary-foreground font-bold shadow-xs'
                                                         : isWeekend
-                                                            ? 'text-red-500 dark:text-red-400 hover:bg-red-500/10'
-                                                            : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-500/10'
-                                                }`}
+                                                            ? 'text-red-500 dark:text-red-400 hover:bg-red-500/20'
+                                                            : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-500/20'
+                                                    }`}
                                             >
                                                 {day.dayNum}
                                             </div>

@@ -3,67 +3,50 @@ use windows::Media::Control::GlobalSystemMediaTransportControlsSessionManager;
 use std::sync::Mutex;
 use once_cell::sync::Lazy;
 use std::path::PathBuf;
+use tauri::Emitter;
 
-/// Lightweight playback snapshot — never includes image bytes.
-#[derive(serde::Serialize, Clone, PartialEq)]
-pub struct MediaTick {
+#[derive(serde::Serialize, Clone)]
+pub struct MediaTrackEvent {
     pub title: String,
     pub artist: String,
-    pub album: String,
-    pub is_playing: bool,
-    pub position_ms: u32,
     pub duration_ms: u32,
-    /// Bumps when title/artist change so the UI can fetch cover once.
-    pub track_seq: u64,
-    pub has_cover: bool,
-    /// True once we know for sure (cover ready OR confirmed none).
-    /// While false, UI may keep showing the previous track's art (smooth swap).
-    pub cover_settled: bool,
 }
 
-struct CoverCache {
-    track_seq: u64,
+#[derive(serde::Serialize, Clone)]
+pub struct MediaPlaybackEvent {
+    pub is_playing: bool,
+}
+
+#[derive(serde::Serialize, Clone)]
+pub struct MediaPositionEvent {
+    pub position_ms: u32,
+}
+
+struct MediaState {
     title: String,
     artist: String,
-    album: String,
-    /// Raw image bytes on disk (path) — not held as base64 in memory for IPC.
-    path: Option<PathBuf>,
-    mime: String,
-    /// Hash of the last accepted cover (to reject Windows SMTC stale thumbnails).
-    last_hash: u64,
-    /// Album title that last_hash belonged to (same-album art is allowed to repeat).
-    last_album: String,
-    /// After a track change, identical bytes to last_hash are treated as stale until this instant.
-    reject_stale_until: Option<std::time::Instant>,
-    /// Whether we already successfully bound a cover to this track_seq.
-    cover_ready: bool,
-    /// Gave up fetching for this track (stale SMTC art, or no thumbnail).
-    fetch_exhausted: bool,
+    duration_ms: u32,
+    is_playing: bool,
+    last_cover_hash: u64,
+    last_cover_path: Option<String>,
 }
 
-struct LastTick {
-    tick: Option<MediaTick>,
-    /// Avoid spamming null clears to every webview.
-    cleared: bool,
+#[derive(serde::Serialize, Clone)]
+pub struct MediaSnapshot {
+    pub title: String,
+    pub artist: String,
+    pub duration_ms: u32,
+    pub is_playing: bool,
+    pub cover_path: Option<String>,
 }
 
-static COVER: Lazy<Mutex<CoverCache>> = Lazy::new(|| Mutex::new(CoverCache {
-    track_seq: 0,
+static STATE: Lazy<Mutex<MediaState>> = Lazy::new(|| Mutex::new(MediaState {
     title: String::new(),
     artist: String::new(),
-    album: String::new(),
-    path: None,
-    mime: String::new(),
-    last_hash: 0,
-    last_album: String::new(),
-    reject_stale_until: None,
-    cover_ready: false,
-    fetch_exhausted: false,
-}));
-
-static LAST: Lazy<Mutex<LastTick>> = Lazy::new(|| Mutex::new(LastTick {
-    tick: None,
-    cleared: true,
+    duration_ms: 0,
+    is_playing: false,
+    last_cover_hash: 0,
+    last_cover_path: None,
 }));
 
 static COVER_DIR: Lazy<Mutex<Option<PathBuf>>> = Lazy::new(|| Mutex::new(None));
@@ -72,7 +55,6 @@ static COVER_DIR: Lazy<Mutex<Option<PathBuf>>> = Lazy::new(|| Mutex::new(None));
 use windows::Storage::Streams::{Buffer, DataReader};
 
 fn hash_bytes(bytes: &[u8]) -> u64 {
-    // Cheap FNV-1a style hash — enough to detect "same thumbnail as before"
     let mut h: u64 = 0xcbf29ce484222325;
     for b in bytes {
         h ^= u64::from(*b);
@@ -82,92 +64,42 @@ fn hash_bytes(bytes: &[u8]) -> u64 {
     h
 }
 
-pub fn get_last_media_tick() -> Option<MediaTick> {
-    LAST.lock().ok().and_then(|g| g.tick.clone())
-}
-
-/// One-shot cover as data URL — only on track change / mount, never on the poll loop.
-pub fn get_media_cover_data_url() -> Result<Option<String>, String> {
-    let (path, mime) = {
-        let cache = COVER.lock().map_err(|e| e.to_string())?;
-        match &cache.path {
-            Some(p) => (p.clone(), cache.mime.clone()),
-            None => return Ok(None),
-        }
+fn manage_cover_cache() {
+    let dir = match COVER_DIR.lock().unwrap().clone() {
+        Some(d) => d,
+        None => return,
     };
-    let bytes = std::fs::read(&path).map_err(|e| format!("Failed to read cover: {e}"))?;
-    use base64::{engine::general_purpose, Engine as _};
-    let b64 = general_purpose::STANDARD.encode(&bytes);
-    let mime = if mime.is_empty() {
-        "image/jpeg".to_string()
-    } else {
-        mime
-    };
-    Ok(Some(format!("data:{mime};base64,{b64}")))
-}
-
-fn set_cover_dir(dir: PathBuf) {
-    if let Ok(mut g) = COVER_DIR.lock() {
-        *g = Some(dir);
-    }
-}
-
-fn cover_file_path(ext: &str) -> Option<PathBuf> {
-    let dir = COVER_DIR.lock().ok()?.clone()?;
-    Some(dir.join(format!("media_cover.{ext}")))
-}
-
-fn clear_cover_cache() {
-    if let Ok(mut cache) = COVER.lock() {
-        if let Some(path) = cache.path.take() {
-            let _ = std::fs::remove_file(path);
-        }
-        cache.mime.clear();
-        cache.title.clear();
-        cache.artist.clear();
-        cache.album.clear();
-        cache.cover_ready = false;
-        cache.fetch_exhausted = false;
-        cache.reject_stale_until = None;
-    }
-}
-
-fn write_cover_bytes(bytes: &[u8], mime: &str) -> Option<PathBuf> {
-    let ext = if mime.contains("png") {
-        "png"
-    } else if mime.contains("gif") {
-        "gif"
-    } else if mime.contains("webp") {
-        "webp"
-    } else {
-        "jpg"
-    };
-    let path = cover_file_path(ext)?;
-    // Remove previous cover files with other extensions
-    for old_ext in ["jpg", "png", "gif", "webp"] {
-        if let Some(p) = cover_file_path(old_ext) {
-            let _ = std::fs::remove_file(p);
+    
+    if let Ok(entries) = std::fs::read_dir(&dir) {
+        let mut files: Vec<_> = entries.filter_map(|e| e.ok()).collect();
+        if files.len() > 100 {
+            files.sort_by_key(|a| a.metadata().and_then(|m| m.modified()).unwrap_or(std::time::SystemTime::UNIX_EPOCH));
+            for file in files.iter().take(files.len() - 90) {
+                let _ = std::fs::remove_file(file.path());
+            }
         }
     }
-    std::fs::write(&path, bytes).ok()?;
-    Some(path)
 }
 
 #[cfg(target_os = "windows")]
 pub fn start_media_listener(app_handle: tauri::AppHandle) {
-    use tauri::{Emitter, Manager};
+    use tauri::Manager;
 
     if let Ok(dir) = app_handle.path().app_cache_dir() {
-        let cover_dir = dir.join("media");
+        let cover_dir = dir.join("media_covers");
         let _ = std::fs::create_dir_all(&cover_dir);
-        set_cover_dir(cover_dir);
+        if let Ok(mut g) = COVER_DIR.lock() {
+            *g = Some(cover_dir);
+        }
     }
 
     std::thread::spawn(move || {
         unsafe {
-            let _ = windows::Win32::System::Com::CoInitializeEx(
-                None,
-                windows::Win32::System::Com::COINIT_MULTITHREADED,
+            // 2. PRINCIPLED FIX: Use RoInitialize instead of CoInitializeEx.
+            // SMTC (Media Controls) is a WinRT API. WinRT components must be initialized 
+            // using RoInitialize to correctly handle threading models (MTA) without crashing.
+            let _ = windows::Win32::System::WinRT::RoInitialize(
+                windows::Win32::System::WinRT::RO_INIT_MULTITHREADED,
             );
         }
 
@@ -177,71 +109,103 @@ pub fn start_media_listener(app_handle: tauri::AppHandle) {
             .unwrap();
 
         rt.block_on(async {
-            loop {
-                let clear_session = |app: &tauri::AppHandle| {
-                    let should_emit = {
-                        if let Ok(mut g) = LAST.lock() {
-                            let emit = !g.cleared;
-                            g.tick = None;
-                            g.cleared = true;
-                            emit
-                        } else {
-                            true
-                        }
-                    };
-                    if should_emit {
-                        clear_cover_cache();
-                        let _ = app.emit("media_tick", None::<MediaTick>);
-                    }
-                };
+            use windows::Media::Control::GlobalSystemMediaTransportControlsSessionManager;
+            use windows::Storage::Streams::{Buffer, DataReader};
 
-                let manager = match GlobalSystemMediaTransportControlsSessionManager::RequestAsync() {
-                    Ok(op) => match op.await {
-                        Ok(m) => m,
-                        Err(_) => {
-                            clear_session(&app_handle);
-                            tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
-                            continue;
+            let mut cached_manager: Option<GlobalSystemMediaTransportControlsSessionManager> = None;
+            let mut cached_session_id = String::new();
+            
+            let mut cover_pending = false;
+            let mut cover_deadline = std::time::Instant::now();
+
+            loop {
+                let start_time = std::time::Instant::now();
+
+                let manager = match cached_manager.as_ref() {
+                    Some(m) => m,
+                    None => {
+                        // The code you uncommented goes back here. It is now safe to call.
+                        match GlobalSystemMediaTransportControlsSessionManager::RequestAsync() {
+                            Ok(op) => match op.await {
+                                Ok(m) => {
+                                    cached_manager = Some(m);
+                                    cached_manager.as_ref().unwrap()
+                                }
+                                Err(_) => {
+                                    tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+                                    continue;
+                                }
+                            },
+                            Err(_) => {
+                                tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+                                continue;
+                            }
                         }
-                    },
-                    Err(_) => {
-                        clear_session(&app_handle);
-                        tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
-                        continue;
                     }
                 };
 
                 let session = match manager.GetCurrentSession() {
                     Ok(s) => s,
                     Err(_) => {
-                        clear_session(&app_handle);
-                        tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
-                        continue;
-                    }
-                };
-
-                let properties = match session.TryGetMediaPropertiesAsync() {
-                    Ok(op) => match op.await {
-                        Ok(p) => p,
-                        Err(_) => {
-                            clear_session(&app_handle);
-                            tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
-                            continue;
+                        let mut state = STATE.lock().unwrap();
+                        if !state.title.is_empty() || !state.artist.is_empty() {
+                            state.title.clear();
+                            state.artist.clear();
+                            state.duration_ms = 0;
+                            state.is_playing = false;
+                            state.last_cover_hash = 0;
+                            state.last_cover_path = None;
+                            
+                            let _ = app_handle.emit("media_track", MediaTrackEvent {
+                                title: String::new(),
+                                artist: String::new(),
+                                duration_ms: 0,
+                            });
+                            let _ = app_handle.emit("media_cover", None::<String>);
+                            let _ = app_handle.emit("media_playback", MediaPlaybackEvent { is_playing: false });
                         }
-                    },
-                    Err(_) => {
-                        clear_session(&app_handle);
+                        cover_pending = false;
                         tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
                         continue;
                     }
                 };
 
-                let title = properties.Title().unwrap_or_default().to_string();
-                let artist = properties.Artist().unwrap_or_default().to_string();
-                let album = properties.AlbumTitle().unwrap_or_default().to_string();
+                let current_app_id = session.SourceAppUserModelId().unwrap_or_default().to_string();
+                if current_app_id != cached_session_id {
+                    cached_session_id = current_app_id.clone();
+                }
+
+                let mut title = String::new();
+                let mut artist = String::new();
+                let mut props_opt = None;
+
+                if let Ok(op) = session.TryGetMediaPropertiesAsync() {
+                    if let Ok(props) = op.await {
+                        title = props.Title().unwrap_or_default().to_string();
+                        artist = props.Artist().unwrap_or_default().to_string();
+                        props_opt = Some(props);
+                    }
+                }
 
                 if title.is_empty() && artist.is_empty() {
-                    clear_session(&app_handle);
+                    let mut state = STATE.lock().unwrap();
+                    if !state.title.is_empty() || !state.artist.is_empty() {
+                        state.title.clear();
+                        state.artist.clear();
+                        state.duration_ms = 0;
+                        state.is_playing = false;
+                        state.last_cover_hash = 0;
+                        state.last_cover_path = None;
+                        
+                        let _ = app_handle.emit("media_track", MediaTrackEvent {
+                            title: String::new(),
+                            artist: String::new(),
+                            duration_ms: 0,
+                        });
+                        let _ = app_handle.emit("media_cover", None::<String>);
+                        let _ = app_handle.emit("media_playback", MediaPlaybackEvent { is_playing: false });
+                    }
+                    cover_pending = false;
                     tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
                     continue;
                 }
@@ -250,25 +214,21 @@ pub fn start_media_listener(app_handle: tauri::AppHandle) {
                 let is_playing = playback_info
                     .map(|info| {
                         use windows::Media::Control::GlobalSystemMediaTransportControlsSessionPlaybackStatus;
-                        info.PlaybackStatus().ok()
-                            == Some(GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing)
+                        info.PlaybackStatus().ok() == Some(GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing)
                     })
                     .unwrap_or(false);
 
-                let mut position_ms = 0u32;
                 let mut duration_ms = 0u32;
+                let mut position_ms = 0u32;
                 if let Ok(timeline) = session.GetTimelineProperties() {
                     if let Ok(end) = timeline.EndTime() {
                         duration_ms = (end.Duration / 10000) as u32;
                     }
                     if let Ok(pos) = timeline.Position() {
                         let mut calculated_pos = pos.Duration / 10000;
-
                         if is_playing {
                             if let Ok(last_updated) = timeline.LastUpdatedTime() {
-                                if let Ok(now) = std::time::SystemTime::now()
-                                    .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                                {
+                                if let Ok(now) = std::time::SystemTime::now().duration_since(std::time::SystemTime::UNIX_EPOCH) {
                                     let now_ms = now.as_millis() as i64;
                                     let now_1601_ms = now_ms + 11644473600000;
                                     let last_updated_ms = last_updated.UniversalTime / 10000;
@@ -279,7 +239,6 @@ pub fn start_media_listener(app_handle: tauri::AppHandle) {
                                 }
                             }
                         }
-
                         if calculated_pos > (duration_ms as i64) {
                             calculated_pos = duration_ms as i64;
                         }
@@ -287,218 +246,212 @@ pub fn start_media_listener(app_handle: tauri::AppHandle) {
                     }
                 }
 
-                let mut track_changed = false;
-                let mut cover_just_ready = false;
-                let (track_seq, mut has_cover) = {
-                    let mut cache = match COVER.lock() {
-                        Ok(c) => c,
-                        Err(_) => {
-                            tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
-                            continue;
-                        }
-                    };
+                // `track_switched` (title/artist) => it's really a new song, refetch the cover.
+                // `meta_changed` (also duration) => just re-emit media_track so the progress bar
+                // updates; duration alone often jitters on the same track, so it must NOT reopen
+                // the cover window (that caused the cover to vanish after the retry window).
+                let mut track_switched = false;
+                let mut meta_changed = false;
+                let mut playback_changed = false;
 
-                    if cache.title == title && cache.artist == artist {
-                        (cache.track_seq, cache.cover_ready)
-                    } else {
-                        track_changed = true;
-                        cache.track_seq = cache.track_seq.wrapping_add(1);
-                        cache.title = title.clone();
-                        cache.artist = artist.clone();
-                        cache.album = album.clone();
-                        // Drop previous cover immediately — Windows often still serves the old
-                        // thumbnail for a second after the title flips.
-                        if let Some(old) = cache.path.take() {
-                            let _ = std::fs::remove_file(old);
-                        }
-                        cache.mime.clear();
-                        cache.cover_ready = false;
-                        cache.fetch_exhausted = false;
-                        cache.reject_stale_until =
-                            Some(std::time::Instant::now() + std::time::Duration::from_secs(3));
-                        (cache.track_seq, false)
+                {
+                    let mut state = STATE.lock().unwrap();
+                    if state.title != title || state.artist != artist {
+                        track_switched = true;
                     }
-                };
-
-                // Never read thumbnail on the same tick as the title change — SMTC lags.
-                let should_try_cover = {
-                    if let Ok(cache) = COVER.lock() {
-                        !cache.cover_ready
-                            && !cache.fetch_exhausted
-                            && cache.title == title
-                            && cache.artist == artist
-                            && !track_changed
-                    } else {
-                        false
+                    if state.title != title || state.artist != artist || state.duration_ms != duration_ms {
+                        state.title = title.clone();
+                        state.artist = artist.clone();
+                        state.duration_ms = duration_ms;
+                        meta_changed = true;
                     }
-                };
+                    if state.is_playing != is_playing {
+                        state.is_playing = is_playing;
+                        playback_changed = true;
+                    }
+                }
 
-                if should_try_cover {
-                    let mut got_bytes: Option<(Vec<u8>, String)> = None;
+                if meta_changed {
+                    let _ = app_handle.emit("media_track", MediaTrackEvent {
+                        title: title.clone(),
+                        artist: artist.clone(),
+                        duration_ms,
+                    });
+                }
 
-                    if let Ok(thumbnail_ref) = properties.Thumbnail() {
-                        if let Ok(async_op) = thumbnail_ref.OpenReadAsync() {
-                            if let Ok(stream) = async_op.await {
-                                let size = stream.Size().unwrap_or(0);
-                                let content_type =
-                                    stream.ContentType().unwrap_or_default().to_string();
-                                let mime_type = if content_type.is_empty() {
-                                    "image/jpeg".to_string()
-                                } else if content_type.contains("png") {
-                                    "image/png".to_string()
-                                } else if content_type.contains("gif") {
-                                    "image/gif".to_string()
-                                } else if content_type.contains("webp") {
-                                    "image/webp".to_string()
-                                } else if let Some(first) = content_type.split(',').next() {
-                                    first.trim().to_string()
-                                } else {
-                                    "image/jpeg".to_string()
+                if track_switched {
+                    // Open a retry window for the cover. The previous track's hash stays in
+                    // STATE.last_cover_hash so we can tell "same old art (lag)" from "fresh art".
+                    cover_pending = true;
+                    cover_deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+                }
+
+                // Cover fetch runs inline (WinRT types are not Send, so no tokio::spawn).
+                // Runs every second while pending until fresh art shows up or we give up.
+                // Emitted result: Some(path) => show it, None => no image (frontend clears).
+                if cover_pending {
+                    let prev_hash = STATE.lock().unwrap().last_cover_hash;
+
+                    // Distinguish: NoArt (Windows says none) | Bytes(fresh) | Wait (lag/stale/transient).
+                    enum CoverAttempt {
+                        NoArt,
+                        Bytes(Vec<u8>, u64),
+                        Wait,
+                    }
+
+                    let attempt = match props_opt.as_ref() {
+                        None => CoverAttempt::Wait,
+                        Some(props) => match props.Thumbnail() {
+                            Err(_) => CoverAttempt::NoArt,
+                            Ok(thumb_ref) => {
+                                let bytes_opt: Option<Vec<u8>> = 'read: {
+                                    let async_op = match thumb_ref.OpenReadAsync() {
+                                        Ok(o) => o,
+                                        Err(_) => break 'read None,
+                                    };
+                                    let stream = match async_op.await {
+                                        Ok(s) => s,
+                                        Err(_) => break 'read None,
+                                    };
+                                    let size = stream.Size().unwrap_or(0);
+                                    if size == 0 || size >= 10 * 1024 * 1024 {
+                                        break 'read None;
+                                    }
+                                    let buffer = match Buffer::Create(size as u32) {
+                                        Ok(b) => b,
+                                        Err(_) => break 'read None,
+                                    };
+                                    let read_op = match stream.ReadAsync(&buffer, size as u32, windows::Storage::Streams::InputStreamOptions::None) {
+                                        Ok(r) => r,
+                                        Err(_) => break 'read None,
+                                    };
+                                    let res_buf = match read_op.await {
+                                        Ok(r) => r,
+                                        Err(_) => break 'read None,
+                                    };
+                                    let data_reader = match DataReader::FromBuffer(&res_buf) {
+                                        Ok(d) => d,
+                                        Err(_) => break 'read None,
+                                    };
+                                    let mut bytes = vec![0u8; size as usize];
+                                    if data_reader.ReadBytes(&mut bytes).is_err() {
+                                        break 'read None;
+                                    }
+                                    Some(bytes)
                                 };
-
-                                if size > 0 && size < 5 * 1024 * 1024 {
-                                    if let Ok(buffer) = Buffer::Create(size as u32) {
-                                        if let Ok(read_op) = stream.ReadAsync(
-                                            &buffer,
-                                            size as u32,
-                                            windows::Storage::Streams::InputStreamOptions::None,
-                                        ) {
-                                            if let Ok(res_buf) = read_op.await {
-                                                if let Ok(data_reader) =
-                                                    DataReader::FromBuffer(&res_buf)
-                                                {
-                                                    let mut bytes = vec![0u8; size as usize];
-                                                    if data_reader.ReadBytes(&mut bytes).is_ok() {
-                                                        got_bytes = Some((bytes, mime_type));
-                                                    }
-                                                }
-                                            }
+                                match bytes_opt {
+                                    None => CoverAttempt::Wait,
+                                    Some(bytes) => {
+                                        let h = hash_bytes(&bytes);
+                                        // Same bytes as the previous track => SMTC lag, keep waiting.
+                                        if h == prev_hash && h != 0 {
+                                            CoverAttempt::Wait
+                                        } else {
+                                            CoverAttempt::Bytes(bytes, h)
                                         }
                                     }
                                 }
                             }
-                        }
-                    }
+                        },
+                    };
 
-                    if let Some((bytes, mime_type)) = got_bytes {
-                        let new_hash = hash_bytes(&bytes);
-                        let accept = {
-                            if let Ok(cache) = COVER.lock() {
-                                if cache.last_hash == 0 || new_hash != cache.last_hash {
-                                    // Different image than last track — always accept
-                                    true
-                                } else if !cache.last_album.is_empty()
-                                    && cache.last_album == album
-                                {
-                                    // Same bytes but same album — legitimate shared art
-                                    true
-                                } else {
-                                    // Same bytes as previous track, different album/empty:
-                                    // SMTC is still serving stale art — never accept for this track
-                                    false
+                    // decision: Some(x) => emit (x = path, or None for "no image"); None => keep waiting.
+                    // close_silently: end the retry window WITHOUT emitting (keep current cover).
+                    let mut decision: Option<Option<String>> = None;
+                    let mut close_silently = false;
+                    match attempt {
+                        CoverAttempt::NoArt => decision = Some(None),
+                        CoverAttempt::Bytes(bytes, h) => {
+                            // Bind to a local so the COVER_DIR MutexGuard is released here;
+                            // otherwise the guard lives for the whole `if let` body and
+                            // manage_cover_cache() (which locks COVER_DIR again) deadlocks.
+                            let cover_dir = COVER_DIR.lock().unwrap().clone();
+                            if let Some(dir) = cover_dir {
+                                match image::load_from_memory(&bytes) {
+                                    Ok(img) => {
+                                        // JPEG can't hold an alpha channel — drop it to RGB8 first.
+                                        let thumb = img.thumbnail(300, 300).to_rgb8();
+                                        let path = dir.join(format!("{}.jpg", h));
+                                        match thumb.save_with_format(&path, image::ImageFormat::Jpeg) {
+                                            Ok(_) => {
+                                                let path_str = path.to_string_lossy().to_string();
+                                                {
+                                                    let mut state = STATE.lock().unwrap();
+                                                    state.last_cover_hash = h;
+                                                    state.last_cover_path = Some(path_str.clone());
+                                                }
+                                                decision = Some(Some(path_str));
+                                                manage_cover_cache();
+                                            }
+                                            Err(_) => decision = Some(None),
+                                        }
+                                    }
+                                    Err(_) => decision = Some(None),
                                 }
                             } else {
-                                true
-                            }
-                        };
-
-                        if accept {
-                            if let Some(path) = write_cover_bytes(&bytes, &mime_type) {
-                                if let Ok(mut cache) = COVER.lock() {
-                                    cache.path = Some(path);
-                                    cache.mime = mime_type;
-                                    cache.last_hash = new_hash;
-                                    cache.last_album = album.clone();
-                                    cache.cover_ready = true;
-                                    cache.fetch_exhausted = false;
-                                    cache.reject_stale_until = None;
-                                    has_cover = true;
-                                    cover_just_ready = true;
-                                }
-                            }
-                        } else if let Ok(mut cache) = COVER.lock() {
-                            // Stale duplicate — keep retrying only inside the window, then give up
-                            let give_up = cache
-                                .reject_stale_until
-                                .map(|t| std::time::Instant::now() >= t)
-                                .unwrap_or(true);
-                            if give_up {
-                                cache.fetch_exhausted = true;
-                                cache.reject_stale_until = None;
+                                decision = Some(None);
                             }
                         }
-                    } else if let Ok(mut cache) = COVER.lock() {
-                        // No thumbnail stream — give up after the settle window
-                        let give_up = cache
-                            .reject_stale_until
-                            .map(|t| std::time::Instant::now() >= t)
-                            .unwrap_or(true);
-                        if give_up {
-                            cache.fetch_exhausted = true;
-                            cache.reject_stale_until = None;
-                        }
+                        CoverAttempt::Wait => {}
                     }
-                }
 
-                let tick = MediaTick {
-                    title,
-                    artist,
-                    album,
-                    is_playing,
-                    position_ms,
-                    duration_ms,
-                    track_seq,
-                    has_cover,
-                    cover_settled: {
-                        if let Ok(cache) = COVER.lock() {
-                            cache.cover_ready || cache.fetch_exhausted
+                    // Give up once the retry window elapses.
+                    if decision.is_none() && !close_silently && std::time::Instant::now() >= cover_deadline {
+                        if STATE.lock().unwrap().last_cover_hash != 0 {
+                            // No new art arrived, but a valid cover is already on screen (same
+                            // track / metadata jitter / transient glitch). Keep it, don't clear.
+                            close_silently = true;
                         } else {
-                            false
+                            decision = Some(None);
                         }
-                    },
-                };
-
-                // Skip identical ticks (paused + same position) to cut IPC noise
-                let should_emit = {
-                    if let Ok(mut g) = LAST.lock() {
-                        let emit = match &g.tick {
-                            Some(prev) => {
-                                prev.track_seq != tick.track_seq
-                                    || prev.is_playing != tick.is_playing
-                                    || prev.title != tick.title
-                                    || prev.artist != tick.artist
-                                    || prev.album != tick.album
-                                    || prev.duration_ms != tick.duration_ms
-                                    || prev.has_cover != tick.has_cover
-                                    || prev.cover_settled != tick.cover_settled
-                                    || (tick.is_playing
-                                        && prev.position_ms.abs_diff(tick.position_ms) >= 400)
-                                    || (!tick.is_playing && prev.position_ms != tick.position_ms)
-                            }
-                            None => true,
-                        };
-                        g.tick = Some(tick.clone());
-                        g.cleared = false;
-                        emit
-                    } else {
-                        true
                     }
-                };
 
-                if should_emit {
-                    let _ = app_handle.emit("media_tick", Some(tick));
-                    if cover_just_ready {
-                        let _ = app_handle.emit("media_cover_ready", track_seq);
+                    if let Some(result) = decision {
+                        if result.is_none() {
+                            let mut state = STATE.lock().unwrap();
+                            state.last_cover_hash = 0;
+                            state.last_cover_path = None;
+                        }
+                        // None => JSON null => frontend clears the cover.
+                        let _ = app_handle.emit("media_cover", result);
+                        cover_pending = false;
+                    } else if close_silently {
+                        cover_pending = false;
                     }
                 }
 
-                tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+                if playback_changed {
+                    let _ = app_handle.emit("media_playback", MediaPlaybackEvent { is_playing });
+                }
+
+                if is_playing {
+                    let _ = app_handle.emit("media_position", MediaPositionEvent { position_ms });
+                }
+
+                let elapsed = start_time.elapsed();
+                if elapsed < std::time::Duration::from_millis(1000) {
+                    tokio::time::sleep(std::time::Duration::from_millis(1000) - elapsed).await;
+                }
             }
         });
     });
 }
 
 #[cfg(target_os = "windows")]
+#[tauri::command]
+pub fn get_media_snapshot() -> MediaSnapshot {
+    let state = STATE.lock().unwrap();
+    MediaSnapshot {
+        title: state.title.clone(),
+        artist: state.artist.clone(),
+        duration_ms: state.duration_ms,
+        is_playing: state.is_playing,
+        cover_path: state.last_cover_path.clone(),
+    }
+}
+
+#[cfg(target_os = "windows")]
+#[tauri::command]
 pub fn send_media_command(command: &str, seek_pos_ms: Option<u32>) -> Result<(), String> {
     let command = command.to_string();
     std::thread::spawn(move || {
@@ -525,78 +478,40 @@ pub fn send_media_command(command: &str, seek_pos_ms: Option<u32>) -> Result<(),
 
             match command.as_str() {
                 "play" => {
-                    let _ = session
-                        .TryPlayAsync()
+                    let _ = session.TryPlayAsync()
                         .map_err(|e| format!("Failed to init play: {}", e))?
-                        .await
-                        .map_err(|e| format!("Failed to execute play: {}", e))?;
+                        .await;
                 }
                 "pause" => {
-                    let _ = session
-                        .TryPauseAsync()
+                    let _ = session.TryPauseAsync()
                         .map_err(|e| format!("Failed to init pause: {}", e))?
-                        .await
-                        .map_err(|e| format!("Failed to execute pause: {}", e))?;
+                        .await;
                 }
                 "toggle" => {
-                    let _ = session
-                        .TryTogglePlayPauseAsync()
+                    let _ = session.TryTogglePlayPauseAsync()
                         .map_err(|e| format!("Failed to init toggle: {}", e))?
-                        .await
-                        .map_err(|e| format!("Failed to execute toggle: {}", e))?;
+                        .await;
                 }
                 "next" => {
-                    let _ = session
-                        .TrySkipNextAsync()
+                    let _ = session.TrySkipNextAsync()
                         .map_err(|e| format!("Failed to init next: {}", e))?
-                        .await
-                        .map_err(|e| format!("Failed to execute next: {}", e))?;
+                        .await;
                 }
                 "prev" => {
-                    let _ = session
-                        .TrySkipPreviousAsync()
+                    let _ = session.TrySkipPreviousAsync()
                         .map_err(|e| format!("Failed to init prev: {}", e))?
-                        .await
-                        .map_err(|e| format!("Failed to execute prev: {}", e))?;
+                        .await;
                 }
                 "seek" => {
-                    if let Some(ms) = seek_pos_ms {
-                        let _ = session
-                            .TryChangePlaybackPositionAsync((ms as i64) * 10000)
+                    if let Some(pos_ms) = seek_pos_ms {
+                        let _ = session.TryChangePlaybackPositionAsync((pos_ms as i64) * 10000)
                             .map_err(|e| format!("Failed to init seek: {}", e))?
-                            .await
-                            .map_err(|e| format!("Failed to execute seek: {}", e))?;
+                            .await;
                     }
                 }
-                _ => return Err(format!("Invalid media command received: {}", command)),
+                _ => return Err(format!("Unknown command: {}", command)),
             }
-
             Ok(())
         })
-    })
-    .join()
-    .unwrap_or(Err("Thread panicked".to_string()))
-}
-
-#[cfg(target_os = "windows")]
-pub fn get_current_media_state() -> Result<Option<MediaTick>, String> {
-    Ok(get_last_media_tick())
-}
-
-#[cfg(not(target_os = "windows"))]
-pub fn get_current_media_state() -> Result<Option<MediaTick>, String> {
-    Ok(None)
-}
-
-#[cfg(not(target_os = "windows"))]
-pub fn get_media_cover_data_url() -> Result<Option<String>, String> {
-    Ok(None)
-}
-
-#[cfg(not(target_os = "windows"))]
-pub fn start_media_listener(_app_handle: tauri::AppHandle) {}
-
-#[cfg(not(target_os = "windows"))]
-pub fn send_media_command(_command: &str, _seek_pos_ms: Option<u32>) -> Result<(), String> {
-    Ok(())
+    }).join().unwrap_or(Err("Thread panicked".to_string()))
 }
