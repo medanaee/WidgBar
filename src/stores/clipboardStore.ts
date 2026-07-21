@@ -5,9 +5,12 @@ import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 
 export interface ClipboardItem {
   id: string;
-  kind: 'text' | 'image';
+  kind: 'text' | 'image' | 'files';
   textContent: string | null;
+  htmlContent: string | null;
+  rtfContent: string | null;
   imagePath: string | null;
+  filePaths: string[] | null;
   preview: string;
   contentHash: string;
   pinned: boolean;
@@ -19,7 +22,10 @@ export interface ClipboardItem {
 export interface ClipboardCapture {
   kind: string;
   text?: string | null;
+  html?: string | null;
+  rtf?: string | null;
   imagePath?: string | null;
+  filePaths?: string[] | null;
 }
 
 interface ClipboardPersist {
@@ -46,6 +52,30 @@ function makePreview(text: string): string {
   const trimmed = text.replace(/\r?\n/g, ' ').trim();
   const chars = [...trimmed];
   return chars.length <= 40 ? trimmed : chars.slice(0, 40).join('') + '…';
+}
+
+function fileNameFromPath(p: string): string {
+  const parts = p.replace(/\\/g, '/').split('/');
+  return parts[parts.length - 1] || p;
+}
+
+function makeFilesPreview(paths: string[]): string {
+  if (paths.length === 0) return 'Files';
+  if (paths.length === 1) return makePreview(fileNameFromPath(paths[0]));
+  const first = fileNameFromPath(paths[0]);
+  return `${makePreview(first)} (+${paths.length - 1})`;
+}
+
+function normalizeLoadedItems(items: ClipboardItem[]): ClipboardItem[] {
+  return items.map((i) => ({
+    ...i,
+    kind: i.kind === 'image' ? 'image' : i.kind === 'files' ? 'files' : 'text',
+    htmlContent: i.htmlContent ?? null,
+    rtfContent: i.rtfContent ?? null,
+    filePaths: Array.isArray(i.filePaths) ? i.filePaths : null,
+    textContent: i.textContent ?? null,
+    imagePath: i.imagePath ?? null,
+  }));
 }
 
 function hashStr(s: string): string {
@@ -112,7 +142,7 @@ export const useClipboardStore = create<ClipboardState>((set, get) => ({
       let maxHistory = 50;
       if (raw && raw !== '{}') {
         const parsed = JSON.parse(raw) as ClipboardPersist;
-        items = Array.isArray(parsed.items) ? parsed.items : [];
+        items = normalizeLoadedItems(Array.isArray(parsed.items) ? parsed.items : []);
         maxHistory = parsed.maxHistory ?? 50;
       }
       set({ items, maxHistory, isLoading: false, hasInitialized: true });
@@ -124,7 +154,7 @@ export const useClipboardStore = create<ClipboardState>((set, get) => ({
 
   replaceState: (data, sync = false) => {
     set({
-      items: data.items ?? [],
+      items: normalizeLoadedItems(data.items ?? []),
       maxHistory: data.maxHistory ?? 50,
       hasInitialized: true,
     });
@@ -141,24 +171,41 @@ export const useClipboardStore = create<ClipboardState>((set, get) => ({
 
   ingestCapture: (capture) => {
     const now = Date.now();
-    const kind = capture.kind === 'image' ? 'image' : 'text';
+    let kind: ClipboardItem['kind'];
+    if (capture.kind === 'image') kind = 'image';
+    else if (capture.kind === 'files') kind = 'files';
+    else kind = 'text';
+
     let contentHash: string;
     let textContent: string | null = null;
+    let htmlContent: string | null = null;
+    let rtfContent: string | null = null;
     let imagePath: string | null = null;
+    let filePaths: string[] | null = null;
     let preview: string;
 
-    if (kind === 'text') {
-      const text = (capture.text ?? '').trim();
-      if (!text) return;
-      textContent = text;
-      contentHash = hashStr(`t:${text}`);
-      preview = makePreview(text);
-    } else {
+    if (kind === 'files') {
+      const paths = (capture.filePaths ?? []).filter(Boolean);
+      if (paths.length === 0) return;
+      filePaths = paths;
+      contentHash = hashStr(`f:${paths.join('\n')}`);
+      preview = makeFilesPreview(paths);
+    } else if (kind === 'image') {
       const path = capture.imagePath ?? null;
       if (!path) return;
       imagePath = path;
       contentHash = hashStr(`i:${path}`);
       preview = 'Image';
+    } else {
+      const text = (capture.text ?? '').trim();
+      const html = (capture.html ?? '').trim() || null;
+      const rtf = (capture.rtf ?? '').trim() || null;
+      if (!text && !html && !rtf) return;
+      textContent = text || null;
+      htmlContent = html;
+      rtfContent = rtf;
+      contentHash = hashStr(`t:${text}\n${html ?? ''}\n${rtf ?? ''}`);
+      preview = makePreview(text || html || rtf || 'Text');
     }
 
     const prev = get().items;
@@ -168,10 +215,19 @@ export const useClipboardStore = create<ClipboardState>((set, get) => ({
     if (existing) {
       next = prev.map((i) =>
         i.id === existing.id
-          ? { ...i, createdAt: now, updatedAt: now, textContent, imagePath, preview }
+          ? {
+              ...i,
+              createdAt: now,
+              updatedAt: now,
+              textContent,
+              htmlContent,
+              rtfContent,
+              imagePath,
+              filePaths,
+              preview,
+            }
           : i,
       );
-      // If re-copied image produced a new file path, drop the old orphan files
       if (
         kind === 'image' &&
         existing.imagePath &&
@@ -185,7 +241,10 @@ export const useClipboardStore = create<ClipboardState>((set, get) => ({
         id: newId(),
         kind,
         textContent,
+        htmlContent,
+        rtfContent,
         imagePath,
+        filePaths,
         preview,
         contentHash,
         pinned: false,

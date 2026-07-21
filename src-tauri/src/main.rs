@@ -372,6 +372,8 @@ fn main() {
             load_clipboard_history,
             save_clipboard_history,
             clipboard_history::clipboard_paste_text,
+            clipboard_history::clipboard_paste_formats,
+            clipboard_history::clipboard_paste_files,
             clipboard_history::clipboard_paste_image,
             clipboard_history::clipboard_delete_image_files,
             set_window_no_activate,

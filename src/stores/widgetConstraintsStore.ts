@@ -16,6 +16,8 @@ export interface WidgetConstraints {
   alwaysOnTop?: boolean;
   /** Hide popup when it loses focus (default true) */
   closeOnBlur?: boolean;
+  /** Shrink Bar item width to match bar height (square chip; default false) */
+  squareInBar?: boolean;
 }
 
 interface WidgetConstraintsState {

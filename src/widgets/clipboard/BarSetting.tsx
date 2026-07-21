@@ -1,10 +1,13 @@
 import { useWidgetInstanceStore } from '../../stores/widgetInstanceStore';
 import { NumberInput } from '../../components/ui/NumberInput';
 import { Switch } from '../../components/ui/switch';
+import { Slider } from '../../components/ui/slider';
 import { SettingCard } from '../../components/ui/SettingCard';
 import { useTranslation } from '../../lib/i18n';
 
 const DEFAULT_TTL = 30;
+const DEFAULT_CHIP_PIN_MAX_W = 72;
+const DEFAULT_CHIP_RECENT_MAX_W = 60;
 
 function readShowRecent(config: Record<string, unknown>): boolean {
     if (typeof config.barShowRecent === 'boolean') return config.barShowRecent;
@@ -27,6 +30,14 @@ function readTtl(config: Record<string, unknown>): number {
     return DEFAULT_TTL;
 }
 
+function readChipMaxW(config: Record<string, unknown>, key: string): number {
+    const v = config[key];
+    if (typeof v === 'number') return Math.min(100, Math.max(60, v));
+    if (key === 'barPinnedChipMaxW') { return DEFAULT_CHIP_PIN_MAX_W; }
+    if (key === 'barRecentChipMaxW') { return DEFAULT_CHIP_RECENT_MAX_W; }
+    return DEFAULT_CHIP_PIN_MAX_W;
+}
+
 export default function ClipboardBarSetting({ widgetId }: { widgetId: string }) {
     const config = useWidgetInstanceStore((state) => state.instances[widgetId]) || {};
     const updateInstance = useWidgetInstanceStore((state) => state.updateInstance);
@@ -36,6 +47,8 @@ export default function ClipboardBarSetting({ widgetId }: { widgetId: string }) 
     const barItemCount = Math.min(3, Math.max(1, config.barItemCount ?? 2));
     const barRecentTimed = readTimed(config);
     const barRecentTtlSec = readTtl(config);
+    const pinnedMaxW = readChipMaxW(config, 'barPinnedChipMaxW');
+    const recentMaxW = readChipMaxW(config, 'barRecentChipMaxW');
 
     const handleUpdate = (updates: Record<string, unknown>) => {
         updateInstance(widgetId, { ...config, ...updates });
@@ -106,6 +119,46 @@ export default function ClipboardBarSetting({ widgetId }: { widgetId: string }) 
                     )}
                 </div>
             )}
+
+            <SettingCard>
+                <div className="flex-grow w-full min-w-0">
+                    <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{t('clipboardPinnedChipMaxW')}</h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">{t('clipboardPinnedChipMaxWDesc')}</p>
+                    <div className="flex items-center gap-4 mt-3 w-full">
+                        <Slider
+                            value={[pinnedMaxW]}
+                            onValueChange={(val) => handleUpdate({ barPinnedChipMaxW: val[0] })}
+                            min={60}
+                            max={100}
+                            step={1}
+                            className="flex-grow"
+                        />
+                        <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 w-10 text-right tabular-nums">
+                            {pinnedMaxW}px
+                        </span>
+                    </div>
+                </div>
+            </SettingCard>
+
+            <SettingCard>
+                <div className="flex-grow w-full min-w-0">
+                    <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{t('clipboardRecentChipMaxW')}</h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">{t('clipboardRecentChipMaxWDesc')}</p>
+                    <div className="flex items-center gap-4 mt-3 w-full">
+                        <Slider
+                            value={[recentMaxW]}
+                            onValueChange={(val) => handleUpdate({ barRecentChipMaxW: val[0] })}
+                            min={60}
+                            max={100}
+                            step={1}
+                            className="flex-grow"
+                        />
+                        <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 w-10 text-right tabular-nums">
+                            {recentMaxW}px
+                        </span>
+                    </div>
+                </div>
+            </SettingCard>
         </div>
     );
 }

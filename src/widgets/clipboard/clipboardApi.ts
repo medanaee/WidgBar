@@ -68,8 +68,14 @@ export function useBarClipboardItems(
 export async function pasteClipboardItem(item: ClipboardItem) {
   if (item.kind === 'image' && item.imagePath) {
     await invoke('clipboard_paste_image', { path: item.imagePath });
-  } else if (item.textContent) {
-    await invoke('clipboard_paste_text', { text: item.textContent });
+  } else if (item.kind === 'files' && item.filePaths?.length) {
+    await invoke('clipboard_paste_files', { paths: item.filePaths });
+  } else {
+    await invoke('clipboard_paste_formats', {
+      text: item.textContent || null,
+      html: item.htmlContent || null,
+      rtf: item.rtfContent || null,
+    });
   }
 }
 

@@ -99,7 +99,7 @@ export default function MusicArea({ widgetId }: { widgetId: string }) {
     const isTimelineAvailable = duration > 0 && media.hasSession;
 
     return (
-        <div className="w-full h-full relative rounded-2xl overflow-hidden border border-zinc-500/10 dark:border-zinc-500/10 flex flex-col text-zinc-900 dark:text-zinc-100 p-4 select-none group shadow-lg transition-all duration-300 hover:shadow-2xl hover:border-zinc-500/20">
+        <div className="w-full h-full relative overflow-hidden border border-zinc-500/10 dark:border-zinc-500/10 flex flex-col text-zinc-900 dark:text-zinc-100 p-4 select-none group shadow-lg transition-all duration-300 hover:shadow-2xl hover:border-zinc-500/20">
             {coverAsBackground && media.coverUrl && (
                 <div
                     className="absolute inset-0 z-0 bg-cover bg-center transition-all duration-700 scale-100"

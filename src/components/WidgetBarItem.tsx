@@ -77,6 +77,8 @@ export default function WidgetBarItem({ widget, children }: Props) {
 
     const barPadding = constraints?.barPadding ?? 1;
     const isHidden = constraints?.hiddenInBar === true;
+    const squareInBar = constraints?.squareInBar === true;
+    const barHeight = settings?.barHeight ?? 36;
     
     const paddingClass = {
         0: 'px-0',
@@ -94,13 +96,14 @@ export default function WidgetBarItem({ widget, children }: Props) {
     return (
         <div 
             onClick={handleClick}
-            className={`flex items-center justify-center h-full ${paddingClass} transition-colors rounded-md cursor-pointer select-none ${
+            className={`flex items-center justify-center h-full ${squareInBar ? 'px-0' : paddingClass} transition-colors rounded-md cursor-pointer select-none ${
                 isHighlighted 
                     ? 'bg-primary/20 ring-1 ring-primary/50 shadow-sm'
                     : 'hover:bg-white/10'
             } ${
                 animate ? 'transition-all duration-300 ease-in-out animate-in fade-in zoom-in-95' : ''
             }`}
+            style={squareInBar ? { width: barHeight * 4 / 5, minWidth: barHeight * 4 / 5 } : undefined}
         >
             {children}
         </div>

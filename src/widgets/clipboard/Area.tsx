@@ -16,6 +16,7 @@ import { useAiServicesStore } from '../../stores/aiServicesStore';
 import { aiManager } from '../../lib/AiServicesManager';
 import MarkdownChatContent from '../../components/MarkdownChatContent';
 import { resolveClipboardAiTarget } from './clipboardAi';
+import { FileTypeIcon } from './FileTypeIcon';
 import {
     clipboardPasteHover,
     imageSrc,
@@ -50,8 +51,9 @@ function ClipboardItemRow({
 }) {
     const { t } = useTranslation();
     const isImage = item.kind === 'image';
+    const isFiles = item.kind === 'files';
     const src = isImage ? imageSrc(item.imagePath) : null;
-    const canAskAi = !isImage && !!(item.textContent || item.preview);
+    const canAskAi = !isImage && !isFiles && !!item.textContent?.trim();
     const setPinned = useClipboardStore((s) => s.setPinned);
     const setFrozen = useClipboardStore((s) => s.setFrozen);
     const deleteItem = useClipboardStore((s) => s.deleteItem);
@@ -62,21 +64,36 @@ function ClipboardItemRow({
             <div className="group flex items-stretch">
                 <button
                     type="button"
-                    className="flex-1 min-w-0 flex flex-col justify-start p-2.5 text-start"
+                    className="flex-1 min-w-0 flex items-stretch text-start p-0"
                     onMouseEnter={() => clipboardPasteHover(true)}
                     onMouseLeave={() => clipboardPasteHover(false)}
                     onClick={() => pasteClipboardItem(item).catch(console.error)}
                 >
-                    {isImage && src ? (
-                        <img src={src} alt="" className="w-fit h-auto max-h-20 object-contain rounded-md" />
-                    ) : (
-                        <div
-                            dir="auto"
-                            className="w-full text-xs font-medium leading-snug text-zinc-900 dark:text-zinc-100 line-clamp-4 break-words"
-                        >
-                            {item.textContent || item.preview}
+                    {isFiles ? (
+                        <div className="shrink-0 self-stretch w-15 flex items-center justify-center bg-zinc-500/10">
+                            <FileTypeIcon paths={item.filePaths} size={28} />
                         </div>
-                    )}
+                    ) : null}
+
+                    <div className="flex-1 min-w-0 flex flex-col justify-start p-2.5">
+                        {isImage && src ? (
+                            <img src={src} alt="" className="w-fit h-auto max-h-20 object-contain rounded-md" />
+                        ) : isFiles ? (
+                            <div
+                                dir="auto"
+                                className="w-full text-xs font-medium leading-snug text-zinc-900 dark:text-zinc-100 line-clamp-4 break-words"
+                            >
+                                {(item.filePaths ?? []).map((p) => p.replace(/^.*[\\/]/, '')).join('\n') || item.preview}
+                            </div>
+                        ) : (
+                            <div
+                                dir="auto"
+                                className="w-full text-xs font-medium leading-snug text-zinc-900 dark:text-zinc-100 line-clamp-4 break-words"
+                            >
+                                {item.textContent || item.preview}
+                            </div>
+                        )}
+                    </div>
                 </button>
 
                 <div
@@ -206,7 +223,7 @@ export default function ClipboardArea({ widgetId: _widgetId }: { widgetId: strin
         }
         try {
             const { sessionId } = resolveClipboardAiTarget();
-            const text = (item.textContent || item.preview || '').trim();
+            const text = (item.textContent || '').trim();
             if (!text) return;
             aiManager.clearAttachments(sessionId);
             aiManager.addAttach(sessionId, {

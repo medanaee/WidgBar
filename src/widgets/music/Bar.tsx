@@ -28,9 +28,12 @@ export default function MusicBar({ widgetId }: { widgetId: string }) {
     const isLarge = barHeight >= 48;
 
     useEffect(() => {
-        updateConstraints({ hiddenInBar: !media.hasSession });
+        updateConstraints({
+            hiddenInBar: !media.hasSession,
+            barPadding: 0,
+        });
         return () => {
-            updateConstraints({ hiddenInBar: false });
+            updateConstraints({ hiddenInBar: false, barPadding: 1 });
         };
     }, [media.hasSession, updateConstraints]);
 
@@ -73,7 +76,7 @@ export default function MusicBar({ widgetId }: { widgetId: string }) {
     if (isLarge) {
         return (
             <div
-                className={`relative flex items-center gap-2 h-10 px-2 py-0.5 text-white select-none ${boxClass}`}
+                className={`relative flex items-center gap-2 h-10 px-1 py-0.5 text-white select-none ${boxClass}`}
                 style={progressFillStyle}
             >
                 {barShowCover && (
@@ -118,8 +121,8 @@ export default function MusicBar({ widgetId }: { widgetId: string }) {
 
     return (
         <div
-            className={`relative flex items-center gap-1.5 h-7 text-white select-none ${
-                showFillProgress ? 'px-1.5 rounded-md border border-white/5 overflow-hidden' : 'border border-transparent bg-transparent'
+            className={`relative flex items-center gap-1.5 h-7 text-white select-none px-1 ${
+                showFillProgress ? 'rounded-md border border-white/5 overflow-hidden' : 'border border-transparent bg-transparent'
             }`}
             style={progressFillStyle}
         >
