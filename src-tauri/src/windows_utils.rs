@@ -1,21 +1,19 @@
 #[cfg(target_os = "windows")]
-use std::ffi::c_void;
 
 use tauri::WebviewWindow;
 
-use windows::core::{s, w, BOOL, PCWSTR};
-use windows::Win32::Foundation::{COLORREF, HWND, LPARAM, RECT, WPARAM};
+use windows::core::{s, w, PCWSTR};
+use windows::Win32::Foundation::{COLORREF, HWND, LPARAM, WPARAM};
 use windows::Win32::Graphics::Dwm::{
-    DwmSetWindowAttribute, DWMWA_EXCLUDED_FROM_PEEK, DWMWA_TRANSITIONS_FORCEDISABLED,
-    DWMWA_USE_IMMERSIVE_DARK_MODE, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND,
-    DWMWCP_ROUNDSMALL,
+    DwmSetWindowAttribute, DWMWA_TRANSITIONS_FORCEDISABLED,
+    DWMWA_USE_IMMERSIVE_DARK_MODE,
 };
 use windows::Win32::System::LibraryLoader::{GetProcAddress, LoadLibraryA};
-use windows::Win32::UI::Shell::{
-    SHAppBarMessage, ABE_TOP, ABM_NEW, ABM_QUERYPOS, ABM_SETPOS, APPBARDATA,
-};
 use windows::Win32::UI::WindowsAndMessaging::{
-    AW_BLEND, AW_HIDE, AnimateWindow, EnumWindows, FindWindowExW, FindWindowW, GWL_EXSTYLE, GetWindowLongPtrW, GetWindowLongW, HWND_BOTTOM, LWA_ALPHA, SMTO_NORMAL, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SendMessageTimeoutW, SetLayeredWindowAttributes, SetParent, SetWindowLongPtrW, SetWindowLongW, SetWindowPos, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TRANSPARENT
+    AW_BLEND, AW_HIDE, AnimateWindow, EnumWindows, FindWindowExW, FindWindowW, GWL_EXSTYLE, GetWindowLongPtrW, GetWindowLongW,
+    HWND_BOTTOM, LWA_ALPHA, SMTO_NORMAL, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER,
+    SendMessageTimeoutW, SetLayeredWindowAttributes, SetParent, SetWindowLongPtrW,
+    SetWindowLongW, SetWindowPos, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TRANSPARENT
 };
 
 #[cfg(target_os = "windows")]
@@ -68,7 +66,6 @@ let mut policy = AccentPolicy {
     }
 }
 
-
 pub fn ease_out_cubic(t: f64) -> f64 {
     1.0 - (1.0 - t).powi(3)
 }
@@ -101,7 +98,6 @@ pub fn set_os_window_animation(hwnd: HWND, enable_animation: bool) {
         );
     }
 }
-
 
 #[cfg(target_os = "windows")]
 pub fn set_window_theme(hwnd: HWND, is_dark: bool) -> () {

@@ -16,17 +16,27 @@ interface MarkdownChatContentProps {
 function preprocessMarkdown(text: string): string {
   if (!text) return text;
   
-  // 1. Process lines that start with optional indentation, followed by $$equation$$
-  let processed = text.replace(/^([ \t]*)\$\$([^\n\$]+)\$\$/gm, (_, indent, eq) => {
-    return `${indent}$$\n${indent}${eq.trim()}\n${indent}$$`;
+  const lines = text.split('\n');
+  const processedLines = lines.map((line) => {
+    // If the line contains table column delimiters (|), do not insert newlines into $$
+    if (line.includes('|')) {
+      return line;
+    }
+
+    // 1. Process lines that start with optional indentation, followed by $$equation$$
+    let processedLine = line.replace(/^([ \t]*)\$\$([^\n\$]+)\$\$/g, (_, indent, eq) => {
+      return `${indent}$$\n${indent}${eq.trim()}\n${indent}$$`;
+    });
+    
+    // 2. Process any remaining inline $$equation$$ that are inside other text
+    processedLine = processedLine.replace(/\$\$([^\n\$]+)\$\$/g, (_, eq) => {
+      return `\n$$\n${eq.trim()}\n$$\n`;
+    });
+
+    return processedLine;
   });
-  
-  // 2. Process any remaining inline $$equation$$ that are inside other text
-  processed = processed.replace(/\$\$([^\n\$]+)\$\$/g, (_, eq) => {
-    return `\n$$\n${eq.trim()}\n$$\n`;
-  });
-  
-  return processed;
+
+  return processedLines.join('\n');
 }
 
 function ThinkBlock({ content, isWidget, markdownComponents }: { content: string, isWidget: boolean, markdownComponents: any }) {
@@ -219,9 +229,9 @@ function MarkdownChatContent({
     h1: ({node, ...props}: any) => <h1 className={h1Class} dir="auto" {...props} />,
     h2: ({node, ...props}: any) => <h2 className={h2Class} dir="auto" {...props} />,
     h3: ({node, ...props}: any) => <h3 className={h3Class} dir="auto" {...props} />,
-    code: ({node, className, children, ...props}: any) => {
+    code: ({node, inline, className, children, ...props}: any) => {
       const match = /language-(\w+)/.exec(className || '');
-      const isInline = !match && !className?.includes('language-');
+      const isInline = inline ?? (!match && !className?.includes('language-') && !String(children).includes('\n'));
       const codeString = String(children).replace(/\n$/, '');
       return isInline ? (
         <code className={codeInlineClass} {...props}>

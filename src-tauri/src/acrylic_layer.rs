@@ -51,6 +51,7 @@ use crate::windows_utils::*;
 pub struct MonitorInfo {
     pub id: String,
     pub name: String,
+    pub raw_name: String,
     pub width: f64,
     pub height: f64,
     pub x: f64,
@@ -257,6 +258,77 @@ fn start_mouse_tracker() {
 }
 
 #[tauri::command]
+#[cfg(target_os = "windows")]
+fn get_physical_monitor_details(display_device_name: &str, index: usize) -> (String, String) {
+    use windows::Win32::Graphics::Gdi::{EnumDisplayDevicesW, DISPLAY_DEVICEW};
+    use windows::core::PCWSTR;
+
+    let mut device_id_suffix = String::new();
+    let mut port_name = String::new();
+
+    unsafe {
+        let name_u16: Vec<u16> = display_device_name.encode_utf16().chain(std::iter::once(0)).collect();
+        
+        let mut dd = DISPLAY_DEVICEW {
+            cb: std::mem::size_of::<DISPLAY_DEVICEW>() as u32,
+            ..Default::default()
+        };
+
+        if EnumDisplayDevicesW(PCWSTR(name_u16.as_ptr()), 0, &mut dd, 0).as_bool() {
+            let mut dd_mon = DISPLAY_DEVICEW {
+                cb: std::mem::size_of::<DISPLAY_DEVICEW>() as u32,
+                ..Default::default()
+            };
+
+            if EnumDisplayDevicesW(PCWSTR(dd.DeviceName.as_ptr()), 0, &mut dd_mon, 1).as_bool() {
+                let mon_id = String::from_utf16_lossy(&dd_mon.DeviceID)
+                    .trim_matches('\0')
+                    .trim()
+                    .to_string();
+
+                if !mon_id.is_empty() {
+                    let parts: Vec<&str> = mon_id.split('\\').collect();
+                    if parts.len() >= 2 {
+                        let pnp_id = parts[1];
+                        if !pnp_id.is_empty() {
+                            device_id_suffix = pnp_id.to_string();
+                        }
+                    }
+                    
+                    let dev_id_upper = mon_id.to_uppercase();
+                    if dev_id_upper.contains("INTERNAL") || dev_id_upper.contains("LGD") || dev_id_upper.contains("EDP") || dev_id_upper.contains("SEC") {
+                        port_name = "Internal".to_string();
+                    } else if dev_id_upper.contains("HDMI") {
+                        port_name = "HDMI".to_string();
+                    } else if dev_id_upper.contains("DP") || dev_id_upper.contains("DISPLAYPORT") {
+                        port_name = "DisplayPort".to_string();
+                    }
+                }
+            }
+        }
+    }
+
+    if port_name.is_empty() {
+        if index == 0 {
+            port_name = "Internal".to_string();
+        } else {
+            port_name = format!("Port_{}", index);
+        }
+    }
+
+    if device_id_suffix.is_empty() {
+        device_id_suffix = format!("{}", index);
+    }
+
+    let safe_suffix: String = device_id_suffix.chars().filter(|c| c.is_alphanumeric() || *c == '_').collect();
+    let safe_port: String = port_name.chars().filter(|c| c.is_alphanumeric() || *c == '_').collect();
+
+    let final_id = format!("{}_{}", safe_port.to_lowercase(), safe_suffix.to_lowercase());
+
+    (final_id, display_device_name.to_string())
+}
+
+#[tauri::command]
 pub fn init_monitors(app: AppHandle) -> Result<LayoutState, String> {
     let monitors = app
         .available_monitors()
@@ -300,24 +372,29 @@ pub fn init_monitors(app: AppHandle) -> Result<LayoutState, String> {
             }
         }
 
-        let monitor_name = monitor
+        let raw_name = monitor
             .name()
             .cloned()
             .unwrap_or_else(|| format!("Display {}", index + 1));
 
         let is_primary = if let Some(ref p_name) = primary_monitor_name {
-            *p_name == monitor_name
+            *p_name == raw_name
         } else {
             pos.x == 0 && pos.y == 0
         };
 
-        let id = format!("monitor_{}", index);
+        #[cfg(target_os = "windows")]
+        let (id, display_title) = get_physical_monitor_details(&raw_name, index);
+
+        #[cfg(not(target_os = "windows"))]
+        let (id, display_title) = (format!("monitor_{}", index), raw_name.clone());
 
         new_monitors.insert(
             id.clone(),
             MonitorInfo {
                 id,
-                name: monitor_name,
+                name: display_title,
+                raw_name: raw_name.clone(),
                 width: work_area_width,
                 height: work_area_height,
                 x: work_area_x,
@@ -445,7 +522,10 @@ pub async fn update_bar_height(app: AppHandle, id: String, height: u32) -> Resul
         let monitors = app.available_monitors().map_err(|e| e.to_string())?;
         let tauri_monitor = monitors
             .into_iter()
-            .find(|m| m.name().cloned().unwrap_or_default() == monitor_info.name)
+            .find(|m| {
+                let m_name = m.name().cloned().unwrap_or_default();
+                m_name == monitor_info.raw_name || m_name == monitor_info.name
+            })
             .ok_or("Could not find tauri monitor")?;
 
         #[cfg(target_os = "windows")]
@@ -520,7 +600,10 @@ pub async fn create_bar(app: AppHandle, monitor_id: String, height: u32) -> Resu
     let monitors = app.available_monitors().map_err(|e| e.to_string())?;
     let tauri_monitor = monitors
         .into_iter()
-        .find(|m| m.name().cloned().unwrap_or_default() == monitor_info.name)
+        .find(|m| {
+            let m_name = m.name().cloned().unwrap_or_default();
+            m_name == monitor_info.raw_name || m_name == monitor_info.name
+        })
         .ok_or("Could not find tauri monitor")?;
 
     let builder = WebviewWindowBuilder::new(

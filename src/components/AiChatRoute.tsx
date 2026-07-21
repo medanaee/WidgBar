@@ -14,6 +14,7 @@ import { CompanyLogo } from "./CompanyLogo";
 import EditAiServicePanel from "./tabs/EditAiServicePanel";
 import MarkdownChatContent from "./MarkdownChatContent";
 import ChatUserMessage from "./ai/ChatUserMessage";
+import { CopyMessageButton } from "./ai/CopyMessageButton";
 import SessionComposer from "./ai/SessionComposer";
 import { Settings as SettingsIcon, Pencil } from "lucide-react";
 
@@ -406,11 +407,16 @@ export default function AiChatRoute() {
                           onScrollToBottom={scrollToBottomIfEnabled}
                         />
                       ) : (
-                        <MarkdownChatContent
-                          content={msg.content}
-                          streamingEventId={msg.streamingEventId}
-                          onScrollToBottom={scrollToBottomIfEnabled}
-                        />
+                        <div className="flex flex-col gap-1">
+                          <MarkdownChatContent
+                            content={msg.content}
+                            streamingEventId={msg.streamingEventId}
+                            onScrollToBottom={scrollToBottomIfEnabled}
+                          />
+                          <div className="flex justify-start pt-1 border-t border-zinc-500/10 dark:border-white/5 mt-1">
+                            <CopyMessageButton text={msg.content} />
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>

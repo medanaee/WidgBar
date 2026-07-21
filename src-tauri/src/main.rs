@@ -166,7 +166,7 @@ async fn reconcile_layout_and_collect(app: &tauri::AppHandle) -> Vec<(String, bo
         match existing_idx {
             None => {
                 let bar = if bm.is_primary {
-                    serde_json::json!([{ "id": gen_bar_widget_id() }])
+                    serde_json::json!([{ "id": gen_bar_widget_id(), "type": "clock" }])
                 } else {
                     serde_json::json!([])
                 };
@@ -230,7 +230,7 @@ async fn reconcile_layout_and_collect(app: &tauri::AppHandle) -> Vec<(String, bo
                 let has_bar_now = m.get("has_bar").and_then(|v| v.as_bool()).unwrap_or(false);
                 if bm.is_primary && !has_bar_now {
                     m["has_bar"] = serde_json::json!(true);
-                    m["bar"] = serde_json::json!([{ "id": gen_bar_widget_id() }]);
+                    m["bar"] = serde_json::json!([{ "id": gen_bar_widget_id(), "type": "clock" }]);
                     changed = true;
                 }
             }
@@ -300,7 +300,6 @@ async fn startup_init(app: tauri::AppHandle) {
     });
 
     let mut expected_labels = HashSet::new();
-    let mut creation_failed = false;
 
     for (monitor_id, has_bar, has_area) in monitors_to_create.iter() {
         if *has_bar {
@@ -309,7 +308,6 @@ async fn startup_init(app: tauri::AppHandle) {
                     expected_labels.insert(label);
                 }
                 Err(error) => {
-                    creation_failed = true;
                     eprintln!("[system] Failed to create bar for {monitor_id}: {error}");
                 }
             }
@@ -320,17 +318,10 @@ async fn startup_init(app: tauri::AppHandle) {
                     expected_labels.insert(label);
                 }
                 Err(error) => {
-                    creation_failed = true;
                     eprintln!("[system] Failed to create widget area for {monitor_id}: {error}");
                 }
             }
         }
-    }
-
-    if creation_failed {
-        app.unlisten(listener_id);
-        eprintln!("[system] Startup windows were not all created; watchers will not start.");
-        return;
     }
 
     println!(
@@ -343,7 +334,8 @@ async fn startup_init(app: tauri::AppHandle) {
     while loaded_labels.len() < expected_labels.len() {
         let Some(label) = loaded_rx.recv().await else {
             app.unlisten(listener_id);
-            eprintln!("[system] Frontend readiness channel closed; watchers will not start.");
+            eprintln!("[system] Frontend readiness channel closed; starting watchers anyway.");
+            start_watchers_once(app.clone());
             return;
         };
 
@@ -516,6 +508,9 @@ fn main() {
             save_ai_message,
             delete_ai_instance,
             delete_ai_session,
+            save_ai_draft,
+            load_ai_drafts,
+            delete_ai_draft,
             load_widget_instances,
             save_widget_instance_settings,
             delete_widget_instance,
@@ -558,8 +553,7 @@ fn main() {
             app.manage(system_monitor::SystemMonitorState { stats });
 
             // Backend-driven startup: reconcile layout, create every bar/area
-            // window, then start the watchers. The main window is NOT created
-            // here — it is opened on demand from the Bar settings button.
+            // window, then start the watchers after frontend readiness signals.
             tauri::async_runtime::spawn(async move {
                 startup_init(handle).await;
             });

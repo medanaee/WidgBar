@@ -64,12 +64,23 @@ export const useAiServicesStore = create<AiServicesState>((set, get) => {
       try {
         const instancesRaw: string[] = await invoke('load_ai_instances');
         const sessionsRaw: string[] = await invoke('load_ai_sessions');
+        const draftsRaw: string[] = await invoke('load_ai_drafts');
 
         const instances = instancesRaw.map(r => JSON.parse(r));
         const sessions = sessionsRaw.map(r => JSON.parse(r));
+        const sessionDrafts: Record<string, SessionDraft> = {};
+        draftsRaw.forEach(r => {
+          try {
+            const item = JSON.parse(r);
+            if (item.sessionId && item.draft) {
+              sessionDrafts[item.sessionId] = item.draft;
+            }
+          } catch (e) {}
+        });
 
         set({
           data: { instances, sessions },
+          sessionDrafts: { ...get().sessionDrafts, ...sessionDrafts },
           isLoading: false,
           hasInitialized: true,
         });
@@ -200,14 +211,12 @@ export const useAiServicesStore = create<AiServicesState>((set, get) => {
     },
 
     addMessageToSession: async (sessionId, message) => {
-      if (!message.streamingEventId) {
-        await invoke('save_ai_message', {
-          id: message.id,
-          sessionId: sessionId,
-          timestamp: message.timestamp,
-          data: JSON.stringify(message),
-        });
-      }
+      await invoke('save_ai_message', {
+        id: message.id,
+        sessionId: sessionId,
+        timestamp: message.timestamp,
+        data: JSON.stringify(message),
+      });
       const currentMessagesMap = get().sessionMessages;
       const sessionMsgs = currentMessagesMap[sessionId] || [];
       if (!sessionMsgs.find(m => m.id === message.id)) {
@@ -227,21 +236,12 @@ export const useAiServicesStore = create<AiServicesState>((set, get) => {
         delete updatedMessage.streamingEventId;
       }
 
-      if (!updatedMessage.streamingEventId && sessionMsgs[index].streamingEventId) {
-        await invoke('save_ai_message', {
-          id: updatedMessage.id,
-          sessionId: sessionId,
-          timestamp: updatedMessage.timestamp,
-          data: JSON.stringify(updatedMessage),
-        });
-      } else if (!updatedMessage.streamingEventId) {
-        await invoke('save_ai_message', {
-          id: updatedMessage.id,
-          sessionId: sessionId,
-          timestamp: updatedMessage.timestamp,
-          data: JSON.stringify(updatedMessage),
-        });
-      }
+      await invoke('save_ai_message', {
+        id: updatedMessage.id,
+        sessionId: sessionId,
+        timestamp: updatedMessage.timestamp,
+        data: JSON.stringify(updatedMessage),
+      });
 
       const newMsgs = [...sessionMsgs];
       newMsgs[index] = updatedMessage;
@@ -258,6 +258,10 @@ export const useAiServicesStore = create<AiServicesState>((set, get) => {
       set({
         sessionDrafts: { ...get().sessionDrafts, [sessionId]: draft },
       });
+      invoke('save_ai_draft', {
+        sessionId,
+        data: JSON.stringify({ sessionId, draft }),
+      }).catch(console.error);
       if (sync) broadcastDraft(sessionId, draft);
     },
 
@@ -270,6 +274,10 @@ export const useAiServicesStore = create<AiServicesState>((set, get) => {
       set({
         sessionDrafts: { ...get().sessionDrafts, [sessionId]: next },
       });
+      invoke('save_ai_draft', {
+        sessionId,
+        data: JSON.stringify({ sessionId, draft: next }),
+      }).catch(console.error);
       if (sync) broadcastDraft(sessionId, next);
     },
 
@@ -277,6 +285,7 @@ export const useAiServicesStore = create<AiServicesState>((set, get) => {
       const drafts = { ...get().sessionDrafts };
       drafts[sessionId] = emptySessionDraft();
       set({ sessionDrafts: drafts });
+      invoke('delete_ai_draft', { sessionId }).catch(console.error);
       if (sync) broadcastDraft(sessionId, drafts[sessionId]);
     },
 
@@ -289,6 +298,10 @@ export const useAiServicesStore = create<AiServicesState>((set, get) => {
       set({
         sessionDrafts: { ...get().sessionDrafts, [sessionId]: next },
       });
+      invoke('save_ai_draft', {
+        sessionId,
+        data: JSON.stringify({ sessionId, draft: next }),
+      }).catch(console.error);
       broadcastDraft(sessionId, next);
     },
   };

@@ -88,9 +88,9 @@ export interface WidgetTypeSettings {
 // Seed defaults for first-time DB insertion
 const SEED_DEFAULTS: Record<string, WidgetTypeSettings> = {
   clock: { default_width: 300, default_height: 150 },
-  ai: { default_width: 350, default_height: 400 },
-  weather: { default_width: 300, default_height: 150 },
-  system_monitor: { default_width: 300, default_height: 180 },
+  ai: { default_width: 480, default_height: 620 },
+  weather: { default_width: 300, default_height: 300 },
+  system_monitor: { default_width: 250, default_height: 250 },
   calendar: { default_width: 250, default_height: 250 },
   music: { default_width: 320, default_height: 330 },
   translate: {

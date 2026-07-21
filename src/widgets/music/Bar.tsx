@@ -27,7 +27,16 @@ export default function MusicBar({ widgetId }: { widgetId: string }) {
     const barHeight = settings.barHeight || 36;
     const isLarge = barHeight >= 48;
 
+    console.log('[MusicBar Debug] Render:', {
+        widgetId,
+        hasSession: media.hasSession,
+        title: media.title,
+        artist: media.artist,
+        isPlaying: media.is_playing
+    });
+
     useEffect(() => {
+        console.log('[MusicBar Debug] Updating constraints. hiddenInBar:', !media.hasSession);
         updateConstraints({
             hiddenInBar: !media.hasSession,
             barPadding: 0,

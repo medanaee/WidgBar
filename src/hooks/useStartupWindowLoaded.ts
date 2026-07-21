@@ -20,7 +20,7 @@ export function useStartupWindowLoaded(
   const loadedWidgetIds = useRef(new Set<string>());
   const emitted = useRef(false);
   const [storesHydrated, setStoresHydrated] = useState(false);
-  const [, notifyWidgetLoaded] = useReducer((value) => value + 1, 0);
+  const [loadCount, notifyWidgetLoaded] = useReducer((value) => value + 1, 0);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,7 +64,7 @@ export function useStartupWindowLoaded(
       cancelAnimationFrame(firstFrame);
       if (secondFrame) cancelAnimationFrame(secondFrame);
     };
-  }, [enabled, expectedKey, expectedWidgetIds, monitorId, storesHydrated, windowType]);
+  }, [enabled, expectedKey, expectedWidgetIds, monitorId, storesHydrated, windowType, loadCount]);
 
   return markWidgetLoaded;
 }

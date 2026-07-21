@@ -15,6 +15,8 @@ export default function CalendarBar({ widgetId }: { widgetId: string }) {
     const barShowYear = config.barShowYear ?? true;
     const barMonthFormat = config.barMonthFormat || 'text';
 
+    const barAlign = config.barAlign || 'center';
+
     const barHeight = settings.barHeight || 36;
     const isLarge = barHeight >= 48;
 
@@ -38,11 +40,13 @@ export default function CalendarBar({ widgetId }: { widgetId: string }) {
         });
     }, [firstSecondaryCal, barShowYear, barMonthFormat, language, today]);
 
+    const alignClass = barAlign === 'left' ? 'items-start text-left' : barAlign === 'right' ? 'items-end text-right' : 'items-center text-center';
+
     return (
-        <div className="flex flex-col items-center justify-center h-full text-zinc-700 dark:text-zinc-200 select-none" dir="auto">
+        <div className={`flex flex-col ${alignClass} justify-center h-full text-zinc-700 dark:text-zinc-200 select-none pb-1`} dir="auto">
             <span className="text-[12px] font-medium leading-tight">{formattedDate}</span>
             {isLarge && firstSecondaryDateFormatted && (
-                <span className="text-[11px] text-zinc-400 dark:text-zinc-500 leading-none mt-0.5">
+                <span className="text-[11px] text-zinc-700 dark:text-zinc-300 leading-none mt-0.5" dir="auto">
                     {firstSecondaryDateFormatted}
                 </span>
             )}

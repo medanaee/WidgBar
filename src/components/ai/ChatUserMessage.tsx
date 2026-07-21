@@ -1,6 +1,7 @@
 import MarkdownChatContent from '../MarkdownChatContent';
 import { AttachmentChips } from './AttachmentChips';
 import { ChatMessage } from '../../types/ai';
+import { CopyMessageButton } from './CopyMessageButton';
 
 interface ChatUserMessageProps {
   message: ChatMessage;
@@ -42,6 +43,11 @@ export default function ChatUserMessage({
             isWidget={isWidget}
             onScrollToBottom={onScrollToBottom}
           />
+        </div>
+      ) : null}
+      {prompt.trim() ? (
+        <div className="flex justify-end pt-0.5">
+          <CopyMessageButton text={prompt} isWidget={isWidget} inDarkBubble={inBubble} />
         </div>
       ) : null}
       {!prompt.trim() && attachments.length === 0 ? (

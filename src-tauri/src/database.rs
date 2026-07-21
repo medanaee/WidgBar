@@ -71,6 +71,15 @@ fn init_database(app: &AppHandle) -> std::result::Result<(), String> {
     )
     .map_err(|e| format!("Failed to create table widget_registry: {}", e))?;
 
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS ai_drafts (
+            session_id TEXT PRIMARY KEY,
+            data TEXT NOT NULL
+         )",
+        [],
+    )
+    .map_err(|e| format!("Failed to create table ai_drafts: {}", e))?;
+
     // Check if the default row already exists
     let mut stmt = conn
         .prepare("SELECT COUNT(*) FROM layout WHERE layout = 'default'")
@@ -368,6 +377,34 @@ pub async fn delete_ai_session(app: AppHandle, id: String) -> std::result::Resul
     let conn = get_db_connection(&app)?;
     conn.execute("DELETE FROM ai_sessions WHERE id = ?1", rusqlite::params![id]).map_err(|e| e.to_string())?;
     conn.execute("DELETE FROM ai_messages WHERE session_id = ?1", rusqlite::params![id]).map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM ai_drafts WHERE session_id = ?1", rusqlite::params![id]).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn save_ai_draft(app: AppHandle, session_id: String, data: String) -> std::result::Result<(), String> {
+    let conn = get_db_connection(&app)?;
+    conn.execute("INSERT OR REPLACE INTO ai_drafts (session_id, data) VALUES (?1, ?2)", rusqlite::params![session_id, data]).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn load_ai_drafts(app: AppHandle) -> std::result::Result<Vec<String>, String> {
+    init_database(&app)?;
+    let conn = get_db_connection(&app)?;
+    let mut stmt = conn.prepare("SELECT data FROM ai_drafts").map_err(|e| e.to_string())?;
+    let iter = stmt.query_map([], |row| row.get(0)).map_err(|e| e.to_string())?;
+    let mut list = Vec::new();
+    for res in iter {
+        list.push(res.map_err(|e| e.to_string())?);
+    }
+    Ok(list)
+}
+
+#[tauri::command]
+pub async fn delete_ai_draft(app: AppHandle, session_id: String) -> std::result::Result<(), String> {
+    let conn = get_db_connection(&app)?;
+    conn.execute("DELETE FROM ai_drafts WHERE session_id = ?1", rusqlite::params![session_id]).map_err(|e| e.to_string())?;
     Ok(())
 }
 

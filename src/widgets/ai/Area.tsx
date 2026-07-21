@@ -8,6 +8,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import MarkdownChatContent from '../../components/MarkdownChatContent';
 import ChatUserMessage from '../../components/ai/ChatUserMessage';
+import { CopyMessageButton } from '../../components/ai/CopyMessageButton';
 import SessionComposer from '../../components/ai/SessionComposer';
 import { CutoutProvider } from '../../components/ui/CutoutProvider';
 
@@ -155,12 +156,17 @@ export default function AiArea({ widgetId }: { widgetId: string }) {
                                                     topOffset={8}
                                                 />
                                             ) : (
-                                                <MarkdownChatContent
-                                                    content={msg.content}
-                                                    streamingEventId={msg.streamingEventId}
-                                                    isWidget={true}
-                                                    onScrollToBottom={scrollToBottomIfEnabled}
-                                                />
+                                                <div className="flex flex-col gap-1 w-full">
+                                                    <MarkdownChatContent
+                                                        content={msg.content}
+                                                        streamingEventId={msg.streamingEventId}
+                                                        isWidget={true}
+                                                        onScrollToBottom={scrollToBottomIfEnabled}
+                                                    />
+                                                    <div className="flex justify-start pt-1 border-t border-zinc-500/10 dark:border-white/5 mt-0.5">
+                                                        <CopyMessageButton text={msg.content} isWidget={true} />
+                                                    </div>
+                                                </div>
                                             )}
                                         </div>
                                     </div>
