@@ -2,18 +2,14 @@ import { useEffect, lazy, Suspense } from "react";
 import "./App.css"
 import { HashRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { hydrateFrontendStores } from "./lib/frontendHydration";
 
 const Main = lazy(() => import("./components/Main"));
 const WidgetsArea = lazy(() => import("./components/WidgetsArea"));
 const Bar = lazy(() => import("./components/Bar"));
 const Popup = lazy(() => import("./components/Popup"));
 const Tooltip = lazy(() => import("./components/Tooltip"));
-import { useLayoutStore } from "./stores/layoutStore";
 import { useSettingsStore } from "./stores/settingsStore";
-import { useWidgetRegistryStore } from "./stores/widgetRegistryStore";
-import { useWidgetInstanceStore } from "./stores/widgetInstanceStore";
-import { useAiServicesStore } from "./stores/aiServicesStore";
-import { useClipboardStore } from "./stores/clipboardStore";
 import AiChatRoute from "./components/AiChatRoute";
 
 function AppContent() {
@@ -41,12 +37,9 @@ function AppContent() {
     // backend. Monitor reconciliation + window creation + watcher startup now
     // live entirely in Rust, so the frontend only needs to read state.
     useEffect(() => {
-        useSettingsStore.getState().fetchAndSyncSettings();
-        useLayoutStore.getState().fetchAndSyncLayouts();
-        useWidgetInstanceStore.getState().fetchInstances();
-        useWidgetRegistryStore.getState().fetchRegistry();
-        useAiServicesStore.getState().fetchAndSyncData();
-        useClipboardStore.getState().fetchHistory();
+        hydrateFrontendStores().catch((error) => {
+            console.error("Failed to hydrate frontend stores:", error);
+        });
     }, []);
 
     useEffect(() => {

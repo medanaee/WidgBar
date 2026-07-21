@@ -1,10 +1,10 @@
-use std::sync::{atomic::AtomicUsize, Mutex};
+use std::sync::{Arc, Mutex, atomic::{AtomicUsize, Ordering}};
 
 use tauri::{App, AppHandle, Listener, Manager, State, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 use window_vibrancy::{apply_acrylic, apply_blur};
 
-use crate::windows_utils::{apply_persistent_acrylic, ease_out_cubic};
-
+use crate::{WINDOW_COUNTER, windows_utils::{apply_persistent_acrylic, ease_out_cubic}};
+use window_vibrancy::apply_mica;
 pub struct PoolWindow {
     label: String,
     is_busy: bool,
@@ -527,3 +527,123 @@ pub async fn hide_popup(
 
     Ok(())
 }
+
+
+#[tauri::command]
+pub async fn request_window(
+    app: tauri::AppHandle,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    route: String,
+    animated: bool,
+    always_on_top: bool,
+) -> Result<String, String> {
+    let count = WINDOW_COUNTER.fetch_add(1, Ordering::SeqCst);
+    let label = format!("dynamic_win_{}", count);
+
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
+
+    let builder = WebviewWindowBuilder::new(
+        &app,
+        &label,
+        WebviewUrl::App(format!("index.html/#{}", route).into()),
+    )
+    .inner_size(width, height)
+    .resizable(true)
+    .skip_taskbar(false)
+    .always_on_top(always_on_top)
+    .transparent(true)
+    // .no_redirection_bitmap(true)
+    // .decorations(false)
+    .visible(false); 
+
+    let window = builder.build().map_err(|e| e.to_string())?;
+    let win_clone = window.clone();
+
+    let tx_shared = Arc::new(Mutex::new(Some(tx)));
+
+    window.listen("show_ready", move |_event| {
+        let mut tx_lock = tx_shared.lock().unwrap();
+        if let Some(sender) = tx_lock.take() {
+            let _ = sender.try_send(());
+            println!("Received show_ready from frontend. Handled exactly once.");
+        } else {
+            println!("show_ready event received again, safely ignored.");
+        }
+    });
+
+    #[cfg(target_os = "windows")]
+    {
+       
+
+        apply_acrylic(&window, Some((200, 200, 200, 200)));
+        apply_mica(&window, None);
+        if let Ok(hwnd_val) = window.hwnd() {
+            use crate::windows_utils::set_os_window_animation;
+
+            let hwnd = windows::Win32::Foundation::HWND(hwnd_val.0 as _);
+            // apply_persistent_acrylic(hwnd);
+            set_os_window_animation(hwnd, animated);
+        }
+        
+    }
+
+    let target_y = y;
+    let offset = 10.0;
+    let start_y = target_y + offset;
+    let final_x = x;
+
+
+    let _ = tokio::time::timeout(std::time::Duration::from_millis(3000), rx.recv()).await;
+
+    // if animated {
+    //     let _ = window.set_position(tauri::PhysicalPosition::new(final_x as i32, start_y as i32));
+    // } else {
+    //     let _ = window.set_position(tauri::PhysicalPosition::new(
+    //         final_x as i32,
+    //         target_y as i32,
+    //     ));
+    // }
+    let _ = window.set_position(tauri::PhysicalPosition::new(
+        final_x as i32,
+        target_y as i32,
+    ));
+
+    window.show().ok();
+    window.set_focus().ok();
+
+    // if !animated {
+    //     return Ok(label);
+    // }
+
+    // tauri::async_runtime::spawn(async move {
+    //     let duration_ms = 180.0;
+    //     let fps = 60.0;
+    //     let steps = (duration_ms / (1000.0 / fps)) as i32;
+    //     let sleep_time = std::time::Duration::from_millis((1000.0 / fps) as u64);
+
+    //     for i in 0..=steps {
+    //         let t = i as f64 / steps as f64;
+    //         let eased_t = ease_out_cubic(t);
+    //         let current_y = start_y - (offset * eased_t);
+
+    //         let _ = win_clone.set_position(tauri::PhysicalPosition::new(
+    //             final_x as i32,
+    //             current_y as i32,
+    //         ));
+    //         tokio::time::sleep(sleep_time).await;
+    //     }
+
+    //     let _ = win_clone.set_position(tauri::PhysicalPosition::new(
+    //         final_x as i32,
+    //         target_y as i32,
+    //     ));
+    // });
+
+    Ok(label)
+}
+
+
+

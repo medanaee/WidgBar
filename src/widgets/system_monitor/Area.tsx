@@ -146,6 +146,57 @@ export default function SystemMonitorArea({ widgetId }: { widgetId: string }) {
         );
     };
 
+    const renderDoubleSparkline = (downData: number[], upData: number[]) => {
+        if (!showChartsArea || downData.length < 2) return null;
+
+        const limit = Math.max(512, ...downData, ...upData, 1);
+        const chartData = downData.map((val, i) => ({
+            down: val,
+            up: upData[i] || 0,
+            index: i
+        }));
+
+        return (
+            <div
+                className={`w-full pointer-events-none select-none overflow-hidden ${isCompact ? 'h-6 mt-1' : 'h-10 mt-2'}`}
+            >
+                <ResponsiveContainer width="100%" height={chartH}>
+                    <AreaChart data={chartData} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
+                        <YAxis domain={[0, limit]} hide={true} />
+                        <defs>
+                            <linearGradient id="glow-net-down" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.35}/>
+                                <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.0}/>
+                            </linearGradient>
+                            <linearGradient id="glow-net-up" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#f97316" stopOpacity={0.35}/>
+                                <stop offset="95%" stopColor="#f97316" stopOpacity={0.0}/>
+                            </linearGradient>
+                        </defs>
+                        <RechartsArea 
+                            type="monotone" 
+                            dataKey="down" 
+                            stroke="#f59e0b" 
+                            strokeWidth={isCompact ? 1.2 : 1.5}
+                            fillOpacity={1} 
+                            fill="url(#glow-net-down)" 
+                            isAnimationActive={false}
+                        />
+                        <RechartsArea 
+                            type="monotone" 
+                            dataKey="up" 
+                            stroke="#f97316" 
+                            strokeWidth={isCompact ? 1.2 : 1.5}
+                            fillOpacity={1} 
+                            fill="url(#glow-net-up)" 
+                            isAnimationActive={false}
+                        />
+                    </AreaChart>
+                </ResponsiveContainer>
+            </div>
+        );
+    };
+
     const cardClass = `flex flex-col justify-between ${cardPad} rounded-xl bg-white/40 dark:bg-zinc-500/10 border border-zinc-500/10 dark:border-zinc-500/10 shadow-sm hover:bg-white/60 dark:hover:bg-zinc-500/20 transition-all pointer-events-auto`;
 
     return (
@@ -264,16 +315,7 @@ export default function SystemMonitorArea({ widgetId }: { widgetId: string }) {
                                 <div className="h-0.5 w-full bg-zinc-200 dark:bg-zinc-800 rounded-full" />
                             </div>
                         </div>
-                        {showChartsArea && (
-                            <div className={`${isCompact ? 'mt-1 gap-1' : 'mt-2 gap-2'} flex w-full`}>
-                                <div className="flex-1 min-w-0">
-                                    {renderSparkline(history.netDown, 512, '#f59e0b')}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    {renderSparkline(history.netUp, 512, '#f97316')}
-                                </div>
-                            </div>
-                        )}
+                        {showChartsArea && renderDoubleSparkline(history.netDown, history.netUp)}
                     </div>
                 )}
             </div>

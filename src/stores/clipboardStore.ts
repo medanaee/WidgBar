@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 import { emit, listen } from '@tauri-apps/api/event';
-import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
+import { isOwnerWindow } from '../lib/ownerWindow';
 
 export interface ClipboardItem {
   id: string;
@@ -305,12 +305,9 @@ listen('clipboard-history-sync', (event: any) => {
   }
 }).catch(console.error);
 
-// Only the main window owns capture → store, so bar/popup don't double-insert.
-listen<ClipboardCapture>('clipboard-changed', (event) => {
-  try {
-    if (getCurrentWebviewWindow().label !== 'main') return;
-  } catch {
-    return;
-  }
+// Only the always-open owner window (primary monitor's bar) ingests captures,
+// so bar/popup/main windows don't double-insert.
+listen<ClipboardCapture>('clipboard-changed', async (event) => {
+  if (!(await isOwnerWindow())) return;
   useClipboardStore.getState().ingestCapture(event.payload);
 }).catch(console.error);

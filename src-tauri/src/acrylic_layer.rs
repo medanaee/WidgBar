@@ -98,6 +98,34 @@ pub fn get_layout_state() -> &'static Mutex<LayoutState> {
     LAYOUT_STATE.get_or_init(|| Mutex::new(LayoutState::default()))
 }
 
+/// Label of the "owner" window — the primary monitor's bar. This window is
+/// always open (the primary bar can't be closed), so anything in the app that
+/// needs a single, always-present window (e.g. clipboard capture ingestion)
+/// uses it as its home. Elected in `create_bar` for the primary monitor.
+static OWNER_WINDOW_LABEL: OnceLock<Mutex<Option<String>>> = OnceLock::new();
+
+fn owner_window_label() -> &'static Mutex<Option<String>> {
+    OWNER_WINDOW_LABEL.get_or_init(|| Mutex::new(None))
+}
+
+/// Record (and broadcast) which window is the always-open owner.
+pub fn set_owner_window_label(app: &AppHandle, label: &str) {
+    {
+        let mut guard = owner_window_label().lock().unwrap();
+        if guard.as_deref() == Some(label) {
+            return;
+        }
+        *guard = Some(label.to_string());
+    }
+    let _ = app.emit("owner-window-changed", label.to_string());
+}
+
+/// The current always-open owner window label (primary monitor's bar), if any.
+#[tauri::command]
+pub fn get_owner_window_label() -> Option<String> {
+    owner_window_label().lock().unwrap().clone()
+}
+
 static APPBAR_BOUNDS: OnceLock<Mutex<HashMap<isize, RECT>>> = OnceLock::new();
 
 fn get_appbar_bounds() -> &'static Mutex<HashMap<isize, RECT>> {
@@ -520,7 +548,12 @@ pub async fn create_bar(app: AppHandle, monitor_id: String, height: u32) -> Resu
 
     
     window.show().ok();
-    
+
+    // The primary monitor's bar is the always-open "owner" window.
+    if monitor_info.is_primary {
+        set_owner_window_label(&app, &label);
+    }
+
     let _ = app.emit(
         "window_created_from_rust",
         serde_json::json!({ "label": label.clone() }),

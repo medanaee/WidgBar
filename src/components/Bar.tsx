@@ -1,10 +1,11 @@
-import React, { useRef } from 'react';
+import React, { useMemo, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useLayoutStore } from '../stores/layoutStore';
 import { useSettingsStore } from '../stores/settingsStore';
-import { Settings16Regular, Settings20Regular, SettingsRegular } from '@fluentui/react-icons';
+import { SettingsRegular } from '@fluentui/react-icons';
 import { invoke } from '@tauri-apps/api/core';
 import Widget from './Widget';
+import { useStartupWindowLoaded } from '../hooks/useStartupWindowLoaded';
 
 export default function Bar() {
   const { monitorId } = useParams<{ monitorId: string }>();
@@ -24,6 +25,16 @@ export default function Bar() {
   const showButton = targetMonitor?.showMainWindowButton !== false;
   const separator = targetMonitor?.barSeparator || "none";
   const showSeparator = isSpacingJustify && separator !== "none";
+  const expectedWidgetIds = useMemo(
+    () => barSections.flatMap((section) => section.widgets.map((widget) => widget.id)),
+    [barSections],
+  );
+  const markWidgetLoaded = useStartupWindowLoaded(
+    'bar',
+    monitorId,
+    expectedWidgetIds,
+    Boolean(monitor && targetMonitor),
+  );
 
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const activePopupLabelRef = useRef<string | null>(null);
@@ -134,6 +145,7 @@ export default function Bar() {
                 context="Bar"
                 index={index}
                 widget={widget}
+                onContentLoaded={markWidgetLoaded}
               />
             ))}
           </div>

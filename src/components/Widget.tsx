@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useMemo } from 'react';
+import React, { lazy, Suspense, useEffect, useMemo } from 'react';
 import WidgetAreaItem from './WidgetAreaItem';
 import WidgetBarItem from './WidgetBarItem';
 import { DesktopWidget, BarWidget } from '../types/layout';
@@ -12,10 +12,27 @@ interface Props {
     setActiveWidgetId?: (id: string | null) => void;
     isEditMode?: boolean;
     onUpdate?: (id: string, updates: Partial<DesktopWidget>, broadcast?: boolean) => void;
+    onContentLoaded?: (id: string) => void;
+}
+
+function LoadedWidgetContent({
+    widgetId,
+    onContentLoaded,
+    children,
+}: {
+    widgetId: string;
+    onContentLoaded?: (id: string) => void;
+    children: React.ReactNode;
+}) {
+    useEffect(() => {
+        onContentLoaded?.(widgetId);
+    }, [onContentLoaded, widgetId]);
+
+    return children;
 }
 
 export default function Widget(props: Props) {
-    const { context, widget } = props;
+    const { context, widget, onContentLoaded } = props;
     const type = (widget as any).type || 'unknown';
 
     // Vite can statically analyze this dynamic import because it knows the directory and extension
@@ -30,7 +47,9 @@ export default function Widget(props: Props) {
         return (
             <WidgetAreaItem {...areaProps}>
                 <Suspense fallback={<div className="flex w-full h-full items-center justify-center text-white/50 animate-pulse">...</div>}>
-                    <InnerComponent widgetId={widget.id} />
+                    <LoadedWidgetContent widgetId={widget.id} onContentLoaded={onContentLoaded}>
+                        <InnerComponent widgetId={widget.id} />
+                    </LoadedWidgetContent>
                 </Suspense>
             </WidgetAreaItem>
         );
@@ -38,7 +57,9 @@ export default function Widget(props: Props) {
         return (
             <WidgetBarItem widget={widget as BarWidget}>
                 <Suspense fallback={<div className="flex h-full items-center justify-center text-white/50 animate-pulse">...</div>}>
-                    <InnerComponent widgetId={widget.id} />
+                    <LoadedWidgetContent widgetId={widget.id} onContentLoaded={onContentLoaded}>
+                        <InnerComponent widgetId={widget.id} />
+                    </LoadedWidgetContent>
                 </Suspense>
             </WidgetBarItem>
         );

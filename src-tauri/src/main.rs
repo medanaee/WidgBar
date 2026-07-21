@@ -56,7 +56,7 @@ mod listener;
 mod acrylic_layer;
 use acrylic_layer::*;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use tauri::State;
 
 mod windows_pool;
@@ -271,10 +271,10 @@ async fn reconcile_layout_and_collect(app: &tauri::AppHandle) -> Vec<(String, bo
 }
 
 /// Backend-driven startup. Reconciles the layout, creates every bar / widget
-/// area window, and only once ALL of those windows exist does it start the
-/// background watchers. This preserves the original "wait for all windows,
-/// then start watchers" guarantee — we simply await each window build (which
-/// completes as soon as the window is created, not when its content renders).
+/// area, then waits for a dedicated readiness message from the frontend of
+/// every created window. A window reports ready only after its stores hydrate,
+/// all lazy widget components commit, and the rendered content gets two paint
+/// frames. Only then are the background watchers started.
 async fn startup_init(app: tauri::AppHandle) {
     let monitors_to_create = reconcile_layout_and_collect(&app).await;
 
@@ -287,132 +287,79 @@ async fn startup_init(app: tauri::AppHandle) {
         }
     }
 
-    for (monitor_id, has_bar, has_area) in monitors_to_create.iter() {
-        if *has_bar {
-            let _ = crate::acrylic_layer::create_bar(app.clone(), monitor_id.clone(), bar_height).await;
-        }
-        if *has_area {
-            let _ = crate::acrylic_layer::create_widget_area(app.clone(), monitor_id.clone()).await;
-        }
-    }
-
-    // Every bar / area window now exists → safe to start the watchers.
-    start_watchers_once(app);
-}
-
-#[tauri::command]
-async fn request_window(
-    app: tauri::AppHandle,
-    x: f64,
-    y: f64,
-    width: f64,
-    height: f64,
-    route: String,
-    animated: bool,
-    always_on_top: bool,
-) -> Result<String, String> {
-    let count = WINDOW_COUNTER.fetch_add(1, Ordering::SeqCst);
-    let label = format!("dynamic_win_{}", count);
-
-    let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
-
-    let builder = WebviewWindowBuilder::new(
-        &app,
-        &label,
-        WebviewUrl::App(format!("index.html/#{}", route).into()),
-    )
-    .inner_size(width, height)
-    .resizable(true)
-    .skip_taskbar(false)
-    .always_on_top(always_on_top)
-    .transparent(true)
-    // .no_redirection_bitmap(true)
-    // .decorations(false)
-    .visible(false); 
-
-    let window = builder.build().map_err(|e| e.to_string())?;
-    let win_clone = window.clone();
-
-    let tx_shared = Arc::new(Mutex::new(Some(tx)));
-
-    window.listen("show_ready", move |_event| {
-        let mut tx_lock = tx_shared.lock().unwrap();
-        if let Some(sender) = tx_lock.take() {
-            let _ = sender.try_send(());
-            println!("Received show_ready from frontend. Handled exactly once.");
-        } else {
-            println!("show_ready event received again, safely ignored.");
+    // Register before building any windows so a very fast frontend cannot emit
+    // readiness before the backend starts listening.
+    let (loaded_tx, mut loaded_rx) = tokio::sync::mpsc::unbounded_channel::<String>();
+    let listener_id = app.listen("startup-window-loaded", move |event| {
+        let label = serde_json::from_str::<serde_json::Value>(event.payload())
+            .ok()
+            .and_then(|payload| payload.get("label")?.as_str().map(str::to_owned));
+        if let Some(label) = label {
+            let _ = loaded_tx.send(label);
         }
     });
 
-    #[cfg(target_os = "windows")]
-    {
-        apply_acrylic(&window, Some((200, 200, 200, 200)));
-        apply_mica(&window, None);
-        if let Ok(hwnd_val) = window.hwnd() {
-            let hwnd = windows::Win32::Foundation::HWND(hwnd_val.0 as _);
-            // apply_persistent_acrylic(hwnd);
-            set_os_window_animation(hwnd, animated);
+    let mut expected_labels = HashSet::new();
+    let mut creation_failed = false;
+
+    for (monitor_id, has_bar, has_area) in monitors_to_create.iter() {
+        if *has_bar {
+            match crate::acrylic_layer::create_bar(app.clone(), monitor_id.clone(), bar_height).await {
+                Ok(label) => {
+                    expected_labels.insert(label);
+                }
+                Err(error) => {
+                    creation_failed = true;
+                    eprintln!("[system] Failed to create bar for {monitor_id}: {error}");
+                }
+            }
         }
-        
+        if *has_area {
+            match crate::acrylic_layer::create_widget_area(app.clone(), monitor_id.clone()).await {
+                Ok(label) => {
+                    expected_labels.insert(label);
+                }
+                Err(error) => {
+                    creation_failed = true;
+                    eprintln!("[system] Failed to create widget area for {monitor_id}: {error}");
+                }
+            }
+        }
     }
 
-    let target_y = y;
-    let offset = 10.0;
-    let start_y = target_y + offset;
-    let final_x = x;
+    if creation_failed {
+        app.unlisten(listener_id);
+        eprintln!("[system] Startup windows were not all created; watchers will not start.");
+        return;
+    }
 
+    println!(
+        "[system] Waiting for {}/{} Bar/Area frontends to load...",
+        0,
+        expected_labels.len()
+    );
 
-    let _ = tokio::time::timeout(std::time::Duration::from_millis(3000), rx.recv()).await;
+    let mut loaded_labels = HashSet::new();
+    while loaded_labels.len() < expected_labels.len() {
+        let Some(label) = loaded_rx.recv().await else {
+            app.unlisten(listener_id);
+            eprintln!("[system] Frontend readiness channel closed; watchers will not start.");
+            return;
+        };
 
-    // if animated {
-    //     let _ = window.set_position(tauri::PhysicalPosition::new(final_x as i32, start_y as i32));
-    // } else {
-    //     let _ = window.set_position(tauri::PhysicalPosition::new(
-    //         final_x as i32,
-    //         target_y as i32,
-    //     ));
-    // }
-    let _ = window.set_position(tauri::PhysicalPosition::new(
-        final_x as i32,
-        target_y as i32,
-    ));
+        if expected_labels.contains(&label) && loaded_labels.insert(label.clone()) {
+            println!(
+                "[system] Frontend loaded: {label} ({}/{})",
+                loaded_labels.len(),
+                expected_labels.len()
+            );
+        }
+    }
 
-    window.show().ok();
-    window.set_focus().ok();
-
-    // if !animated {
-    //     return Ok(label);
-    // }
-
-    // tauri::async_runtime::spawn(async move {
-    //     let duration_ms = 180.0;
-    //     let fps = 60.0;
-    //     let steps = (duration_ms / (1000.0 / fps)) as i32;
-    //     let sleep_time = std::time::Duration::from_millis((1000.0 / fps) as u64);
-
-    //     for i in 0..=steps {
-    //         let t = i as f64 / steps as f64;
-    //         let eased_t = ease_out_cubic(t);
-    //         let current_y = start_y - (offset * eased_t);
-
-    //         let _ = win_clone.set_position(tauri::PhysicalPosition::new(
-    //             final_x as i32,
-    //             current_y as i32,
-    //         ));
-    //         tokio::time::sleep(sleep_time).await;
-    //     }
-
-    //     let _ = win_clone.set_position(tauri::PhysicalPosition::new(
-    //         final_x as i32,
-    //         target_y as i32,
-    //     ));
-    // });
-
-    Ok(label)
+    app.unlisten(listener_id);
+    println!("[system] All Bar/Area frontend content loaded.");
+    start_watchers_once(app);
 }
-
-
 
 
 
@@ -522,12 +469,6 @@ async fn stream_ai_request(
     Ok(())
 }
 
-#[tauri::command]
-fn start_background_watchers(app_handle: tauri::AppHandle) {
-    println!("[system] Frontend requested background watchers to start.");
-    start_watchers_once(app_handle);
-}
-
 fn main() {
     tauri::Builder::default()
         .manage(LockedPopupsState {
@@ -555,6 +496,7 @@ fn main() {
             open_main_window,
             acrylic_layer::init_monitors,
             acrylic_layer::get_layout,
+            acrylic_layer::get_owner_window_label,
             acrylic_layer::create_bar,
             acrylic_layer::update_bar_height,
             acrylic_layer::remove_bar,
@@ -602,8 +544,7 @@ fn main() {
             stream_ai_request,
             system_monitor::get_system_stats,
             save_attachment_file,
-            read_attachment_file,
-            start_background_watchers
+            read_attachment_file
         ])
         .setup(|app| {
             let handle = app.handle().clone();

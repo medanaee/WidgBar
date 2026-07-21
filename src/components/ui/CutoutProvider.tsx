@@ -16,7 +16,16 @@ export function useCutout() {
   return context;
 }
 
-export function CutoutProvider({ children }: { children: ReactNode }) {
+export function CutoutProvider({
+  children,
+  className = 'w-full h-screen',
+}: {
+  children: ReactNode;
+  /** Height/width classes for the masked container. Full-window hosts use the
+   *  default (screen sized); embedded hosts (e.g. a widget in the desktop area)
+   *  should pass `w-full h-full` so the layout fits its box, not the screen. */
+  className?: string;
+}) {
   const [rect, setCutoutRect] = useState<Rect>(null);
 
   let maskStyle: React.CSSProperties = {
@@ -49,7 +58,7 @@ export function CutoutProvider({ children }: { children: ReactNode }) {
 
   return (
     <CutoutContext.Provider value={contextValue}>
-      <div className="w-full h-screen" style={maskStyle}>
+      <div className={className} style={maskStyle}>
         {children}
       </div>
       {/* Portal root for all cutout modals, sibling to the masked container */}

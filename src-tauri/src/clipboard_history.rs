@@ -760,12 +760,19 @@ pub fn start_clipboard_watcher(app: AppHandle) {
                 continue;
             }
 
-            // Priority: files > image > text (plain + HTML + RTF)
-            if let Some(paths) = read_clipboard_files() {
-                let mut c = empty_capture("files");
-                c.file_paths = Some(paths);
-                emit_capture(&app, c);
-            } else if let Some((rgba, w, h)) = read_clipboard_image() {
+            // Priority: real image pixels (CF_BITMAP) > files (CF_HDROP) > text.
+            //
+            // When an image is copied from an app (Photos, browser, editor, …)
+            // the clipboard carries the actual pixels as CF_BITMAP — usually
+            // *alongside* a virtual "file" (FileGroupDescriptorW + FileContents,
+            // plus a CF_HDROP that only materializes into a temp file on paste).
+            // That virtual descriptor is NOT a real path on disk, so we prefer
+            // the pixels here and store the image content itself.
+            //
+            // Copying a real file from Explorer instead gives a CF_HDROP that
+            // points at an actual path and has NO CF_BITMAP, so it falls through
+            // to the files branch and is kept as a file.
+            if let Some((rgba, w, h)) = read_clipboard_image() {
                 match save_clipboard_image(&rgba, w, h) {
                     Ok(path) => {
                         let mut c = empty_capture("image");
@@ -774,6 +781,10 @@ pub fn start_clipboard_watcher(app: AppHandle) {
                     }
                     Err(e) => eprintln!("[clipboard] save image failed ({w}x{h}): {e}"),
                 }
+            } else if let Some(paths) = read_clipboard_files() {
+                let mut c = empty_capture("files");
+                c.file_paths = Some(paths);
+                emit_capture(&app, c);
             } else if let Some((plain, html, rtf)) = read_clipboard_text_bundle() {
                 let mut c = empty_capture("text");
                 c.text = plain;

@@ -81,7 +81,7 @@ export default function AiArea({ widgetId }: { widgetId: string }) {
     };
 
     return (
-        <CutoutProvider>
+        <CutoutProvider className="w-full h-full">
             <div className="flex flex-col h-full w-full bg-transparent p-4 text-zinc-800 dark:text-zinc-200 overflow-hidden font-sans select-none">
                 <h2 className="text-sm font-semibold mb-3 flex items-center justify-between">
                     <div className="flex items-center gap-2">

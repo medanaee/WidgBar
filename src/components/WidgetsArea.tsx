@@ -1,10 +1,11 @@
 import { useParams } from 'react-router-dom';
 import { useLayoutStore } from '../stores/layoutStore';
 import Widget from './Widget';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { AddWidgetModal } from "./AddWidgetModal";
 import { useSnapStore } from "../stores/snapStore";
 import { useWidgetConstraintsStore } from '../stores/widgetConstraintsStore';
+import { useStartupWindowLoaded } from '../hooks/useStartupWindowLoaded';
 
 export default function WidgetsArea() {
     const { monitorId } = useParams<{ monitorId: string }>();
@@ -17,6 +18,16 @@ export default function WidgetsArea() {
                            layouts[currentLayout]?.monitors.find(m => m.id === monitor.borrowAreaLayoutFrom && !m.borrowAreaLayoutFrom)) || monitor;
 
     const widgetsForThisWindow = targetMonitor?.widgetArea || [];
+    const expectedWidgetIds = useMemo(
+        () => widgetsForThisWindow.map((widget) => widget.id),
+        [widgetsForThisWindow],
+    );
+    const markWidgetLoaded = useStartupWindowLoaded(
+        'area',
+        monitorId,
+        expectedWidgetIds,
+        Boolean(monitor && targetMonitor),
+    );
     const isEditMode = targetMonitor?.isEditMode || monitor?.isEditMode || false;
     const visibleWidgets = widgetsForThisWindow.filter(
         w => isEditMode || !allConstraints[w.id]?.hiddenInArea
@@ -81,6 +92,7 @@ export default function WidgetsArea() {
                     setActiveWidgetId={setActiveWidgetId}
                     isEditMode={isEditMode}
                     onUpdate={(id, updates, broadcast) => updateWidget(targetMonitor!.id, id, updates, broadcast)}
+                    onContentLoaded={markWidgetLoaded}
                 />
             ))}
         </div>
