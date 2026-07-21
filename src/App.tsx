@@ -1,6 +1,5 @@
-import { useState, useEffect, useRef, lazy, Suspense } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import "./App.css"
-import { invoke } from "@tauri-apps/api/core";
 import { HashRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 
@@ -16,31 +15,12 @@ import { useWidgetInstanceStore } from "./stores/widgetInstanceStore";
 import { useAiServicesStore } from "./stores/aiServicesStore";
 import { useClipboardStore } from "./stores/clipboardStore";
 import AiChatRoute from "./components/AiChatRoute";
-import { listen } from "@tauri-apps/api/event";
-
-interface BackendMonitorInfo {
-    id: string;
-    name: string;
-    width: number;
-    height: number;
-    x: number;
-    y: number;
-    is_primary: boolean;
-    scale_factor: number;
-}
-
-interface BackendLayoutState {
-    monitors: Record<string, BackendMonitorInfo>;
-}
 
 function AppContent() {
     const navigate = useNavigate();
     const location = useLocation();
 
-    const fetchAndSyncLayouts = useLayoutStore((state) => state.fetchAndSyncLayouts);
-    const fetchAndSyncSettings = useSettingsStore((state) => state.fetchAndSyncSettings);
     const settings = useSettingsStore((state) => state.settings);
-    const initRan = useRef(false);
 
     useEffect(() => {
         if (!settings) return;
@@ -57,6 +37,9 @@ function AppContent() {
         document.documentElement.dir = settings.language === 'fa' ? 'rtl' : 'ltr';
     }, [settings?.theme, settings?.language]);
 
+    // Every window (main / bar / area / popup) hydrates its stores from the
+    // backend. Monitor reconciliation + window creation + watcher startup now
+    // live entirely in Rust, so the frontend only needs to read state.
     useEffect(() => {
         useSettingsStore.getState().fetchAndSyncSettings();
         useLayoutStore.getState().fetchAndSyncLayouts();
@@ -65,196 +48,6 @@ function AppContent() {
         useAiServicesStore.getState().fetchAndSyncData();
         useClipboardStore.getState().fetchHistory();
     }, []);
-
-    useEffect(() => {
-        const init = async () => {
-            if (initRan.current || location.pathname !== '/') return;
-
-            const appWindow = getCurrentWebviewWindow();
-            if (appWindow.label !== 'main') return;
-
-            initRan.current = true;
-
-            await fetchAndSyncSettings();
-            await fetchAndSyncLayouts();
-
-            try {
-                const backendState = await invoke<BackendLayoutState>('get_layout');
-                console.log(backendState);
-                const state = useLayoutStore.getState();
-                const currentLayoutName = state.currentLayout;
-                let currentData = state.layouts[currentLayoutName];
-
-                if (!currentData) {
-                    currentData = { monitors: [] };
-                }
-
-                let changed = false;
-                const updatedMonitors = [...currentData.monitors];
-
-                for (let i = 0; i < updatedMonitors.length; i++) {
-                    const m = updatedMonitors[i];
-                    const isStillConnected = Object.values(backendState.monitors).some(bm => bm.id === m.id);
-                    if (!isStillConnected) {
-                        if (!m.is_disconnected) {
-                            updatedMonitors[i] = { ...m, is_disconnected: true };
-                            changed = true;
-                        }
-                    } else {
-                        if (m.is_disconnected) {
-                            updatedMonitors[i] = { ...m, is_disconnected: false };
-                            changed = true;
-                        }
-                    }
-                }
-
-                for (const [, backendMon] of Object.entries(backendState.monitors)) {
-                    const existingIdx = updatedMonitors.findIndex(m => m.id === backendMon.id);
-                    if (existingIdx === -1) {
-                        updatedMonitors.push({
-                            id: backendMon.id,
-                            name: backendMon.name,
-                            width: backendMon.width,
-                            height: backendMon.height,
-                            x: backendMon.x,
-                            y: backendMon.y,
-                            is_primary: backendMon.is_primary,
-                            scale_factor: backendMon.scale_factor,
-                            has_bar: backendMon.is_primary,
-                            has_widget_area: false,
-                            bar: backendMon.is_primary ? [{ id: `bar_widget_${Date.now()}` }] : [],
-                            widgetArea: [],
-                            is_disconnected: false
-                        });
-                        changed = true;
-                    } else {
-                        let currentMonitor = updatedMonitors[existingIdx];
-                        let updated = false;
-
-                        if (
-                            currentMonitor.width !== backendMon.width ||
-                            currentMonitor.height !== backendMon.height ||
-                            currentMonitor.x !== backendMon.x ||
-                            currentMonitor.y !== backendMon.y ||
-                            currentMonitor.scale_factor !== backendMon.scale_factor
-                        ) {
-                            currentMonitor = {
-                                ...currentMonitor,
-                                width: backendMon.width,
-                                height: backendMon.height,
-                                x: backendMon.x,
-                                y: backendMon.y,
-                                scale_factor: backendMon.scale_factor
-                            };
-                            updated = true;
-                        }
-
-                        if (currentMonitor.is_primary !== backendMon.is_primary) {
-                            currentMonitor = { ...currentMonitor, is_primary: backendMon.is_primary };
-
-                            // If monitor is demoted from primary to secondary, remove its auto-assigned bar
-                            if (!backendMon.is_primary && currentMonitor.has_bar) {
-                                currentMonitor.has_bar = false;
-                                currentMonitor.bar = [];
-                            }
-
-                            updated = true;
-                        }
-
-                        // Ensure primary monitor always has a bar
-                        if (currentMonitor.is_primary && !currentMonitor.has_bar) {
-                            currentMonitor = {
-                                ...currentMonitor,
-                                has_bar: true,
-                                bar: [{ id: `bar_widget_${Date.now()}` }]
-                            };
-                            updated = true;
-                        }
-
-                        if (updated) {
-                            updatedMonitors[existingIdx] = currentMonitor;
-                            changed = true;
-                        }
-                    }
-                }
-
-                if (changed) {
-                    useLayoutStore.getState().setLayouts({
-                        ...state.layouts,
-                        [currentLayoutName]: { ...currentData, monitors: updatedMonitors }
-                    });
-                }
-
-                // Create physical windows based on store for connected monitors
-                const finalMonitors = useLayoutStore.getState().layouts[currentLayoutName].monitors;
-                const barHeight = useSettingsStore.getState().settings.barHeight;
-
-                let expectedWindowsCount = 0;
-                for (const m of finalMonitors) {
-                    if (m.is_disconnected) continue;
-                    if (m.has_bar) expectedWindowsCount++;
-                    if (m.has_widget_area) expectedWindowsCount++;
-                }
-
-                if (expectedWindowsCount > 0) {
-                    console.log(`[system] Expecting ${expectedWindowsCount} windows to be created by Rust.`);
-                    
-                    await new Promise<void>(async (resolve) => {
-                        const readyWindows = new Set<string>();
-                        let unlisten: () => void;
-                        
-                        const timeoutId = setTimeout(() => {
-                            console.warn(`[system] Timeout! Only ${readyWindows.size}/${expectedWindowsCount} windows reported creation.`);
-                            if (unlisten) unlisten();
-                            resolve();
-                        }, 8000);
-
-                        // Define the expected payload structure for TypeScript
-                        interface WindowEventPayload {
-                            label: string;
-                        }
-
-                        // Pass the type to the listen function
-                        unlisten = await listen<WindowEventPayload>('window_created_from_rust', (event) => {
-                            const windowLabel = event.payload?.label || 'unknown_window';
-                            readyWindows.add(windowLabel);
-                            
-                            console.log(`[system] Rust created window: ${windowLabel} (${readyWindows.size}/${expectedWindowsCount})`);
-                            
-                            if (readyWindows.size >= expectedWindowsCount) {
-                                console.log("[system] All requested windows have been created by Rust!");
-                                clearTimeout(timeoutId);
-                                unlisten();
-                                resolve();
-                            }
-                        });
-
-                        for (const m of finalMonitors) {
-                            if (m.is_disconnected) continue;
-                            
-                            if (m.has_bar) {
-                                invoke('create_bar', { monitorId: m.id, height: barHeight }).catch(console.error);
-                            }
-                            if (m.has_widget_area) {
-                                invoke('create_widget_area', { monitorId: m.id }).catch(console.error);
-                            }
-                        }
-                    });
-                }
-
-                // Start watchers strictly after the Promise resolves
-                console.log("[system] Starting background watchers...");
-                await invoke('start_background_watchers').catch(err => 
-                    console.error("[system] Failed to start watchers:", err)
-                );
-
-            } catch (err) {
-                console.error("Failed to initialize monitors:", err);
-            }
-        };
-
-        init();
-    }, [fetchAndSyncLayouts, fetchAndSyncSettings, location.pathname]);
 
     useEffect(() => {
         const handleRustNav = (event: any) => {
@@ -282,8 +75,6 @@ function AppContent() {
 
             notifyRust();
         };
-
-        const appWindow = getCurrentWebviewWindow();
 
         window.addEventListener('rust-navigation', handleRustNav);
         return () => window.removeEventListener('rust-navigation', handleRustNav);

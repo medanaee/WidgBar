@@ -94,7 +94,7 @@ export default function Bar() {
 
   const handleOpenMain = () => {
     handleMouseLeave();
-    invoke('show_window', { label: 'main' }).catch(console.error);
+    invoke('open_main_window').catch(console.error);
   };
 
   const bgOpacity = settings?.barBgOpacity ?? 80;

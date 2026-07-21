@@ -2,7 +2,7 @@
 
 use once_cell::sync::OnceCell;
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::fs;
 use tauri::Listener;
@@ -75,8 +75,230 @@ mod system_monitor;
 
 static WINDOW_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
+/// Background watchers (media + clipboard) must only ever be started once for
+/// the whole process lifetime, regardless of how many times the main window is
+/// opened/closed or how the app is re-launched.
+static WATCHERS_STARTED: AtomicBool = AtomicBool::new(false);
+/// Monotonic suffix so freshly generated bar-widget ids never collide.
+static BAR_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
+fn start_watchers_once(app: tauri::AppHandle) {
+    if WATCHERS_STARTED.swap(true, Ordering::SeqCst) {
+        println!("[system] Watchers already started; skipping.");
+        return;
+    }
+    println!("[system] Starting background watchers...");
+    media_control::start_media_listener(app.clone());
+    clipboard_history::start_clipboard_watcher(app);
+}
 
+fn gen_bar_widget_id() -> String {
+    let ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let c = BAR_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+    format!("bar_widget_{}_{}", ms, c)
+}
+
+/// Reconcile the persisted `default` layout against the physically connected
+/// monitors (mirrors the logic that used to live in `App.tsx`): mark
+/// disconnected / reconnected monitors, add newly connected ones, update
+/// geometry / primary flag, and ensure the primary monitor always has a bar.
+///
+/// Returns the list of connected monitors together with whether each needs a
+/// bar and/or a widget-area window created.
+async fn reconcile_layout_and_collect(app: &tauri::AppHandle) -> Vec<(String, bool, bool)> {
+    let backend_monitors: Vec<crate::acrylic_layer::MonitorInfo> = crate::acrylic_layer::get_layout_state()
+        .lock()
+        .unwrap()
+        .monitors
+        .values()
+        .cloned()
+        .collect();
+
+    let layouts = crate::database::load_all_layouts(app.clone())
+        .await
+        .unwrap_or_default();
+    let raw = layouts
+        .get("default")
+        .cloned()
+        .unwrap_or_else(|| "{}".to_string());
+    let mut parsed: serde_json::Value =
+        serde_json::from_str(&raw).unwrap_or_else(|_| serde_json::json!({}));
+    if !parsed.is_object() {
+        parsed = serde_json::json!({});
+    }
+
+    let mut monitors: Vec<serde_json::Value> = parsed
+        .get("monitors")
+        .and_then(|m| m.as_array())
+        .cloned()
+        .unwrap_or_default();
+
+    let mut changed = false;
+
+    // 1. Mark disconnected / reconnected monitors.
+    for m in monitors.iter_mut() {
+        let mid = m.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let still_connected = backend_monitors.iter().any(|bm| bm.id == mid);
+        let is_disc = m
+            .get("is_disconnected")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        if !still_connected {
+            if !is_disc {
+                m["is_disconnected"] = serde_json::json!(true);
+                changed = true;
+            }
+        } else if is_disc {
+            m["is_disconnected"] = serde_json::json!(false);
+            changed = true;
+        }
+    }
+
+    // 2. Add new monitors / update existing ones.
+    for bm in backend_monitors.iter() {
+        let existing_idx = monitors
+            .iter()
+            .position(|m| m.get("id").and_then(|v| v.as_str()) == Some(bm.id.as_str()));
+
+        match existing_idx {
+            None => {
+                let bar = if bm.is_primary {
+                    serde_json::json!([{ "id": gen_bar_widget_id() }])
+                } else {
+                    serde_json::json!([])
+                };
+                monitors.push(serde_json::json!({
+                    "id": bm.id,
+                    "name": bm.name,
+                    "width": bm.width,
+                    "height": bm.height,
+                    "x": bm.x,
+                    "y": bm.y,
+                    "is_primary": bm.is_primary,
+                    "scale_factor": bm.scale_factor,
+                    "has_bar": bm.is_primary,
+                    "has_widget_area": false,
+                    "bar": bar,
+                    "widgetArea": [],
+                    "is_disconnected": false
+                }));
+                changed = true;
+            }
+            Some(idx) => {
+                let m = &mut monitors[idx];
+
+                let cw = m.get("width").and_then(|v| v.as_f64());
+                let ch = m.get("height").and_then(|v| v.as_f64());
+                let cx = m.get("x").and_then(|v| v.as_f64());
+                let cy = m.get("y").and_then(|v| v.as_f64());
+                let csf = m.get("scale_factor").and_then(|v| v.as_f64());
+                if cw != Some(bm.width)
+                    || ch != Some(bm.height)
+                    || cx != Some(bm.x)
+                    || cy != Some(bm.y)
+                    || csf != Some(bm.scale_factor)
+                {
+                    m["width"] = serde_json::json!(bm.width);
+                    m["height"] = serde_json::json!(bm.height);
+                    m["x"] = serde_json::json!(bm.x);
+                    m["y"] = serde_json::json!(bm.y);
+                    m["scale_factor"] = serde_json::json!(bm.scale_factor);
+                    changed = true;
+                }
+
+                let cur_primary = m
+                    .get("is_primary")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+                if cur_primary != bm.is_primary {
+                    m["is_primary"] = serde_json::json!(bm.is_primary);
+                    // Demoted from primary → drop its auto-assigned bar.
+                    if !bm.is_primary {
+                        let has_bar = m.get("has_bar").and_then(|v| v.as_bool()).unwrap_or(false);
+                        if has_bar {
+                            m["has_bar"] = serde_json::json!(false);
+                            m["bar"] = serde_json::json!([]);
+                        }
+                    }
+                    changed = true;
+                }
+
+                // Ensure the primary monitor always has a bar.
+                let has_bar_now = m.get("has_bar").and_then(|v| v.as_bool()).unwrap_or(false);
+                if bm.is_primary && !has_bar_now {
+                    m["has_bar"] = serde_json::json!(true);
+                    m["bar"] = serde_json::json!([{ "id": gen_bar_widget_id() }]);
+                    changed = true;
+                }
+            }
+        }
+    }
+
+    parsed["monitors"] = serde_json::json!(monitors);
+
+    if changed {
+        let data = serde_json::to_string(&parsed).unwrap_or_else(|_| "{}".to_string());
+        let _ = crate::database::save_layout(app.clone(), "default".to_string(), data).await;
+    }
+
+    let mut result = Vec::new();
+    for m in monitors.iter() {
+        if m.get("is_disconnected")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+        {
+            continue;
+        }
+        let id = m
+            .get("id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        if id.is_empty() {
+            continue;
+        }
+        let has_bar = m.get("has_bar").and_then(|v| v.as_bool()).unwrap_or(false);
+        let has_area = m
+            .get("has_widget_area")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        result.push((id, has_bar, has_area));
+    }
+    result
+}
+
+/// Backend-driven startup. Reconciles the layout, creates every bar / widget
+/// area window, and only once ALL of those windows exist does it start the
+/// background watchers. This preserves the original "wait for all windows,
+/// then start watchers" guarantee — we simply await each window build (which
+/// completes as soon as the window is created, not when its content renders).
+async fn startup_init(app: tauri::AppHandle) {
+    let monitors_to_create = reconcile_layout_and_collect(&app).await;
+
+    let mut bar_height: u32 = 36;
+    if let Ok(settings_json) = crate::database::load_global_settings(app.clone()).await {
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&settings_json) {
+            if let Some(bh) = v.get("barHeight").and_then(|x| x.as_u64()) {
+                bar_height = bh as u32;
+            }
+        }
+    }
+
+    for (monitor_id, has_bar, has_area) in monitors_to_create.iter() {
+        if *has_bar {
+            let _ = crate::acrylic_layer::create_bar(app.clone(), monitor_id.clone(), bar_height).await;
+        }
+        if *has_area {
+            let _ = crate::acrylic_layer::create_widget_area(app.clone(), monitor_id.clone()).await;
+        }
+    }
+
+    // Every bar / area window now exists → safe to start the watchers.
+    start_watchers_once(app);
+}
 
 #[tauri::command]
 async fn request_window(
@@ -303,9 +525,7 @@ async fn stream_ai_request(
 #[tauri::command]
 fn start_background_watchers(app_handle: tauri::AppHandle) {
     println!("[system] Frontend requested background watchers to start.");
-    
-    media_control::start_media_listener(app_handle.clone());
-    clipboard_history::start_clipboard_watcher(app_handle);
+    start_watchers_once(app_handle);
 }
 
 fn main() {
@@ -314,11 +534,11 @@ fn main() {
             windows: Mutex::new(Vec::new()),
         })
         .plugin(tauri_plugin_single_instance::init(|app, _args, _new_instance_label| {
-            if let Some(main_window) = app.get_webview_window("main") {
-                let _ = main_window.show();
-                let _ = main_window.unminimize();
-                let _ = main_window.set_focus();
-            }
+            // Re-launching the executable opens (or reveals) the main window.
+            let handle = app.clone();
+            tauri::async_runtime::spawn(async move {
+                crate::windows_pool::ensure_main_window(handle).await;
+            });
         }))
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_autostart::Builder::new().build())
@@ -332,6 +552,7 @@ fn main() {
             remove_region,
             show_window,
             hide_window,
+            open_main_window,
             acrylic_layer::init_monitors,
             acrylic_layer::get_layout,
             acrylic_layer::create_bar,
@@ -388,15 +609,19 @@ fn main() {
             let handle = app.handle().clone();
             let _ = init_monitors(handle.clone());
             init_reserved_windows(handle.clone());
-            tauri::async_runtime::block_on(async move {
-                init_main_window(handle).await;
-            });
             app.manage(SharedWidgetState::default());
 
             // Initialize System Monitor
             let stats = std::sync::Arc::new(std::sync::Mutex::new(system_monitor::SystemStats::default()));
             system_monitor::start_monitor_thread(stats.clone());
             app.manage(system_monitor::SystemMonitorState { stats });
+
+            // Backend-driven startup: reconcile layout, create every bar/area
+            // window, then start the watchers. The main window is NOT created
+            // here — it is opened on demand from the Bar settings button.
+            tauri::async_runtime::spawn(async move {
+                startup_init(handle).await;
+            });
 
             Ok(())
         })

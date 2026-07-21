@@ -109,7 +109,18 @@ pub fn init_reserved_windows(app: AppHandle) {
     });
 }
 
-pub async fn init_main_window(app: AppHandle) {
+/// Open the main settings window. Builds it lazily if it does not exist yet;
+/// otherwise just re-shows it (with our slide animation) and focuses it.
+/// The main window is intentionally NOT created at startup anymore.
+pub async fn ensure_main_window(app: AppHandle) {
+    // Already exists → just reveal it with our own animation.
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        show_window_(window.clone());
+        let _ = window.set_focus();
+        return;
+    }
+
     let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
     // 1. Creating the window using WebviewWindowBuilder with the requested configurations
     let window = WebviewWindowBuilder::new(&app, "main", WebviewUrl::default())
@@ -126,22 +137,18 @@ pub async fn init_main_window(app: AppHandle) {
         .expect("Failed to build Main window");
 
 
-    let js_command = "window.dispatchEvent(new CustomEvent('rust-navigation', {{ detail: {{ route: '/' }} }}));";
+    let js_command = "window.dispatchEvent(new CustomEvent('rust-navigation', { detail: { route: '/' } }));";
     let _ = window.eval(js_command);
 
     #[cfg(target_os = "windows")]
     {
         if let Ok(hwnd_val) = window.hwnd() {
-            use crate::windows_utils::{set_os_window_animation, set_window_theme};
+            use crate::windows_utils::set_window_theme;
             let hwnd = windows::Win32::Foundation::HWND(hwnd_val.0 as _);
             set_window_theme(hwnd, false);
             apply_persistent_acrylic(hwnd);
-            // set_os_window_animation(hwnd, false);
         }
     }
-
-    // apply_blur(window.clone(), Some((0,0,0,0))).expect("ssssss");
-    // apply_acrylic(window.clone(), Some((0,0,0,0)));
 
     window.once("show_ready", move |_event| {
         let _ = tx.try_send(());
@@ -152,8 +159,12 @@ pub async fn init_main_window(app: AppHandle) {
 
     show_window_(window.clone());
     window.set_focus().ok();
+}
 
-
+/// Frontend-facing command (e.g. Bar settings button) to open/reveal main.
+#[tauri::command]
+pub async fn open_main_window(app: AppHandle) {
+    ensure_main_window(app).await;
 }
 
 pub fn show_window_(window: WebviewWindow) {

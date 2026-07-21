@@ -6,12 +6,18 @@ import {
   Square12Regular, 
   Subtract12Regular, 
 } from '@fluentui/react-icons';
+import { EyeOff } from 'lucide-react';
 import { Logo } from './Logo';
 import { useTranslation } from '../lib/i18n';
 
 const appWindow = Window.getCurrent();
+const isMainWindow = appWindow.label === 'main';
 
-export const Titlebar: React.FC = () => {
+interface TitlebarProps {
+  title?: string;
+}
+
+export const Titlebar: React.FC<TitlebarProps> = () => {
   const { t } = useTranslation();
   
   const handleMinimize = async () => {
@@ -22,15 +28,26 @@ export const Titlebar: React.FC = () => {
     await appWindow.toggleMaximize();
   };
 
-  const handleHide = async () => {
+  // Close truly destroys the window. For `main` this is fine because it is
+  // recreated on demand from the Bar settings button.
+  const handleClose = async () => {
     try {
-      if (appWindow.label === 'main') {
-        await invoke('hide_window');
+      if (isMainWindow) {
+        await appWindow.close();
       } else {
         await invoke('hide_popup', { selfClose: true });
       }
     } catch (error) {
-      console.error("Failed to close/hide window via Rust command:", error);
+      console.error("Failed to close window:", error);
+    }
+  };
+
+  // Only the main window offers a "hide" (keep alive, just conceal) action.
+  const handleHide = async () => {
+    try {
+      await invoke('hide_window');
+    } catch (error) {
+      console.error("Failed to hide window via Rust command:", error);
     }
   };
 
@@ -66,8 +83,18 @@ export const Titlebar: React.FC = () => {
           <Square12Regular />
         </button>
 
+        {isMainWindow && (
+          <button 
+            onClick={handleHide} 
+            title="Hide"
+            className="inline-flex justify-center items-center w-11 h-full bg-transparent border-none text-zinc-900 dark:text-zinc-100 cursor-default transition-colors duration-150 hover:bg-zinc-200/50 hover:dark:bg-zinc-800/50 hover:text-zinc-900 hover:dark:text-zinc-100 outline-none p-0"
+          >
+            <EyeOff className="w-3 h-3" />
+          </button>
+        )}
+
         <button 
-          onClick={handleHide} 
+          onClick={handleClose} 
           title="Close"
           className="inline-flex justify-center items-center w-11 h-full bg-transparent border-none text-zinc-900 dark:text-zinc-100 cursor-default transition-colors duration-150 hover:bg-red-500 hover:text-white outline-none p-0"
         >
