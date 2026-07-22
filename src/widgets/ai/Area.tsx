@@ -3,7 +3,7 @@ import { aiManager } from '../../lib/AiServicesManager';
 import { useAiServicesStore } from '../../stores/aiServicesStore';
 import { useWidgetInstanceStore } from '../../stores/widgetInstanceStore';
 import { BotSparkleColor, OpenRegular, PersonRegular, AddRegular } from '@fluentui/react-icons';
-import { CompanyLogo } from '../../components/CompanyLogo';
+import { CompanyLogo } from '../../components/panels/aiSevices/CompanyLogo';
 import { invoke } from '@tauri-apps/api/core';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import MarkdownChatContent from '../../components/MarkdownChatContent';

@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use sysinfo::{System, Disks, Networks};
-use tauri::{AppHandle, Manager, State};
+use tauri::{State};
 
 #[derive(serde::Serialize, Clone, Debug)]
 pub struct SystemStats {

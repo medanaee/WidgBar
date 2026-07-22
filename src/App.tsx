@@ -5,10 +5,10 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { hydrateFrontendStores } from "./lib/frontendHydration";
 
 const Main = lazy(() => import("./components/Main"));
-const WidgetsArea = lazy(() => import("./components/WidgetsArea"));
-const Bar = lazy(() => import("./components/Bar"));
+const Desktop = lazy(() => import("./components/desktop/Desktop"));
+const Bar = lazy(() => import("./components/bar/Bar"));
 const Popup = lazy(() => import("./components/Popup"));
-const Tooltip = lazy(() => import("./components/Tooltip"));
+const Tooltip = lazy(() => import("./components/ui/Tooltip"));
 import { useSettingsStore } from "./stores/settingsStore";
 import AiChatRoute from "./components/AiChatRoute";
 
@@ -94,7 +94,7 @@ function AppContent() {
             <Routes>
                 <Route path="/" element={<Main />} />
                 <Route path="/bar/:monitorId" element={<Bar />} />
-                <Route path="/widget_area/:monitorId" element={<WidgetsArea />} />
+                <Route path="/widget_area/:monitorId" element={<Desktop />} />
                 <Route path="/popup/:widgetType/:widgetId" element={<Popup />} />
                 <Route path="/tooltip/:text" element={<Tooltip />} />
                 <Route path="/ai-chat/:instanceId" element={<AiChatRoute />} />

@@ -5,8 +5,6 @@ use windows::Win32::Media::Audio::IMMDeviceEnumerator;
 #[cfg(target_os = "windows")]
 use windows::Win32::Media::Audio::MMDeviceEnumerator;
 #[cfg(target_os = "windows")]
-use windows::Win32::System::Com::COINIT_APARTMENTTHREADED;
-#[cfg(target_os = "windows")]
 use windows::Win32::System::Com::CoCreateInstance;
 #[cfg(target_os = "windows")]
 use windows::Win32::System::Com::CLSCTX_ALL;

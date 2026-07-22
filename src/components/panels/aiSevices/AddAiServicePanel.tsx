@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { AiProvider, AI_PROVIDERS, AiServiceInstance } from "../../types/ai";
-import { Button } from "../ui/button";
-import { Input } from "../ui/input";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { ArrowLeftRegular, CloudRegular, EyeRegular, EyeOffRegular } from '@fluentui/react-icons';
-import { DEFAULT_SYSTEM_PROMPT } from "../../lib/AiServicesManager";
-import { CompanyLogo } from "../CompanyLogo";
+import { AI_PROVIDERS, AiServiceInstance } from "@t/ai";
+import { Button } from "@c/ui/button";
+import { Input } from "@c/ui/input";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@c/ui/select";
+import { ArrowLeftRegular, EyeRegular, EyeOffRegular } from '@fluentui/react-icons';
+import { DEFAULT_SYSTEM_PROMPT } from "@lib/AiServicesManager";
+import { CompanyLogo } from "@/components/panels/aiSevices/CompanyLogo";
 
 interface AddAiServicePanelProps {
   onBack: () => void;
@@ -54,7 +54,7 @@ export default function AddAiServicePanel({ onBack, onSave }: AddAiServicePanelP
         </div>
       </div>
 
-      <div className="flex-grow pr-2 custom-scrollbar pb-6 space-y-5 text-zinc-800 dark:text-zinc-200">
+      <div className="grow pr-2 custom-scrollbar pb-6 space-y-5 text-zinc-800 dark:text-zinc-200">
         <div className="space-y-1.5">
           <label className="text-xs text-zinc-500 font-medium">Provider</label>
           <Select value={providerId} onValueChange={setProviderId}>
@@ -112,7 +112,7 @@ export default function AddAiServicePanel({ onBack, onSave }: AddAiServicePanelP
             placeholder="You are a helpful assistant..."
             value={systemPrompt}
             onChange={e => setSystemPrompt(e.target.value)}
-            className="w-full min-h-[120px] bg-transparent border border-zinc-500/20 dark:border-white/10 rounded-md p-2.5 text-xs focus:outline-none focus:border-zinc-500/40 dark:text-white font-sans scrollbar-thin resize-y"
+            className="w-full min-h-30 bg-transparent border border-zinc-500/20 dark:border-white/10 rounded-md p-2.5 text-xs focus:outline-none focus:border-zinc-500/40 dark:text-white font-sans scrollbar-thin resize-y"
           />
           <p className="text-[10px] text-zinc-500">
             System prompts define the assistant's personality, rules, or formatting preferences.

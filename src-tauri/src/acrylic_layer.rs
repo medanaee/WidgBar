@@ -99,17 +99,12 @@ pub fn get_layout_state() -> &'static Mutex<LayoutState> {
     LAYOUT_STATE.get_or_init(|| Mutex::new(LayoutState::default()))
 }
 
-/// Label of the "owner" window — the primary monitor's bar. This window is
-/// always open (the primary bar can't be closed), so anything in the app that
-/// needs a single, always-present window (e.g. clipboard capture ingestion)
-/// uses it as its home. Elected in `create_bar` for the primary monitor.
 static OWNER_WINDOW_LABEL: OnceLock<Mutex<Option<String>>> = OnceLock::new();
 
 fn owner_window_label() -> &'static Mutex<Option<String>> {
     OWNER_WINDOW_LABEL.get_or_init(|| Mutex::new(None))
 }
 
-/// Record (and broadcast) which window is the always-open owner.
 pub fn set_owner_window_label(app: &AppHandle, label: &str) {
     {
         let mut guard = owner_window_label().lock().unwrap();
@@ -121,7 +116,6 @@ pub fn set_owner_window_label(app: &AppHandle, label: &str) {
     let _ = app.emit("owner-window-changed", label.to_string());
 }
 
-/// The current always-open owner window label (primary monitor's bar), if any.
 #[tauri::command]
 pub fn get_owner_window_label() -> Option<String> {
     owner_window_label().lock().unwrap().clone()
@@ -179,7 +173,7 @@ fn start_mouse_tracker() {
         println!("[DEBUG] Mouse Tracker Thread Started.");
         loop {
             let mut pt = POINT { x: 0, y: 0 };
-            unsafe { GetCursorPos(&mut pt) };
+            unsafe { _ = GetCursorPos(&mut pt) };
 
             let updates = {
                 let regions_map = get_regions().lock().unwrap();
@@ -191,7 +185,7 @@ fn start_mouse_tracker() {
                 for (hwnd_ptr, rects) in regions_map.iter() {
                     let hwnd = HWND(*hwnd_ptr as _);
                     let mut client_pt = pt;
-                    unsafe { ScreenToClient(hwnd, &mut client_pt) };
+                    unsafe { _ = ScreenToClient(hwnd, &mut client_pt) };
 
                     let mut hit = false;
                     for r in rects.values() {
@@ -438,7 +432,7 @@ pub fn setup_windows_appbar(window: &WebviewWindow, monitor: &tauri::Monitor, do
     }
     let exclude_from_peek: i32 = 1;
     unsafe {
-        DwmSetWindowAttribute(
+        _ = DwmSetWindowAttribute(
             hwnd,
             DWMWA_EXCLUDED_FROM_PEEK,
             &exclude_from_peek as *const _ as *const _,
@@ -831,7 +825,6 @@ pub async fn request_region(
     println!("[DEBUG] IPC: request_region called for widget_id: {}, label: {}, x: {}, y: {}, w: {}, h: {}", widget_id, label, x, y, width, height);
     let window = app.get_webview_window(&label).ok_or("Window not found")?;
     let hwnd_ptr = window.hwnd().map_err(|e| e.to_string())?.0 as isize;
-    let scale_factor = window.scale_factor().unwrap_or(1.0) as f32;
     let state_arc = state.0.clone();
     let label_clone = label.clone();
     let widget_id_clone = widget_id.clone();
@@ -1094,7 +1087,6 @@ pub async fn stop_change_region(
     println!("[DEBUG] IPC: stop_change_region called for widget_id: {}, label: {}, x: {}, y: {}, w: {}, h: {}", widget_id, label, x, y, width, height);
     let window = app.get_webview_window(&label).ok_or("Window not found")?;
     let hwnd_ptr = window.hwnd().map_err(|e| e.to_string())?.0 as isize;
-    let scale_factor = window.scale_factor().unwrap_or(1.0) as f32;
 
     let phys_x = x;
     let phys_y = y;

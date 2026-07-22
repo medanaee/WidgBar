@@ -1,15 +1,13 @@
-import React from "react";
 import { Compass, LayoutGrid, Layers, Paintbrush } from 'lucide-react';
-import { Squircle } from "../ui/Squircle";
 import { TipCard } from "../ui/TipCard";
 import { Logo } from "../Logo";
 import { useTranslation } from "../../lib/i18n";
 
-export default function HomeTab() {
+export default function HomePanel() {
   const { t } = useTranslation();
 
   return (
-    <div className="w-full h-full animate-in fade-in zoom-in-95 duration-300 overflow-y-auto custom-scrollbar ltr:pr-2 ltr:-mr-2 rtl:pl-2 rtl:-ml-2 flex flex-col gap-6 pb-6 pr-2 -mr-2">
+    <div className="w-full h-full animate-in fade-in slide-in-from-bottom-4 duration-200 overflow-y-auto custom-scrollbar ltr:pr-2 ltr:-mr-2 rtl:pl-2 rtl:-ml-2 flex flex-col gap-6 pb-6 pr-2 -mr-2">
       <div
         className="w-full bg-zinc-200 dark:bg-zinc-800 text-white rounded-4xl p-8 flex flex-col md:flex-row items-center justify-between gap-6 shrink-0 overflow-hidden relative border border-zinc-500/25 dark:border-zinc-700/30"
       >

@@ -2,7 +2,7 @@ use std::sync::OnceLock;
 use std::thread;
 use tauri::{AppHandle, Emitter};
 use windows::core::Interface;
-use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
+use windows::Win32::Foundation::{HWND};
 use windows::Win32::System::Com::{CoCreateInstance, CoTaskMemFree, IServiceProvider, CLSCTX_ALL};
 use windows::Win32::System::Variant::VARIANT;
 use windows::Win32::UI::Accessibility::{SetWinEventHook, HWINEVENTHOOK};
@@ -12,13 +12,12 @@ use windows::Win32::UI::Shell::{
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     DispatchMessageW, GetAncestor, GetMessageW, TranslateMessage, EVENT_OBJECT_SELECTION,
-    EVENT_OBJECT_SELECTIONADD, EVENT_OBJECT_SELECTIONREMOVE, EVENT_OBJECT_SELECTIONWITHIN, GA_ROOT,
+    EVENT_OBJECT_SELECTIONWITHIN, GA_ROOT,
     MSG, WINEVENT_OUTOFCONTEXT, WINEVENT_SKIPOWNPROCESS,
 };
 
 static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
 
-// ۱. تابع هوک سیستم برای دریافت ایونت‌های انتخاب فایل
 unsafe extern "system" fn win_event_proc(
     _h_win_event_hook: HWINEVENTHOOK,
     event: u32,
@@ -44,9 +43,7 @@ unsafe extern "system" fn win_event_proc(
     }
 }
 
-// ۲. تابع استخراج مسیرها از آبجکت COM
 unsafe fn extract_paths(web_browser_app: &IWebBrowserApp) -> Option<Vec<String>> {
-    println!("Nigga");
     let service_provider: IServiceProvider = web_browser_app.cast().ok()?;
     let shell_browser: IShellBrowser = service_provider
         .QueryService::<IShellBrowser>(&IShellBrowser::IID)
@@ -73,9 +70,8 @@ unsafe fn extract_paths(web_browser_app: &IWebBrowserApp) -> Option<Vec<String>>
     Some(paths)
 }
 
-// ۳. تابع اصلی برای پیدا کردن پنجره (فولدر یا دسکتاپ) و پاس دادن به extract_paths
 pub fn get_paths_from_shell(target_hwnd: HWND) -> Vec<String> {
-    let mut selected_paths = Vec::new();
+    let selected_paths = Vec::new();
     unsafe {
         let root_hwnd = GetAncestor(target_hwnd, GA_ROOT);
 
@@ -100,7 +96,6 @@ pub fn get_paths_from_shell(target_hwnd: HWND) -> Vec<String> {
             }
         }
 
-        // بخش دسکتاپ (بدون کست‌های غیرضروری i32)
         let mut d_hwnd_val: i32 = 0;
         if let Ok(desktop_dispatch) = shell_windows.FindWindowSW(
             &VARIANT::from(CSIDL_DESKTOP as i32),
@@ -113,7 +108,7 @@ pub fn get_paths_from_shell(target_hwnd: HWND) -> Vec<String> {
             if let Ok(web_browser_app) = desktop_dispatch.cast::<IWebBrowserApp>() {
                 let b_hwnd = match web_browser_app.HWND() {
                     Ok(h) => HWND(h.0 as _),
-                    Err(_) => HWND(std::ptr::null_mut()), // استفاده از پوینتر نال استاندارد
+                    Err(_) => HWND(std::ptr::null_mut()), 
                 };
 
                 if target_hwnd == d_hwnd
@@ -131,7 +126,7 @@ pub fn get_paths_from_shell(target_hwnd: HWND) -> Vec<String> {
     selected_paths
 }
 
-// ۴. راه‌انداز لیسنر بک‌گراند (فراخوانی در main.rs)
+#[allow(dead_code)]
 pub fn init_selection_listener(app: AppHandle) {
     if APP_HANDLE.set(app).is_err() {
         return;

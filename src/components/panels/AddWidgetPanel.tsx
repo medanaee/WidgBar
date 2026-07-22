@@ -1,9 +1,7 @@
-import React from 'react';
-import { useWidgetRegistryStore } from '../stores/widgetRegistryStore';
-import { LayoutGrid } from 'lucide-react';
+import { useWidgetRegistryStore } from '../../stores/widgetRegistryStore';
 import { ArrowLeft } from 'lucide-react';
-import { useTranslation, TranslationKey } from '../lib/i18n';
-import { WidgetIcon } from './WidgetIcon';
+import { useTranslation, TranslationKey } from '../../lib/i18n';
+import { WidgetIcon } from '../WidgetIcon';
 
 interface AddWidgetPanelProps {
   context: "bar" | "widgetArea";

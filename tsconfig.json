@@ -5,6 +5,7 @@
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
+    "types": ["node"],
 
     /* Bundler mode */
     "moduleResolution": "bundler",
@@ -19,11 +20,14 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./src/*"
-      ]
+      "@/*": ["./src/*"],
+      "@c/*": ["./src/components/*"],
+      "@lib/*": ["./src/lib/*"],
+      "@stores/*": ["./src/stores/*"],
+      "@widgets/*": ["./src/widgets/*"],
+      "@typings/*": ["./src/types/*"],
+      "@t/*": ["./src/types/*"]
     }
   },
   "include": ["src"],

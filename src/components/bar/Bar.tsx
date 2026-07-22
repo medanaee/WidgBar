@@ -1,11 +1,11 @@
 import React, { useMemo, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { useLayoutStore } from '../stores/layoutStore';
-import { useSettingsStore } from '../stores/settingsStore';
+import { useLayoutStore } from '../../stores/layoutStore';
+import { useSettingsStore } from '../../stores/settingsStore';
 import { SettingsRegular } from '@fluentui/react-icons';
 import { invoke } from '@tauri-apps/api/core';
-import Widget from './Widget';
-import { useStartupWindowLoaded } from '../hooks/useStartupWindowLoaded';
+import Widget from '../Widget';
+import { useStartupWindowLoaded } from '../../hooks/useStartupWindowLoaded';
 
 export default function Bar() {
   const { monitorId } = useParams<{ monitorId: string }>();

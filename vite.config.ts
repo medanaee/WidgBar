@@ -64,6 +64,12 @@ export default defineConfig(async () => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@c": path.resolve(__dirname, "./src/components"),
+      "@lib": path.resolve(__dirname, "./src/lib"),
+      "@stores": path.resolve(__dirname, "./src/stores"),
+      "@widgets": path.resolve(__dirname, "./src/widgets"),
+      "@typings": path.resolve(__dirname, "./src/types"),
+      "@t": path.resolve(__dirname, "./src/types"),
     },
   },
   

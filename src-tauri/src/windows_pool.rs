@@ -1,10 +1,19 @@
-use std::sync::{Arc, Mutex, atomic::{AtomicUsize, Ordering}};
+use std::sync::{
+    atomic::{AtomicUsize, Ordering},
+    Arc, Mutex,
+};
 
-use tauri::{App, AppHandle, Listener, Manager, State, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use tauri::{AppHandle, Listener, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+
+#[allow(unused_imports)]
 use window_vibrancy::{apply_acrylic, apply_blur};
 
-use crate::{WINDOW_COUNTER, windows_utils::{apply_persistent_acrylic, ease_out_cubic}};
+use crate::{
+    windows_utils::{apply_persistent_acrylic, ease_out_cubic},
+    WINDOW_COUNTER,
+};
 use window_vibrancy::apply_mica;
+
 pub struct PoolWindow {
     label: String,
     is_busy: bool,
@@ -18,31 +27,32 @@ pub struct PoolState {
 }
 
 static DYNAMIC_WIN_COUNTER: AtomicUsize = AtomicUsize::new(0);
-
-const ANIMATION_DURATION:f64 = 150.0;
+const ANIMATION_DURATION: f64 = 150.0;
 const ANIMATION_OFFSET: f64 = 5.0;
 const ANIMATION_FPS: f64 = 60.0;
 
-fn start_animation(start_y: f64, end_y: f64, x :f64, win_clone: tauri::WebviewWindow)
-{
+fn start_animation(
+    start_y: f64,
+    end_y: f64,
+    x: f64,
+    win_clone: tauri::WebviewWindow,
+    duration_ms: Option<f64>,
+) {
+    let duration = duration_ms.unwrap_or(ANIMATION_DURATION);
+    let offset = start_y - end_y;
     tauri::async_runtime::spawn(async move {
-        let steps = (ANIMATION_DURATION / (1000.0 / ANIMATION_FPS)) as i32;
+        let steps = (duration / (1000.0 / ANIMATION_FPS)) as i32;
         let sleep_time = std::time::Duration::from_millis((1000.0 / ANIMATION_FPS) as u64);
 
         for i in 0..=steps {
             let t = i as f64 / steps as f64;
             let eased_t = ease_out_cubic(t);
-            let current_y = start_y - (ANIMATION_OFFSET * eased_t);
-            let _ = win_clone.set_position(tauri::PhysicalPosition::new(
-                x as i32,
-                current_y as i32,
-            ));
+            let current_y = start_y - (offset * eased_t);
+            let _ =
+                win_clone.set_position(tauri::PhysicalPosition::new(x as i32, current_y as i32));
             tokio::time::sleep(sleep_time).await;
         }
-        let _ = win_clone.set_position(tauri::PhysicalPosition::new(
-            x as i32,
-            end_y as i32,
-        ));
+        let _ = win_clone.set_position(tauri::PhysicalPosition::new(x as i32, end_y as i32));
     });
 }
 
@@ -51,17 +61,18 @@ pub fn init_reserved_windows(app: AppHandle) {
     let mut pool_tracker = Vec::new();
     for i in 0..num_window_reserved {
         let label = format!("pool_win_{}", i);
-        let window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App("index.html#/blank".into()))
-            .visible(false)
-            .decorations(false)
-            .always_on_top(false)
-            .no_redirection_bitmap(true)
-            .resizable(false)
-            .skip_taskbar(true)
-            .transparent(true)
-            .shadow(true)
-            .build()
-            .expect("Failed to build pooled window");
+        let window =
+            WebviewWindowBuilder::new(&app, &label, WebviewUrl::App("index.html#/blank".into()))
+                .visible(false)
+                .decorations(false)
+                .always_on_top(false)
+                .no_redirection_bitmap(true)
+                .resizable(false)
+                .skip_taskbar(true)
+                .transparent(true)
+                .shadow(true)
+                .build()
+                .expect("Failed to build pooled window");
 
         #[cfg(target_os = "windows")]
         {
@@ -109,9 +120,6 @@ pub fn init_reserved_windows(app: AppHandle) {
     });
 }
 
-/// Open the main settings window. Builds it lazily if it does not exist yet;
-/// otherwise just re-shows it (with our slide animation) and focuses it.
-/// The main window is intentionally NOT created at startup anymore.
 pub async fn ensure_main_window(app: AppHandle) {
     // Already exists → just reveal it with our own animation.
     if let Some(window) = app.get_webview_window("main") {
@@ -136,8 +144,8 @@ pub async fn ensure_main_window(app: AppHandle) {
         .build()
         .expect("Failed to build Main window");
 
-
-    let js_command = "window.dispatchEvent(new CustomEvent('rust-navigation', { detail: { route: '/' } }));";
+    let js_command =
+        "window.dispatchEvent(new CustomEvent('rust-navigation', { detail: { route: '/' } }));";
     let _ = window.eval(js_command);
 
     #[cfg(target_os = "windows")]
@@ -161,199 +169,167 @@ pub async fn ensure_main_window(app: AppHandle) {
     window.set_focus().ok();
 }
 
-/// Frontend-facing command (e.g. Bar settings button) to open/reveal main.
 #[tauri::command]
 pub async fn open_main_window(app: AppHandle) {
     ensure_main_window(app).await;
 }
 
 pub fn show_window_(window: WebviewWindow) {
-    let position = window.outer_position().map_err(|e| e.to_string()).expect("Err to get position");
-        let x = position.x as f64;
-        let start_y = position.y as f64 + ANIMATION_OFFSET;
-        let end_y = position.y as f64;
-        window.set_position(tauri::PhysicalPosition::new(x, start_y));
-        window.show();
-        start_animation(start_y, end_y, x, window.clone());
+    let position = window
+        .outer_position()
+        .map_err(|e| e.to_string())
+        .expect("Err to get position");
+    let x = position.x as f64;
+    let start_y = position.y as f64 + ANIMATION_OFFSET;
+    let end_y = position.y as f64;
+    let _ = window.set_position(tauri::PhysicalPosition::new(x, start_y));
+    let _ = window.show();
+    start_animation(start_y, end_y, x, window.clone(), None);
 }
 
-#[tauri::command]
-pub async fn show_window(app_handle: AppHandle, label: String) {
-    println!("fbf");
-    if let Some(window) = app_handle.get_webview_window(&label) {
-        show_window_(window)
+/// Toggles off (closes or hides) an existing popup if it is currently showing the given route.
+/// Returns `Some(label)` if a popup was toggled off, or `None` if no matching active popup was found.
+pub fn try_toggle_off_route(app: &AppHandle, state: &PoolState, route: &str) -> Option<String> {
+    let mut pool = state.windows.lock().unwrap();
+    let found = pool
+        .iter()
+        .find(|w| w.is_busy && w.current_route.as_deref() == Some(route))
+        .map(|w| (w.label.clone(), w.is_dynamic));
+
+    if let Some((label, is_dynamic)) = found {
+        if is_dynamic {
+            if let Some(idx) = pool.iter().position(|w| w.label == label) {
+                pool.remove(idx);
+            }
+            drop(pool);
+            if let Some(w) = app.get_webview_window(&label) {
+                w.close().ok();
+            }
+        } else {
+            if let Some(win) = pool.iter_mut().find(|w| w.label == label) {
+                win.is_busy = false;
+                win.current_route = None;
+            }
+            drop(pool);
+            if let Some(w) = app.get_webview_window(&label) {
+                w.hide().ok();
+            }
+        }
+        println!("Toggled off popup for route {}", route);
+        Some(label)
+    } else {
+        None
     }
 }
 
-#[tauri::command]
-pub async fn hide_window(window: WebviewWindow) {
-    window.hide();
+/// Creates a new dynamic window when no pooled windows are available, configures OS attributes and blur event,
+/// adds it to the PoolState tracking list, and returns its label.
+pub fn create_dynamic_window(
+    app: &AppHandle,
+    state: &PoolState,
+    route: &str,
+    close_on_blur: bool,
+) -> String {
+    println!("No available windows in pool! Creating a dynamic one.");
+    let new_id = DYNAMIC_WIN_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    let new_label = format!("pool_win_dynamic_{}", new_id);
+
+    let initial_url = format!("index.html#{}", route);
+    let new_window =
+        WebviewWindowBuilder::new(app, &new_label, WebviewUrl::App(initial_url.into()))
+            .visible(false)
+            .decorations(false)
+            .always_on_top(false)
+            .no_redirection_bitmap(true)
+            .resizable(false)
+            .skip_taskbar(true)
+            .transparent(true)
+            .shadow(true)
+            .build()
+            .expect("Failed to build dynamic window");
+
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(hwnd_val) = new_window.hwnd() {
+            use crate::windows_utils::{apply_persistent_acrylic, set_window_theme};
+            let hwnd = windows::Win32::Foundation::HWND(hwnd_val.0 as _);
+            set_window_theme(hwnd, false);
+            apply_persistent_acrylic(hwnd);
+        }
+    }
+
+    let creation_time = std::time::Instant::now();
+    new_window.on_window_event({
+        let app_handle = app.clone();
+        let label_clone = new_label.clone();
+        move |event| {
+            if let tauri::WindowEvent::Focused(false) = event {
+                if creation_time.elapsed().as_millis() < 1000 {
+                    return;
+                }
+                let state = app_handle.state::<PoolState>();
+                let mut pool = state.windows.lock().unwrap();
+                let mut remove_idx = None;
+                for (i, win) in pool.iter_mut().enumerate() {
+                    if win.label == label_clone {
+                        if win.is_busy && win.close_on_blur {
+                            if let Some(w) = app_handle.get_webview_window(&label_clone) {
+                                if win.is_dynamic {
+                                    let _ = w.close();
+                                    remove_idx = Some(i);
+                                } else {
+                                    let _ = w.hide();
+                                    win.is_busy = false;
+                                    win.current_route = None;
+                                }
+                            }
+                        }
+                        break;
+                    }
+                }
+                if let Some(idx) = remove_idx {
+                    pool.remove(idx);
+                }
+            }
+        }
+    });
+
+    {
+        let mut pool = state.windows.lock().unwrap();
+        pool.push(PoolWindow {
+            label: new_label.clone(),
+            is_busy: true,
+            close_on_blur,
+            is_dynamic: true,
+            current_route: Some(route.to_string()),
+        });
+    }
+
+    new_label
 }
 
-#[tauri::command]
-pub async fn request_popup(
-    app: tauri::AppHandle,
-    caller: tauri::WebviewWindow,
-    state: tauri::State<'_, PoolState>,
+/// Calculates the final physical screen coordinates (x, y) and scale factor for a popup window,
+/// taking into account centering, bar placement, DPI scaling, and screen boundaries clamping.
+pub async fn calculate_popup_position(
+    app: &AppHandle,
+    caller: &WebviewWindow,
     x: f64,
     y: f64,
     width: f64,
     height: f64,
-    route: String,
-    close_on_blur: bool,
     x_is_center: bool,
-    animated: bool,
     below_bar: bool,
     center: bool,
-    resizable: Option<bool>,
-    skip_taskbar: Option<bool>,
-    always_on_top: Option<bool>,
-) -> Result<String, String> {
-    let resizable = resizable.unwrap_or(false);
-    let skip_taskbar = skip_taskbar.unwrap_or(true);
-    let always_on_top = always_on_top.unwrap_or(false);
-
-    println!(
-        "Popup requested at ({}, {}) with size {}x{}, route: {}, close_on_blur: {}, x_is_center: {}, animated: {}, below_bar: {}, center: {}, resizable: {}, skip_taskbar: {}, always_on_top: {}",
-        x, y, width, height, route, close_on_blur, x_is_center, animated, below_bar, center, resizable, skip_taskbar, always_on_top
-    );
-
-    // Same route already open → hide (toggle) instead of requesting again
-    {
-        let mut pool = state.windows.lock().unwrap();
-        let found = pool
-            .iter()
-            .find(|w| w.is_busy && w.current_route.as_ref() == Some(&route))
-            .map(|w| (w.label.clone(), w.is_dynamic));
-        if let Some((label, is_dynamic)) = found {
-            if is_dynamic {
-                if let Some(idx) = pool.iter().position(|w| w.label == label) {
-                    pool.remove(idx);
-                }
-                drop(pool);
-                if let Some(w) = app.get_webview_window(&label) {
-                    w.close().ok();
-                }
-            } else {
-                if let Some(win) = pool.iter_mut().find(|w| w.label == label) {
-                    win.is_busy = false;
-                    win.current_route = None;
-                }
-                drop(pool);
-                if let Some(w) = app.get_webview_window(&label) {
-                    w.hide().ok();
-                }
-            }
-            println!("Toggled off popup for route {}", route);
-            return Ok(label);
-        }
-    }
-
-    let mut selected_label = None;
-    let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
-
-    {
-        let mut pool = state.windows.lock().unwrap();
-        for win in pool.iter_mut() {
-            if !win.is_busy {
-                win.is_busy = true;
-                win.close_on_blur = close_on_blur;
-                win.current_route = Some(route.clone());
-                selected_label = Some(win.label.clone());
-                break;
-            }
-        }
-    }
-
-    let label = match selected_label {
-        Some(l) => {
-            println!("Reusing window from pool: {}", l);
-            l
-        }
-        None => {
-            println!("No available windows in pool! Creating a dynamic one.");
-            let new_id = DYNAMIC_WIN_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            let new_label = format!("pool_win_dynamic_{}", new_id);
-
-            let initial_url = format!("index.html#{}", route);
-            let new_window = tauri::WebviewWindowBuilder::new(&app, &new_label, tauri::WebviewUrl::App(initial_url.into()))
-                .visible(false)
-                .decorations(false)
-                .always_on_top(false)
-                .no_redirection_bitmap(true)
-                .resizable(false)
-                .skip_taskbar(true)
-                .transparent(true)
-                .shadow(true)
-                .build()
-                .expect("Failed to build dynamic window");
-
-            #[cfg(target_os = "windows")]
-            {
-                if let Ok(hwnd_val) = new_window.hwnd() {
-                    use crate::windows_utils::{apply_persistent_acrylic, set_window_theme};
-                    let hwnd = windows::Win32::Foundation::HWND(hwnd_val.0 as _);
-                    set_window_theme(hwnd, false);
-                    apply_persistent_acrylic(hwnd);
-                }
-            }
-
-            let creation_time = std::time::Instant::now();
-            new_window.on_window_event({
-                let app_handle = app.clone();
-                let label_clone = new_label.clone();
-                move |event| {
-                    if let tauri::WindowEvent::Focused(false) = event {
-                        if creation_time.elapsed().as_millis() < 1000 {
-                            return;
-                        }
-                        let state = app_handle.state::<PoolState>();
-                        let mut pool = state.windows.lock().unwrap();
-                        let mut remove_idx = None;
-                        for (i, win) in pool.iter_mut().enumerate() {
-                            if win.label == label_clone {
-                                if win.is_busy && win.close_on_blur {
-                                    if let Some(w) = app_handle.get_webview_window(&label_clone) {
-                                        if win.is_dynamic {
-                                            let _ = w.close();
-                                            remove_idx = Some(i);
-                                        } else {
-                                            let _ = w.hide();
-                                            win.is_busy = false;
-                                            win.current_route = None;
-                                        }
-                                    }
-                                }
-                                break;
-                            }
-                        }
-                        if let Some(idx) = remove_idx {
-                            pool.remove(idx);
-                        }
-                    }
-                }
-            });
-
-            {
-                let mut pool = state.windows.lock().unwrap();
-                pool.push(PoolWindow {
-                    label: new_label.clone(),
-                    is_busy: true,
-                    close_on_blur,
-                    is_dynamic: true,
-                    current_route: Some(route.clone()),
-                });
-            }
-            
-            new_label
-        }
-    };
-
-    let window = app.get_webview_window(&label).unwrap();
-    let win_clone = window.clone();
-
-    let caller_pos = caller.outer_position().unwrap_or(tauri::PhysicalPosition::new(0, 0));
-    let scale_factor = caller.current_monitor().ok().flatten().map(|m| m.scale_factor()).unwrap_or(1.0);
+) -> (f64, f64, f64) {
+    let caller_pos = caller
+        .outer_position()
+        .unwrap_or(tauri::PhysicalPosition::new(0, 0));
+    let scale_factor = caller
+        .current_monitor()
+        .ok()
+        .flatten()
+        .map(|m| m.scale_factor())
+        .unwrap_or(1.0);
 
     let (mut physical_x, mut physical_y) = if center {
         if let Ok(Some(monitor)) = caller.current_monitor() {
@@ -365,7 +341,10 @@ pub async fn request_popup(
             let ph = height * scale_factor;
             (cx - (pw / 2.0), cy - (ph / 2.0))
         } else {
-            (caller_pos.x as f64 + x * scale_factor, caller_pos.y as f64 + y * scale_factor)
+            (
+                caller_pos.x as f64 + x * scale_factor,
+                caller_pos.y as f64 + y * scale_factor,
+            )
         }
     } else if below_bar {
         let mut bar_height_logical = 36.0;
@@ -413,13 +392,107 @@ pub async fn request_popup(
         }
     }
 
+    (physical_x, physical_y, scale_factor)
+}
+
+#[tauri::command]
+pub async fn show_window(app_handle: AppHandle, label: String) {
+    println!("fbf");
+    if let Some(window) = app_handle.get_webview_window(&label) {
+        show_window_(window)
+    }
+}
+
+#[tauri::command]
+pub async fn hide_window(window: WebviewWindow) {
+    _ = window.hide();
+}
+
+#[tauri::command]
+pub async fn request_popup(
+    app: tauri::AppHandle,
+    caller: tauri::WebviewWindow,
+    state: tauri::State<'_, PoolState>,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    route: String,
+    close_on_blur: bool,
+    x_is_center: bool,
+    animated: bool,
+    below_bar: bool,
+    center: bool,
+    resizable: Option<bool>,
+    skip_taskbar: Option<bool>,
+    always_on_top: Option<bool>,
+) -> Result<String, String> {
+    let resizable = resizable.unwrap_or(false);
+    let skip_taskbar = skip_taskbar.unwrap_or(true);
+    let always_on_top = always_on_top.unwrap_or(false);
+
+    println!(
+        "Popup requested at ({}, {}) with size {}x{}, route: {}, close_on_blur: {}, x_is_center: {}, animated: {}, below_bar: {}, center: {}, resizable: {}, skip_taskbar: {}, always_on_top: {}",
+        x, y, width, height, route, close_on_blur, x_is_center, animated, below_bar, center, resizable, skip_taskbar, always_on_top
+    );
+
+    if let Some(label) = try_toggle_off_route(&app, &state, &route) {
+        return Ok(label);
+    }
+
+    let mut selected_label = None;
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
+
+    {
+        let mut pool = state.windows.lock().unwrap();
+        for win in pool.iter_mut() {
+            if !win.is_busy {
+                win.is_busy = true;
+                win.close_on_blur = close_on_blur;
+                win.current_route = Some(route.clone());
+                selected_label = Some(win.label.clone());
+                break;
+            }
+        }
+    }
+
+    let label = match selected_label {
+        Some(l) => {
+            println!("Reusing window from pool: {}", l);
+            l
+        }
+        None => create_dynamic_window(&app, &state, &route, close_on_blur),
+    };
+
+    let window = app.get_webview_window(&label).unwrap();
+    let win_clone = window.clone();
+
+    let (physical_x, physical_y, scale_factor) = calculate_popup_position(
+        &app,
+        &caller,
+        x,
+        y,
+        width,
+        height,
+        x_is_center,
+        below_bar,
+        center,
+    )
+    .await;
+
+    let physical_width = width * scale_factor;
+    let physical_height = height * scale_factor;
+
     let physical_offset = 5.0 * scale_factor;
     let start_y = physical_y + physical_offset;
 
     let _ = window.set_resizable(resizable);
     let _ = window.set_skip_taskbar(skip_taskbar);
     let _ = window.set_always_on_top(always_on_top);
-    let _ = window.set_size(tauri::PhysicalSize::new(physical_width as u32, physical_height as u32));
+    let _ = window.set_size(tauri::PhysicalSize::new(
+        physical_width as u32,
+        physical_height as u32,
+    ));
 
     let js_command = format!(
     "window.dispatchEvent(new CustomEvent('rust-navigation', {{ detail: {{ route: '{}' }} }}));", 
@@ -446,7 +519,10 @@ pub async fn request_popup(
     let _ = tokio::time::timeout(std::time::Duration::from_millis(1000), rx.recv()).await;
 
     if animated {
-        let _ = window.set_position(tauri::PhysicalPosition::new(physical_x as i32, start_y as i32));
+        let _ = window.set_position(tauri::PhysicalPosition::new(
+            physical_x as i32,
+            start_y as i32,
+        ));
     } else {
         let _ = window.set_position(tauri::PhysicalPosition::new(
             physical_x as i32,
@@ -456,30 +532,9 @@ pub async fn request_popup(
     window.show().ok();
     window.set_focus().ok();
 
-    if !animated {
-        return Ok(label);
+    if animated {
+        start_animation(start_y, physical_y, physical_x, win_clone, Some(180.0));
     }
-    tauri::async_runtime::spawn(async move {
-        let duration_ms = 180.0;
-        let fps = 60.0;
-        let steps = (duration_ms / (1000.0 / fps)) as i32;
-        let sleep_time = std::time::Duration::from_millis((1000.0 / fps) as u64);
-
-        for i in 0..=steps {
-            let t = i as f64 / steps as f64;
-            let eased_t = ease_out_cubic(t);
-            let current_y = start_y - (physical_offset * eased_t);
-            let _ = win_clone.set_position(tauri::PhysicalPosition::new(
-                physical_x as i32,
-                current_y as i32,
-            ));
-            tokio::time::sleep(sleep_time).await;
-        }
-        let _ = win_clone.set_position(tauri::PhysicalPosition::new(
-            physical_x as i32,
-            physical_y as i32,
-        ));
-    });
 
     Ok(label)
 }
@@ -529,6 +584,12 @@ pub async fn hide_popup(
 }
 
 
+
+
+
+
+
+
 #[tauri::command]
 pub async fn request_window(
     app: tauri::AppHandle,
@@ -557,7 +618,7 @@ pub async fn request_window(
     .transparent(true)
     // .no_redirection_bitmap(true)
     // .decorations(false)
-    .visible(false); 
+    .visible(false);
 
     let window = builder.build().map_err(|e| e.to_string())?;
     let win_clone = window.clone();
@@ -576,10 +637,8 @@ pub async fn request_window(
 
     #[cfg(target_os = "windows")]
     {
-       
-
-        apply_acrylic(&window, Some((200, 200, 200, 200)));
-        apply_mica(&window, None);
+        _ = apply_acrylic(&window, Some((200, 200, 200, 200)));
+        _ = apply_mica(&window, None);
         if let Ok(hwnd_val) = window.hwnd() {
             use crate::windows_utils::set_os_window_animation;
 
@@ -587,7 +646,6 @@ pub async fn request_window(
             // apply_persistent_acrylic(hwnd);
             set_os_window_animation(hwnd, animated);
         }
-        
     }
 
     let target_y = y;
@@ -595,17 +653,16 @@ pub async fn request_window(
     let start_y = target_y + offset;
     let final_x = x;
 
-
     let _ = tokio::time::timeout(std::time::Duration::from_millis(3000), rx.recv()).await;
 
-    // if animated {
-    //     let _ = window.set_position(tauri::PhysicalPosition::new(final_x as i32, start_y as i32));
-    // } else {
-    //     let _ = window.set_position(tauri::PhysicalPosition::new(
-    //         final_x as i32,
-    //         target_y as i32,
-    //     ));
-    // }
+    if animated {
+        let _ = window.set_position(tauri::PhysicalPosition::new(final_x as i32, start_y as i32));
+    } else {
+        let _ = window.set_position(tauri::PhysicalPosition::new(
+            final_x as i32,
+            target_y as i32,
+        ));
+    }
     let _ = window.set_position(tauri::PhysicalPosition::new(
         final_x as i32,
         target_y as i32,
@@ -614,36 +671,33 @@ pub async fn request_window(
     window.show().ok();
     window.set_focus().ok();
 
-    // if !animated {
-    //     return Ok(label);
-    // }
+    if !animated {
+        return Ok(label);
+    }
 
-    // tauri::async_runtime::spawn(async move {
-    //     let duration_ms = 180.0;
-    //     let fps = 60.0;
-    //     let steps = (duration_ms / (1000.0 / fps)) as i32;
-    //     let sleep_time = std::time::Duration::from_millis((1000.0 / fps) as u64);
+    tauri::async_runtime::spawn(async move {
+        let duration_ms = 180.0;
+        let fps = 60.0;
+        let steps = (duration_ms / (1000.0 / fps)) as i32;
+        let sleep_time = std::time::Duration::from_millis((1000.0 / fps) as u64);
 
-    //     for i in 0..=steps {
-    //         let t = i as f64 / steps as f64;
-    //         let eased_t = ease_out_cubic(t);
-    //         let current_y = start_y - (offset * eased_t);
+        for i in 0..=steps {
+            let t = i as f64 / steps as f64;
+            let eased_t = ease_out_cubic(t);
+            let current_y = start_y - (offset * eased_t);
 
-    //         let _ = win_clone.set_position(tauri::PhysicalPosition::new(
-    //             final_x as i32,
-    //             current_y as i32,
-    //         ));
-    //         tokio::time::sleep(sleep_time).await;
-    //     }
+            let _ = win_clone.set_position(tauri::PhysicalPosition::new(
+                final_x as i32,
+                current_y as i32,
+            ));
+            tokio::time::sleep(sleep_time).await;
+        }
 
-    //     let _ = win_clone.set_position(tauri::PhysicalPosition::new(
-    //         final_x as i32,
-    //         target_y as i32,
-    //     ));
-    // });
+        let _ = win_clone.set_position(tauri::PhysicalPosition::new(
+            final_x as i32,
+            target_y as i32,
+        ));
+    });
 
     Ok(label)
 }
-
-
-

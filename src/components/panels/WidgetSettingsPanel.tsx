@@ -1,8 +1,8 @@
 import React, { Suspense } from 'react';
-import { DesktopWidget, BarWidget } from '../types/layout';
+import { DesktopWidget, BarWidget } from '@t/layout';
 import { ArrowLeft } from 'lucide-react';
-import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
-import { useTranslation } from '../lib/i18n';
+import { Tabs, TabsList, TabsTrigger } from '@c/ui/tabs';
+import { useTranslation } from '@lib/i18n';
 
 interface Props {
   widget: DesktopWidget | BarWidget;

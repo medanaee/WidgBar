@@ -1,13 +1,12 @@
 import { useParams } from 'react-router-dom';
-import { useLayoutStore } from '../stores/layoutStore';
-import Widget from './Widget';
+import { useLayoutStore } from '../../stores/layoutStore';
+import Widget from '../Widget';
 import { useState, useEffect, useMemo } from 'react';
-import { AddWidgetModal } from "./AddWidgetModal";
-import { useSnapStore } from "../stores/snapStore";
-import { useWidgetConstraintsStore } from '../stores/widgetConstraintsStore';
-import { useStartupWindowLoaded } from '../hooks/useStartupWindowLoaded';
+import { useSnapStore } from "../../stores/snapStore";
+import { useWidgetConstraintsStore } from '../../stores/widgetConstraintsStore';
+import { useStartupWindowLoaded } from '../../hooks/useStartupWindowLoaded';
 
-export default function WidgetsArea() {
+export default function Desktop() {
     const { monitorId } = useParams<{ monitorId: string }>();
     const { layouts, currentLayout, updateWidget } = useLayoutStore();
     const monitor = layouts[currentLayout]?.monitors.find(m => m.id === monitorId);
@@ -35,7 +34,6 @@ export default function WidgetsArea() {
 
     // Global state to track which widget is currently on top (being interacted with)
     const [activeWidgetId, setActiveWidgetId] = useState<string | null>(null);
-    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const snapLines = useSnapStore(state => state.lines);
 
     // Make the html background transparent for this window

@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
-import { DesktopWidget } from '../types/layout';
+import { DesktopWidget } from '@t/layout';
 import { listen } from '@tauri-apps/api/event';
-import { useWidgetConstraintsStore } from '../stores/widgetConstraintsStore';
-import { useSettingsStore } from '../stores/settingsStore';
-import { useSnapStore } from '../stores/snapStore';
+import { useWidgetConstraintsStore } from '@stores/widgetConstraintsStore';
+import { useSettingsStore } from '@stores/settingsStore';
+import { useSnapStore } from '@stores/snapStore';
 
 const BORDER_RADIUS = 24.0;
 
@@ -20,7 +20,7 @@ interface WidgetProps {
     children: React.ReactNode;
 }
 
-export default function WidgetAreaItem({ 
+export default function DesktopItem({ 
     widget, 
     index, 
     allWidgets,
@@ -143,7 +143,6 @@ export default function WidgetAreaItem({
         if (!containerRef.current) return;
 
         if (higherWidgets.length === 0) {
-            containerRef.current.style.WebkitMaskImage = 'none';
             containerRef.current.style.maskImage = 'none';
             return;
         }
@@ -169,9 +168,7 @@ export default function WidgetAreaItem({
         `;
 
         const encodedSvg = `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgMask)}")`;
-        containerRef.current.style.WebkitMaskImage = encodedSvg;
         containerRef.current.style.maskImage = encodedSvg;
-        containerRef.current.style.WebkitMaskSize = '100% 100%';
         containerRef.current.style.maskSize = '100% 100%';
 
     }, [widget.x, widget.y, widget.width, widget.height, higherWidgetsDeps]);
@@ -251,23 +248,29 @@ export default function WidgetAreaItem({
             let bestVSnap: { pos: number, dist: number, activeIdx: number } | null = null;
             let bestHSnap: { pos: number, dist: number, activeIdx: number } | null = null;
 
-            vLines.forEach(target => {
-                activeEdgesV.forEach((edge, idx) => {
+            for (const target of vLines) {
+                for (let idx = 0; idx < activeEdgesV.length; idx++) {
+                    const edge = activeEdgesV[idx];
                     const dist = Math.abs(edge - target);
                     if (dist < SNAP_THRESHOLD) {
-                        if (!bestVSnap || dist < bestVSnap.dist) bestVSnap = { pos: target, dist, activeIdx: idx };
+                        if (!bestVSnap || dist < bestVSnap.dist) {
+                            bestVSnap = { pos: target, dist, activeIdx: idx };
+                        }
                     }
-                });
-            });
+                }
+            }
 
-            hLines.forEach(target => {
-                activeEdgesH.forEach((edge, idx) => {
+            for (const target of hLines) {
+                for (let idx = 0; idx < activeEdgesH.length; idx++) {
+                    const edge = activeEdgesH[idx];
                     const dist = Math.abs(edge - target);
                     if (dist < SNAP_THRESHOLD) {
-                        if (!bestHSnap || dist < bestHSnap.dist) bestHSnap = { pos: target, dist, activeIdx: idx };
+                        if (!bestHSnap || dist < bestHSnap.dist) {
+                            bestHSnap = { pos: target, dist, activeIdx: idx };
+                        }
                     }
-                });
-            });
+                }
+            }
 
             const newLines: any[] = [];
             if (bestVSnap) {
@@ -382,19 +385,19 @@ export default function WidgetAreaItem({
             let bestVSnap: { pos: number, dist: number } | null = null;
             let bestHSnap: { pos: number, dist: number } | null = null;
 
-            vLines.forEach(target => {
+            for (const target of vLines) {
                 const dist = Math.abs(activeRight - target);
                 if (dist < SNAP_THRESHOLD) {
                     if (!bestVSnap || dist < bestVSnap.dist) bestVSnap = { pos: target, dist };
                 }
-            });
+            }
 
-            hLines.forEach(target => {
+            for (const target of hLines) {
                 const dist = Math.abs(activeBottom - target);
                 if (dist < SNAP_THRESHOLD) {
                     if (!bestHSnap || dist < bestHSnap.dist) bestHSnap = { pos: target, dist };
                 }
-            });
+            }
 
             const newLines: any[] = [];
             if (constraints?.aspectRatio) {
@@ -486,7 +489,7 @@ export default function WidgetAreaItem({
             className={`absolute flex items-center justify-center select-none overflow-hidden transition duration-50 ease-out border pointer-events-auto ${isInteracting 
                 ? 'border-zinc-500/30 dark:border-white/20 bg-white dark:bg-zinc-800 shadow-xl z-50' 
                 : isHighlighted
-                    ? 'border-3 border-primary shadow-lg shadow-primary/5 z-[9999] scale-[1.015]'
+                    ? 'border-3 border-primary shadow-lg shadow-primary/5 z-9999 scale-[1.015]'
                     : 'border-zinc-500/10 dark:border-white/10'
             }`}
             style={{
@@ -504,7 +507,7 @@ export default function WidgetAreaItem({
                     : isDark 
                         ? `rgba(24, 24, 27, ${bgOpacity})` 
                         : `rgba(255, 255, 255, ${bgOpacity})`
-            }}
+            } as React.CSSProperties }
         >
             <div className="w-full h-full pointer-events-auto">
                 {children}
@@ -513,7 +516,7 @@ export default function WidgetAreaItem({
             {/* Inner Highlight Double Border Overlay */}
             {isHighlighted && (
                 <div 
-                    className="absolute inset-[3px] border border-primary pointer-events-none z-[9998]"
+                    className="absolute inset-0.75 border border-primary pointer-events-none z-9998"
                     style={{ borderRadius: `${BORDER_RADIUS - 3}px` }}
                 />
             )}

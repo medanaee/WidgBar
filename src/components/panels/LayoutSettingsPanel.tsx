@@ -5,13 +5,15 @@ import { invoke } from "@tauri-apps/api/core";
 import { useLayoutStore } from "../../stores/layoutStore";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { useWidgetRegistryStore } from "../../stores/widgetRegistryStore";
+import { useUIStore } from "../../stores/uiStore";
 import { BarHeight } from "../../types/layout";
 import { useTranslation } from "../../lib/i18n";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import WidgetSettingsPanel from "../WidgetSettingsPanel";
-import AddWidgetPanel from "../AddWidgetPanel";
+import WidgetSettingsPanel from "./WidgetSettingsPanel";
+import AddWidgetPanel from "./AddWidgetPanel";
 
-export default function LayoutSettingsTab({ selectedMonitorId }: { selectedMonitorId: string | null }) {
+export default function LayoutSettingsPanel() {
+  const { selectedMonitorId } = useUIStore();
   const { layouts, currentLayout } = useLayoutStore();
   const { settings } = useSettingsStore();
   const { registry } = useWidgetRegistryStore();
@@ -40,7 +42,7 @@ export default function LayoutSettingsTab({ selectedMonitorId }: { selectedMonit
       newLayouts[currentLayout].monitors[monitorIndex].has_bar = checked;
 
       if (checked) {
-        const barId = await invoke('create_bar', { monitorId, height: settings.barHeight || BarHeight.Medium }).catch(console.error);
+        await invoke('create_bar', { monitorId, height: settings.barHeight || BarHeight.Medium }).catch(console.error);
       } else {
         await invoke('remove_bar', { monitorId }).catch(console.error);
       }
@@ -49,7 +51,7 @@ export default function LayoutSettingsTab({ selectedMonitorId }: { selectedMonit
       newLayouts[currentLayout].monitors[monitorIndex].has_widget_area = checked;
 
       if (checked) {
-        const areaId = await invoke('create_widget_area', { monitorId }).catch(console.error);
+        await invoke('create_widget_area', { monitorId }).catch(console.error);
       } else {
         await invoke('remove_widget_area', { monitorId }).catch(console.error);
       }
@@ -102,7 +104,7 @@ export default function LayoutSettingsTab({ selectedMonitorId }: { selectedMonit
   return (
     <>
       {editingWidget ? (
-        <div className="max-w-xl w-full self-center h-full overflow-y-auto custom-scrollbar ltr:pr-2 ltr:-mr-2 rtl:pl-2 rtl:-ml-2">
+        <div className="max-w-xl w-full self-center h-full animate-in fade-in slide-in-from-bottom-4 duration-200 overflow-y-auto custom-scrollbar ltr:pr-2 ltr:-mr-2 rtl:pl-2 rtl:-ml-2">
           <WidgetSettingsPanel
             widget={editingWidget.widget}
             context={editingWidget.context}
@@ -110,7 +112,7 @@ export default function LayoutSettingsTab({ selectedMonitorId }: { selectedMonit
           />
         </div>
       ) : addWidgetTarget ? (
-        <div className="max-w-xl w-full self-center h-full overflow-y-auto custom-scrollbar ltr:pr-2 ltr:-mr-2 rtl:pl-2 rtl:-ml-2">
+        <div className="max-w-xl w-full self-center h-full animate-in fade-in slide-in-from-bottom-4 duration-200 overflow-y-auto custom-scrollbar ltr:pr-2 ltr:-mr-2 rtl:pl-2 rtl:-ml-2">
           <AddWidgetPanel
             context={addWidgetTarget.context === 'bar' ? 'bar' : 'widgetArea'}
             onBack={() => setAddWidgetTarget(null)}
@@ -123,7 +125,7 @@ export default function LayoutSettingsTab({ selectedMonitorId }: { selectedMonit
           />
         </div>
       ) : (
-        <div className="max-w-xl w-full self-center h-full flex flex-col min-h-0 animate-in fade-in zoom-in-95 duration-200">
+        <div className="max-w-xl w-full self-center h-full flex flex-col min-h-0 animate-in fade-in slide-in-from-bottom-4 duration-200">
           <Tabs value={layoutInnerTab} onValueChange={(v) => setLayoutInnerTab(v as "bar" | "widgets")} className="w-full flex-1 flex flex-col min-h-0" dir={language === 'fa' ? 'rtl' : 'ltr'}>
             <div className="shrink-0">
               <h2 className="text-xl font-semibold mb-4 text-zinc-800 dark:text-zinc-100">

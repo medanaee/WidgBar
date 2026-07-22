@@ -52,7 +52,6 @@ static STATE: Lazy<Mutex<MediaState>> = Lazy::new(|| Mutex::new(MediaState {
 static COVER_DIR: Lazy<Mutex<Option<PathBuf>>> = Lazy::new(|| Mutex::new(None));
 
 #[cfg(target_os = "windows")]
-use windows::Storage::Streams::{Buffer, DataReader};
 
 fn hash_bytes(bytes: &[u8]) -> u64 {
     let mut h: u64 = 0xcbf29ce484222325;
@@ -148,15 +147,22 @@ pub fn start_media_listener(app_handle: tauri::AppHandle) {
                 let session = match manager.GetCurrentSession() {
                     Ok(s) => s,
                     Err(_) => {
-                        let mut state = STATE.lock().unwrap();
-                        if !state.title.is_empty() || !state.artist.is_empty() {
-                            state.title.clear();
-                            state.artist.clear();
-                            state.duration_ms = 0;
-                            state.is_playing = false;
-                            state.last_cover_hash = 0;
-                            state.last_cover_path = None;
-                            
+                        let mut should_emit = false;
+                        
+                        {
+                            let mut state = STATE.lock().unwrap();
+                            if !state.title.is_empty() || !state.artist.is_empty() {
+                                state.title.clear();
+                                state.artist.clear();
+                                state.duration_ms = 0;
+                                state.is_playing = false;
+                                state.last_cover_hash = 0;
+                                state.last_cover_path = None;
+                                should_emit = true;
+                            }
+                        } 
+
+                        if should_emit {
                             let _ = app_handle.emit("media_track", MediaTrackEvent {
                                 title: String::new(),
                                 artist: String::new(),
@@ -165,7 +171,9 @@ pub fn start_media_listener(app_handle: tauri::AppHandle) {
                             let _ = app_handle.emit("media_cover", None::<String>);
                             let _ = app_handle.emit("media_playback", MediaPlaybackEvent { is_playing: false });
                         }
+                        
                         cover_pending = false;
+                        
                         tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
                         continue;
                     }
@@ -189,15 +197,22 @@ pub fn start_media_listener(app_handle: tauri::AppHandle) {
                 }
 
                 if title.is_empty() && artist.is_empty() {
-                    let mut state = STATE.lock().unwrap();
-                    if !state.title.is_empty() || !state.artist.is_empty() {
-                        state.title.clear();
-                        state.artist.clear();
-                        state.duration_ms = 0;
-                        state.is_playing = false;
-                        state.last_cover_hash = 0;
-                        state.last_cover_path = None;
-                        
+                    let mut should_emit = false;
+                    
+                    {
+                        let mut state = STATE.lock().unwrap();
+                        if !state.title.is_empty() || !state.artist.is_empty() {
+                            state.title.clear();
+                            state.artist.clear();
+                            state.duration_ms = 0;
+                            state.is_playing = false;
+                            state.last_cover_hash = 0;
+                            state.last_cover_path = None;
+                            should_emit = true;
+                        }
+                    }
+
+                    if should_emit {
                         let _ = app_handle.emit("media_track", MediaTrackEvent {
                             title: String::new(),
                             artist: String::new(),
@@ -206,7 +221,9 @@ pub fn start_media_listener(app_handle: tauri::AppHandle) {
                         let _ = app_handle.emit("media_cover", None::<String>);
                         let _ = app_handle.emit("media_playback", MediaPlaybackEvent { is_playing: false });
                     }
+                    
                     cover_pending = false;
+                    
                     tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
                     continue;
                 }

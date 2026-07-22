@@ -1,6 +1,6 @@
 import React, { lazy, Suspense, useEffect, useMemo } from 'react';
-import WidgetAreaItem from './WidgetAreaItem';
-import WidgetBarItem from './WidgetBarItem';
+import DesktopItem from './desktop/DesktopItem';
+import BarItem from './bar/BarItem';
 import { DesktopWidget, BarWidget } from '../types/layout';
 
 interface Props {
@@ -45,23 +45,23 @@ export default function Widget(props: Props) {
     if (context === 'Area') {
         const areaProps = props as any;
         return (
-            <WidgetAreaItem {...areaProps}>
+            <DesktopItem {...areaProps}>
                 <Suspense fallback={<div className="flex w-full h-full items-center justify-center text-white/50 animate-pulse">...</div>}>
                     <LoadedWidgetContent widgetId={widget.id} onContentLoaded={onContentLoaded}>
                         <InnerComponent widgetId={widget.id} />
                     </LoadedWidgetContent>
                 </Suspense>
-            </WidgetAreaItem>
+            </DesktopItem>
         );
     } else {
         return (
-            <WidgetBarItem widget={widget as BarWidget}>
+            <BarItem widget={widget as BarWidget}>
                 <Suspense fallback={<div className="flex h-full items-center justify-center text-white/50 animate-pulse">...</div>}>
                     <LoadedWidgetContent widgetId={widget.id} onContentLoaded={onContentLoaded}>
                         <InnerComponent widgetId={widget.id} />
                     </LoadedWidgetContent>
                 </Suspense>
-            </WidgetBarItem>
+            </BarItem>
         );
     }
 }

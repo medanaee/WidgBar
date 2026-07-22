@@ -11,13 +11,7 @@ import {
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "../lib/i18n";
 import { cn } from "../lib/utils";
-
-type ActiveTab = "home" | "settings" | "layout" | "appearance" | "widgets_library" | "ai_services";
-
-interface PrimarySidebarProps {
-  activeTab: ActiveTab;
-  setActiveTab: (tab: ActiveTab) => void;
-}
+import { useUIStore } from "../stores/uiStore";
 
 function SidebarItem({ 
   icon, 
@@ -38,7 +32,7 @@ function SidebarItem({
     <button
       onClick={onClick}
       className={cn(
-        "rounded-lg flex items-center transition-all duration-300 cursor-pointer overflow-hidden whitespace-nowrap px-[7px] h-[34px] w-full",
+        "rounded-lg flex items-center transition-all duration-300 cursor-pointer overflow-hidden whitespace-nowrap px-[7px] h-[28px] w-full",
         active
           ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 shadow-sm"
           : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-zinc-500/20",
@@ -52,7 +46,7 @@ function SidebarItem({
         className={cn(
           "text-xs font-semibold transition-all duration-300 ease-in-out whitespace-nowrap overflow-hidden text-start",
           isExpanded 
-            ? "opacity-100 translate-x-0 ltr:ml-2.5 rtl:mr-2.5 max-w-[120px]" 
+            ? "opacity-100 translate-x-0 ltr:ml-2.5 rtl:mr-2.5 max-w-30" 
             : "opacity-0 ltr:-translate-x-2 rtl:translate-x-2 ltr:ml-0 rtl:mr-0 max-w-0"
         )}
       >
@@ -62,8 +56,9 @@ function SidebarItem({
   );
 }
 
-export default function PrimarySidebar({ activeTab, setActiveTab }: PrimarySidebarProps) {
-  const { t, language } = useTranslation();
+export default function PrimarySidebar() {
+  const { activeTab, setActiveTab } = useUIStore();
+  const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
 
   const handleExitApp = () => {
@@ -122,14 +117,13 @@ export default function PrimarySidebar({ activeTab, setActiveTab }: PrimarySideb
         onClick={() => setActiveTab("ai_services")}
         isExpanded={isExpanded}
       />
-      <div className="flex-grow" />
+      <div className="grow" />
       <SidebarItem
         icon={<PowerRegular fontSize={20} />}
         label={t("shutdown")}
         active={false}
         onClick={handleExitApp}
         className="text-red-500 hover:text-red-600 hover:bg-red-500/10 dark:text-red-400 dark:hover:text-red-400 dark:hover:bg-red-500/20"
-        title={t("shutdownDesc")}
         isExpanded={isExpanded}
       />
     </div>

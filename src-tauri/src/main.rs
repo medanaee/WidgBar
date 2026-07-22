@@ -1,15 +1,43 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use once_cell::sync::OnceCell;
-use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
 use std::fs;
+
 use tauri::Listener;
 use tauri::Manager;
 use tauri::Emitter;
-use tauri::{WebviewUrl, WebviewWindowBuilder};
-use window_vibrancy::*;
+
+
+mod windows_utils;
+use windows_utils::*;
+mod listener;
+
+mod acrylic_layer;
+use acrylic_layer::*;
+
+use std::collections::{HashMap, HashSet};
+
+mod windows_pool;
+use crate::windows_pool::*;
+
+mod database;
+use crate::database::*;
+
+mod audio_control;
+mod media_control;
+mod clipboard_history;
+
+mod system_monitor;
+
+static WINDOW_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+/// Background watchers (media + clipboard) must only ever be started once for
+/// the whole process lifetime, regardless of how many times the main window is
+/// opened/closed or how the app is re-launched.
+static WATCHERS_STARTED: AtomicBool = AtomicBool::new(false);
+/// Monotonic suffix so freshly generated bar-widget ids never collide.
+static BAR_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
 
 #[tauri::command]
 fn save_attachment_file(app: tauri::AppHandle, session_id: String, file_name: String, content: String) -> Result<String, String> {
@@ -23,7 +51,6 @@ fn save_attachment_file(app: tauri::AppHandle, session_id: String, file_name: St
         fs::create_dir_all(&attach_dir).map_err(|e| e.to_string())?;
     }
     
-    // Hash the content to avoid identical duplicate files and generate a short id
     let mut h: u64 = 0xcbf29ce484222325;
     let bytes = content.as_bytes();
     for b in bytes.iter().step_by(std::cmp::max(1, bytes.len() / 4096)) {
@@ -33,14 +60,11 @@ fn save_attachment_file(app: tauri::AppHandle, session_id: String, file_name: St
     h ^= bytes.len() as u64;
     let hash_str = format!("{:016x}", h);
     
-    // Optional: use standard UUID if we had it, but hash + filename is good
-    // Sanitize file_name to avoid path traversal
     let safe_name: String = file_name.chars().filter(|c| c.is_alphanumeric() || *c == '.' || *c == '-' || *c == '_').collect();
     let target_path = attach_dir.join(format!("{}_{}", hash_str, safe_name));
     
     fs::write(&target_path, content).map_err(|e| e.to_string())?;
     
-    // Using display to get string, wait, let's make sure it handles Windows backslashes
     Ok(target_path.to_string_lossy().to_string())
 }
 
@@ -48,39 +72,6 @@ fn save_attachment_file(app: tauri::AppHandle, session_id: String, file_name: St
 fn read_attachment_file(path: String) -> Result<String, String> {
     fs::read_to_string(path).map_err(|e| e.to_string())
 }
-
-mod windows_utils;
-use windows_utils::*;
-mod listener;
-
-mod acrylic_layer;
-use acrylic_layer::*;
-
-use std::collections::{HashMap, HashSet};
-use tauri::State;
-
-mod windows_pool;
-use crate::windows_pool::*;
-
-mod database;
-use crate::database::*;
-
-mod audio_control;
-mod media_control;
-mod clipboard_history;
-
-mod locked_popups;
-use crate::locked_popups::*;
-mod system_monitor;
-
-static WINDOW_COUNTER: AtomicUsize = AtomicUsize::new(0);
-
-/// Background watchers (media + clipboard) must only ever be started once for
-/// the whole process lifetime, regardless of how many times the main window is
-/// opened/closed or how the app is re-launched.
-static WATCHERS_STARTED: AtomicBool = AtomicBool::new(false);
-/// Monotonic suffix so freshly generated bar-widget ids never collide.
-static BAR_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 fn start_watchers_once(app: tauri::AppHandle) {
     if WATCHERS_STARTED.swap(true, Ordering::SeqCst) {
@@ -463,9 +454,6 @@ async fn stream_ai_request(
 
 fn main() {
     tauri::Builder::default()
-        .manage(LockedPopupsState {
-            windows: Mutex::new(Vec::new()),
-        })
         .plugin(tauri_plugin_single_instance::init(|app, _args, _new_instance_label| {
             // Re-launching the executable opens (or reveals) the main window.
             let handle = app.clone();
@@ -517,11 +505,6 @@ fn main() {
             load_widget_registry,
             save_widget_registry,
             delete_widget_registry,
-            create_locked_popup,
-            show_locked_popup,
-            hide_locked_popup,
-            close_locked_popup,
-            execute_js_in_popup,
             exit_app,
             get_system_volume,
             set_system_volume,
@@ -547,13 +530,10 @@ fn main() {
             init_reserved_windows(handle.clone());
             app.manage(SharedWidgetState::default());
 
-            // Initialize System Monitor
             let stats = std::sync::Arc::new(std::sync::Mutex::new(system_monitor::SystemStats::default()));
             system_monitor::start_monitor_thread(stats.clone());
             app.manage(system_monitor::SystemMonitorState { stats });
 
-            // Backend-driven startup: reconcile layout, create every bar/area
-            // window, then start the watchers after frontend readiness signals.
             tauri::async_runtime::spawn(async move {
                 startup_init(handle).await;
             });

@@ -1,15 +1,15 @@
 import { useState } from "react";
-import { useAiServicesStore } from "../../stores/aiServicesStore";
-import { AI_PROVIDERS, AiServiceInstance } from "../../types/ai";
-import { Button } from "../ui/button";
+import { useAiServicesStore } from "@stores/aiServicesStore";
+import { AI_PROVIDERS, AiServiceInstance } from "@t/ai";
+import { Button } from "@c/ui/button";
 import { Plus, Trash2, Settings, MessageSquare } from "lucide-react";
-import { CompanyLogo } from "../CompanyLogo";
-import { SettingCard } from "../ui/SettingCard";
+import { CompanyLogo } from "./CompanyLogo";
+import { SettingCard } from "@c/ui/SettingCard";
 import AddAiServicePanel from "./AddAiServicePanel";
 import EditAiServicePanel from "./EditAiServicePanel";
 import { invoke } from "@tauri-apps/api/core";
 
-export default function AiServicesTab() {
+export default function AiServicesPanel() {
   const { data, addInstance, removeInstance, updateInstance } = useAiServicesStore();
   const instances = data?.instances || [];
   
@@ -36,7 +36,7 @@ export default function AiServicesTab() {
 
   if (isAdding) {
     return (
-      <div className="flex-1 h-full overflow-y-auto p-8 relative flex flex-col justify-start">
+      <div className="flex-1 h-full overflow-y-auto p-8 relative flex flex-col justify-start animate-in fade-in slide-in-from-bottom-4 duration-200">
         <AddAiServicePanel 
           onBack={() => setIsAdding(false)} 
           onSave={(newInstance) => {
@@ -50,7 +50,7 @@ export default function AiServicesTab() {
 
   if (editingInstance) {
     return (
-      <div className="flex-1 h-full overflow-y-auto p-8 relative flex flex-col justify-start">
+      <div className="flex-1 h-full overflow-y-auto p-8 relative flex flex-col justify-start animate-in fade-in slide-in-from-bottom-4 duration-200">
         <EditAiServicePanel
           instance={editingInstance}
           onBack={() => setEditingInstance(null)}
@@ -64,7 +64,7 @@ export default function AiServicesTab() {
   }
 
   return (
-    <div className="flex-1 h-full overflow-y-auto p-8 relative">
+    <div className="flex-1 h-full overflow-y-auto p-8 relative animate-in fade-in slide-in-from-bottom-4 duration-200">
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -138,7 +138,7 @@ export default function AiServicesTab() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Model</span>
-                    <span className="font-mono bg-zinc-500/10 px-2 py-0.5 rounded-md text-[10px] truncate max-w-[140px]">
+                    <span className="font-mono bg-zinc-500/10 px-2 py-0.5 rounded-md text-[10px] truncate max-w-35">
                       {instance.model ? instance.model.split('/').pop() : 'Default'}
                     </span>
                   </div>

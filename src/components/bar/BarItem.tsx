@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { BarWidget } from '../types/layout';
-import { useSettingsStore } from '../stores/settingsStore';
-import { useWidgetRegistryStore } from '../stores/widgetRegistryStore';
+import { BarWidget } from '../../types/layout';
+import { useSettingsStore } from '../../stores/settingsStore';
+import { useWidgetRegistryStore } from '../../stores/widgetRegistryStore';
 import { listen } from '@tauri-apps/api/event';
 import { useWidgetInstanceStore } from '@/stores/widgetInstanceStore';
-import { useWidgetConstraintsStore } from '../stores/widgetConstraintsStore';
+import { useWidgetConstraintsStore } from '../../stores/widgetConstraintsStore';
 
 interface Props {
     widget: BarWidget;
     children: React.ReactNode;
 }
 
-export default function WidgetBarItem({ widget, children }: Props) {
+export default function BarItem({ widget, children }: Props) {
     const settings = useSettingsStore(state => state.settings);
     const animate = settings?.barAnimate !== false;
     const [isHighlighted, setIsHighlighted] = useState(false);

@@ -2,18 +2,18 @@
 
 use tauri::WebviewWindow;
 
-use windows::core::{s, w, PCWSTR};
-use windows::Win32::Foundation::{COLORREF, HWND, LPARAM, WPARAM};
+use windows::core::{s};
+use windows::Win32::Foundation::{COLORREF, HWND};
 use windows::Win32::Graphics::Dwm::{
     DwmSetWindowAttribute, DWMWA_TRANSITIONS_FORCEDISABLED,
     DWMWA_USE_IMMERSIVE_DARK_MODE,
 };
 use windows::Win32::System::LibraryLoader::{GetProcAddress, LoadLibraryA};
 use windows::Win32::UI::WindowsAndMessaging::{
-    AW_BLEND, AW_HIDE, AnimateWindow, EnumWindows, FindWindowExW, FindWindowW, GWL_EXSTYLE, GetWindowLongPtrW, GetWindowLongW,
-    HWND_BOTTOM, LWA_ALPHA, SMTO_NORMAL, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER,
-    SendMessageTimeoutW, SetLayeredWindowAttributes, SetParent, SetWindowLongPtrW,
-    SetWindowLongW, SetWindowPos, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TRANSPARENT
+    GWL_EXSTYLE, GetWindowLongPtrW,
+    LWA_ALPHA, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER,
+    SetLayeredWindowAttributes, SetWindowLongPtrW,
+    SetWindowPos, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TRANSPARENT
 };
 
 #[cfg(target_os = "windows")]
@@ -71,6 +71,7 @@ pub fn ease_out_cubic(t: f64) -> f64 {
 }
 
 #[cfg(target_os = "windows")]
+#[allow(dead_code)]
 pub fn set_window_alpha(hwnd: HWND, opacity: f64) {
     let alpha = (opacity.clamp(0.0, 1.0) * 255.0) as u8;
 
@@ -81,7 +82,7 @@ pub fn set_window_alpha(hwnd: HWND, opacity: f64) {
             SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex_style | WS_EX_LAYERED.0 as isize);
         }
 
-        SetLayeredWindowAttributes(hwnd, COLORREF(0), alpha, LWA_ALPHA);
+        SetLayeredWindowAttributes(hwnd, COLORREF(0), alpha, LWA_ALPHA).expect("Error in set window alpha");
     }
 }
 
@@ -115,80 +116,6 @@ pub fn set_window_theme(hwnd: HWND, is_dark: bool) -> () {
     }
 }
 
-#[cfg(target_os = "windows")]
-pub fn attach_to_desktop(my_hwnd: HWND) {
-    unsafe {
-        let progman = match FindWindowW(w!("Progman"), PCWSTR::null()) {
-            Ok(hwnd) => hwnd,
-            Err(_) => {
-                println!("Failed to find Progman window.");
-                return;
-            }
-        };
-
-        let _ = SendMessageTimeoutW(
-            progman,
-            0x052C,
-            WPARAM(0),
-            LPARAM(0),
-            SMTO_NORMAL,
-            1000,
-            None,
-        );
-
-        let worker_target = FindWindowExW(Some(progman), None, w!("WorkerW"), PCWSTR::null());
-
-        match worker_target {
-            Ok(worker_hwnd) => {
-                // ۴. متصل کردن پنجره شما به WorkerW پیدا شده
-                let _ = SetParent(my_hwnd, Some(worker_hwnd));
-                println!("Success! Window attached to WorkerW inside Progman.");
-            }
-            Err(_) => {
-                println!("Failed to find WorkerW inside Progman.");
-            }
-        }
-    }
-}
-
-
-pub fn make_window_no_activate(hwnd: HWND) {
-    unsafe {
-
-
-        // 1. Get the current extended styles
-        let current_style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
-
-        // 2. Combine with NOACTIVATE and TOOLWINDOW (Prevents grouping and taskbar presence strictly)
-        let target_style = current_style | WS_EX_NOACTIVATE.0 as isize | WS_EX_TOOLWINDOW.0 as isize;
-
-        // 3. Set the new extended style
-        SetWindowLongPtrW(hwnd, GWL_EXSTYLE, target_style);
-
-        // 4. Force window to the absolute BOTTOM of the Z-Order and apply styles
-        let _ = SetWindowPos(
-            hwnd,
-            Some(HWND_BOTTOM), // <--- Changed from null_mut() to HWND_BOTTOM
-            0,
-            0,
-            0,
-            0,
-            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_FRAMECHANGED, // Removed SWP_NOZORDER
-        );
-
-        let verified_style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
-        let is_applied = (verified_style & WS_EX_NOACTIVATE.0 as isize) != 0;
-
-        println!(
-            "[DEBUG-ACTIVATE] WS_EX_NOACTIVATE & TOOLWINDOW: {} (Current ExStyle: {:#X})",
-            if is_applied { "SUCCESSFULLY APPLIED" } else { "FAILED TO APPLY" },
-            verified_style
-        );
-    }
-}
-
-/// Toggle WS_EX_NOACTIVATE so the window can receive clicks without stealing focus.
-/// Does not change z-order (safe for temporary use on bar / popup widgets).
 #[cfg(target_os = "windows")]
 pub fn set_hwnd_no_activate(hwnd: HWND, enabled: bool) {
     unsafe {

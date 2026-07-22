@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
-import { AiServiceInstance, AI_PROVIDERS } from "../../types/ai";
-import { Button } from "../ui/button";
-import { Input } from "../ui/input";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { Slider } from "../ui/slider";
+import { AiServiceInstance, AI_PROVIDERS } from "@t/ai";
+import { Button } from "@c/ui/button";
+import { Input } from "@c/ui/input";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@c/ui/select";
+import { Slider } from "@c/ui/slider";
 import { ArrowLeftRegular, EyeRegular, EyeOffRegular } from '@fluentui/react-icons';
 import { invoke } from "@tauri-apps/api/core";
-import { DEFAULT_SYSTEM_PROMPT } from "../../lib/AiServicesManager";
-import { CompanyLogo } from "../CompanyLogo";
+import { DEFAULT_SYSTEM_PROMPT } from "@lib/AiServicesManager";
+import { CompanyLogo } from "@/components/panels/aiSevices/CompanyLogo";
 
 interface EditAiServicePanelProps {
   instance: AiServiceInstance;
