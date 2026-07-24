@@ -29,7 +29,20 @@ export default function CalendarArea({ widgetId }: { widgetId: string }) {
         updateInstance(widgetId, { ...config, defaultMode: nextMode });
     };
 
-    const today = useMemo(() => new Date(), []);
+    const [today, setToday] = useState(() => new Date());
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const now = new Date();
+            setToday(prev => {
+                if (prev.getDate() !== now.getDate() || prev.getMonth() !== now.getMonth() || prev.getFullYear() !== now.getFullYear()) {
+                    return now;
+                }
+                return prev;
+            });
+        }, 10000);
+        return () => clearInterval(interval);
+    }, []);
 
     // Localized formatting options
     const locale = language === 'fa' ? 'fa-IR' : 'en-US';

@@ -9,18 +9,29 @@ export default function CalendarBar({ widgetId }: { widgetId: string }) {
     const settings = useSettingsStore(state => state.settings) || {};
     const { language } = useTranslation();
 
+    const [today, setToday] = React.useState(() => new Date());
+
+    React.useEffect(() => {
+        const interval = setInterval(() => {
+            const now = new Date();
+            setToday(prev => {
+                if (prev.getDate() !== now.getDate() || prev.getMonth() !== now.getMonth() || prev.getFullYear() !== now.getFullYear()) {
+                    return now;
+                }
+                return prev;
+            });
+        }, 10000);
+        return () => clearInterval(interval);
+    }, []);
+
     const mainCalendar = config.mainCalendar || 'gregory';
     const secondaryCalendars = config.secondaryCalendars || [];
     const barShowDayOfWeek = config.barShowDayOfWeek ?? true;
     const barShowYear = config.barShowYear ?? true;
     const barMonthFormat = config.barMonthFormat || 'text';
-
     const barAlign = config.barAlign || 'center';
-
     const barHeight = settings.barHeight || 36;
     const isLarge = barHeight >= 48;
-
-    const today = new Date();
 
     const formattedDate = React.useMemo(() => {
         return formatCalendarDate(today, mainCalendar, language === 'fa' ? 'fa-IR' : 'en-US', {
