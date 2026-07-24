@@ -42,7 +42,8 @@ export default function AiArea({ widgetId }: { widgetId: string }) {
             center: true,
             resizable: true,
             skipTaskbar: false,
-            alwaysOnTop: false
+            alwaysOnTop: false,
+            usePool: false
         }).catch(console.error);
     };
 

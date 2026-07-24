@@ -230,6 +230,65 @@ fn read_clipboard_text_bundle() -> Option<(Option<String>, Option<String>, Optio
 }
 
 #[cfg(target_os = "windows")]
+fn url_decode(s: &str) -> String {
+    let mut result = Vec::new();
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            if let Ok(val) = u8::from_str_radix(std::str::from_utf8(&bytes[i + 1..i + 3]).unwrap_or(""), 16) {
+                result.push(val);
+                i += 3;
+                continue;
+            }
+        }
+        result.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&result).into_owned()
+}
+
+#[cfg(target_os = "windows")]
+fn parse_code_file_list(text: &str) -> Vec<String> {
+    let mut paths = Vec::new();
+    for line in text.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let path_str = if let Some(stripped) = line.strip_prefix("file:///") {
+            stripped
+        } else if let Some(stripped) = line.strip_prefix("file://") {
+            stripped
+        } else {
+            line
+        };
+
+        let decoded = url_decode(path_str);
+        let p = decoded.replace('/', "\\");
+        if std::path::Path::new(&p).exists() {
+            paths.push(p);
+        }
+    }
+    paths
+}
+
+#[cfg(target_os = "windows")]
+fn encode_path_to_uri(path_str: &str) -> String {
+    let p = path_str.replace('\\', "/");
+    let mut encoded = String::with_capacity(p.len() + 10);
+    encoded.push_str("file:///");
+    for (i, ch) in p.chars().enumerate() {
+        if i == 1 && ch == ':' {
+            encoded.push_str("%3A");
+        } else {
+            encoded.push(ch);
+        }
+    }
+    encoded
+}
+
+#[cfg(target_os = "windows")]
 fn read_clipboard_files() -> Option<Vec<String>> {
     use windows::Win32::System::DataExchange::{
         CloseClipboard, GetClipboardData, IsClipboardFormatAvailable, OpenClipboard,
@@ -241,36 +300,50 @@ fn read_clipboard_files() -> Option<Vec<String>> {
             return None;
         }
         let result = (|| {
-            if IsClipboardFormatAvailable(CF_HDROP).is_err() {
-                return None;
-            }
-            let handle = GetClipboardData(CF_HDROP).ok()?;
-            let hdrop = HDROP(handle.0);
-            let count = DragQueryFileW(hdrop, 0xFFFFFFFF, None);
-            if count == 0 {
-                return None;
-            }
-            let mut paths = Vec::with_capacity(count as usize);
-            for i in 0..count {
-                let needed = DragQueryFileW(hdrop, i, None);
-                if needed == 0 {
-                    continue;
+            // 1. First check CF_HDROP (Standard Windows Explorer format)
+            if IsClipboardFormatAvailable(CF_HDROP).is_ok() {
+                if let Ok(handle) = GetClipboardData(CF_HDROP) {
+                    let hdrop = HDROP(handle.0);
+                    let count = DragQueryFileW(hdrop, 0xFFFFFFFF, None);
+                    if count > 0 {
+                        let mut paths = Vec::with_capacity(count as usize);
+                        for i in 0..count {
+                            let needed = DragQueryFileW(hdrop, i, None);
+                            if needed == 0 {
+                                continue;
+                            }
+                            let mut buf = vec![0u16; (needed as usize) + 1];
+                            let written = DragQueryFileW(hdrop, i, Some(&mut buf));
+                            if written > 0 {
+                                let path = String::from_utf16_lossy(&buf[..written as usize]);
+                                if !path.is_empty() {
+                                    paths.push(path);
+                                }
+                            }
+                        }
+                        if !paths.is_empty() {
+                            return Some(paths);
+                        }
+                    }
                 }
-                let mut buf = vec![0u16; (needed as usize) + 1];
-                let written = DragQueryFileW(hdrop, i, Some(&mut buf));
-                if written == 0 {
-                    continue;
-                }
-                let path = String::from_utf16_lossy(&buf[..written as usize]);
-                if !path.is_empty() {
-                    paths.push(path);
+            }
+
+            // 2. Second check code/file-list (VS Code custom clipboard format)
+            if let Some(fmt) = register_format("code/file-list") {
+                if IsClipboardFormatAvailable(fmt).is_ok() {
+                    if let Ok(handle) = GetClipboardData(fmt) {
+                        if let Some(bytes) = read_hglobal_bytes(handle) {
+                            let text = String::from_utf8_lossy(&bytes);
+                            let paths = parse_code_file_list(&text);
+                            if !paths.is_empty() {
+                                return Some(paths);
+                            }
+                        }
+                    }
                 }
             }
-            if paths.is_empty() {
-                None
-            } else {
-                Some(paths)
-            }
+
+            None
         })();
         let _ = CloseClipboard();
         result
@@ -527,7 +600,7 @@ fn set_clipboard_files(paths: &[String]) -> Result<(), String> {
         return Err("No file paths".into());
     }
 
-    // DROPFILES + wide path list (each NUL-terminated) + extra NUL.
+    // 1. Build CF_HDROP payload (DROPFILES + wide path list)
     let mut path_blob: Vec<u16> = Vec::new();
     for p in paths {
         path_blob.extend(p.encode_utf16());
@@ -536,39 +609,83 @@ fn set_clipboard_files(paths: &[String]) -> Result<(), String> {
     path_blob.push(0);
 
     let header_size = std::mem::size_of::<DROPFILES>();
-    let total = header_size + path_blob.len() * 2;
+    let total_hdrop = header_size + path_blob.len() * 2;
+
+    // 2. Build code/file-list payload for VS Code (file:/// URIs)
+    let mut uri_list = String::new();
+    for (i, p) in paths.iter().enumerate() {
+        if i > 0 {
+            uri_list.push('\n');
+        }
+        uri_list.push_str(&encode_path_to_uri(p));
+    }
+    let uri_bytes = uri_list.as_bytes();
 
     unsafe {
-        let hmem = GlobalAlloc(GMEM_MOVEABLE, total).map_err(|e| e.to_string())?;
-        let ptr = GlobalLock(hmem);
-        if ptr.is_null() {
-            return Err("GlobalLock failed".into());
-        }
-        let dropfiles = DROPFILES {
-            pFiles: header_size as u32,
-            pt: windows::Win32::Foundation::POINT { x: 0, y: 0 },
-            fNC: windows::core::BOOL(0),
-            fWide: windows::core::BOOL(1),
-        };
-        std::ptr::write(ptr as *mut DROPFILES, dropfiles);
-        std::ptr::copy_nonoverlapping(
-            path_blob.as_ptr() as *const u8,
-            (ptr as *mut u8).add(header_size),
-            path_blob.len() * 2,
-        );
-        let _ = GlobalUnlock(hmem);
-
         OpenClipboard(None).map_err(|e| e.to_string())?;
-        EmptyClipboard().map_err(|e| {
+        if let Err(e) = EmptyClipboard() {
             let _ = CloseClipboard();
-            e.to_string()
-        })?;
-        SetClipboardData(CF_HDROP, Some(windows::Win32::Foundation::HANDLE(hmem.0))).map_err(
-            |e| {
-                let _ = CloseClipboard();
-                e.to_string()
-            },
-        )?;
+            return Err(e.to_string());
+        }
+
+        // --- A. Set CF_HDROP (Windows Explorer) ---
+        if let Ok(hmem_hdrop) = GlobalAlloc(GMEM_MOVEABLE, total_hdrop) {
+            let ptr = GlobalLock(hmem_hdrop);
+            if !ptr.is_null() {
+                let dropfiles = DROPFILES {
+                    pFiles: header_size as u32,
+                    pt: windows::Win32::Foundation::POINT { x: 0, y: 0 },
+                    fNC: windows::core::BOOL(0),
+                    fWide: windows::core::BOOL(1),
+                };
+                std::ptr::write(ptr as *mut DROPFILES, dropfiles);
+                std::ptr::copy_nonoverlapping(
+                    path_blob.as_ptr() as *const u8,
+                    (ptr as *mut u8).add(header_size),
+                    path_blob.len() * 2,
+                );
+                let _ = GlobalUnlock(hmem_hdrop);
+                let _ = SetClipboardData(CF_HDROP, Some(windows::Win32::Foundation::HANDLE(hmem_hdrop.0)));
+            }
+        }
+
+        // --- B. Set Preferred DropEffect (DROPEFFECT_COPY = 1) ---
+        if let Some(fmt_effect) = register_format("Preferred DropEffect") {
+            if let Ok(hmem_effect) = GlobalAlloc(GMEM_MOVEABLE, std::mem::size_of::<u32>()) {
+                let ptr = GlobalLock(hmem_effect);
+                if !ptr.is_null() {
+                    std::ptr::write(ptr as *mut u32, 1u32); // 1 = DROPEFFECT_COPY
+                    let _ = GlobalUnlock(hmem_effect);
+                    let _ = SetClipboardData(fmt_effect, Some(windows::Win32::Foundation::HANDLE(hmem_effect.0)));
+                }
+            }
+        }
+
+        // --- C. Set code/file-list (VS Code) ---
+        if let Some(fmt_vscode) = register_format("code/file-list") {
+            if let Ok(hmem_vscode) = GlobalAlloc(GMEM_MOVEABLE, uri_bytes.len() + 1) {
+                let ptr = GlobalLock(hmem_vscode);
+                if !ptr.is_null() {
+                    std::ptr::copy_nonoverlapping(uri_bytes.as_ptr(), ptr as *mut u8, uri_bytes.len());
+                    *(ptr as *mut u8).add(uri_bytes.len()) = 0;
+                    let _ = GlobalUnlock(hmem_vscode);
+                    let _ = SetClipboardData(fmt_vscode, Some(windows::Win32::Foundation::HANDLE(hmem_vscode.0)));
+                }
+            }
+        }
+
+        // --- D. Set CF_UNICODETEXT (Plain text fallback) ---
+        let plain_text = paths.join("\r\n");
+        let wide_plain: Vec<u16> = plain_text.encode_utf16().chain(std::iter::once(0)).collect();
+        if let Ok(hmem_text) = GlobalAlloc(GMEM_MOVEABLE, wide_plain.len() * 2) {
+            let ptr = GlobalLock(hmem_text);
+            if !ptr.is_null() {
+                std::ptr::copy_nonoverlapping(wide_plain.as_ptr() as *const u8, ptr as *mut u8, wide_plain.len() * 2);
+                let _ = GlobalUnlock(hmem_text);
+                let _ = SetClipboardData(CF_TEXT_UNICODE, Some(windows::Win32::Foundation::HANDLE(hmem_text.0)));
+            }
+        }
+
         CloseClipboard().map_err(|e| e.to_string())?;
     }
     Ok(())

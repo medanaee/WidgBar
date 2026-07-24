@@ -26,18 +26,18 @@ export default function WidgetSettingsPanel({ widget, context, onBack }: Props) 
       const loadedTabs: any = { general: null, widget: null, bar: null };
       
       try {
-        const module = await import(`../widgets/${widget.type}/GeneralSetting.tsx`);
+        const module = await import(`../../widgets/${widget.type}/GeneralSetting.tsx`);
         loadedTabs.general = module.default;
       } catch (e) {}
 
       try {
-        const module = await import(`../widgets/${widget.type}/WidgetSetting.tsx`);
+        const module = await import(`../../widgets/${widget.type}/WidgetSetting.tsx`);
         loadedTabs.widget = module.default;
       } catch (e) {}
 
       if (context === 'Bar') {
         try {
-          const module = await import(`../widgets/${widget.type}/BarSetting.tsx`);
+          const module = await import(`../../widgets/${widget.type}/BarSetting.tsx`);
           loadedTabs.bar = module.default;
         } catch (e) {}
       }

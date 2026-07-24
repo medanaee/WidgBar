@@ -14,7 +14,7 @@ export default function WidgetLibraryPanel() {
         );
     }
 
-    const TypeSettingComponent = React.lazy(() => import(`../widgets/${selectedWidgetType}/typeSetting.tsx`).catch(() => {
+    const TypeSettingComponent = React.lazy(() => import(`../../widgets/${selectedWidgetType}/typeSetting.tsx`).catch(() => {
         return { 
             default: () => (
                 <div className="flex flex-col items-center justify-center h-48 border border-dashed border-zinc-500/30 rounded-xl mt-4 bg-zinc-500/5">

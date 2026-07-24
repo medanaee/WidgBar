@@ -60,9 +60,7 @@ function Chip({
                 pasteClipboardItem(item).catch(console.error);
             }}
             style={{ maxWidth }}
-            className={`shrink-0 flex items-center gap-0.5 rounded-md bg-zinc-900/10 hover:bg-zinc-900/15 dark:bg-white/10 dark:hover:bg-white/20 transition-colors text-left h-full px-1 py-0.5 ${
-                item.pinned ? 'ring-1 ring-zinc-900/25 dark:ring-white/35' : ''
-            }`}
+            className={`shrink-0 flex items-center gap-0.5 rounded-md bg-zinc-900/10 hover:bg-zinc-900/15 dark:bg-white/10 dark:hover:bg-white/20 transition-colors text-left h-full px-1 py-0.5 `}
         >
             {stackPinFile ? (
                 <span className="flex flex-col items-center justify-center gap-0.5 shrink-0">

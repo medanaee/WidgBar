@@ -426,14 +426,16 @@ pub async fn request_popup(
     resizable: Option<bool>,
     skip_taskbar: Option<bool>,
     always_on_top: Option<bool>,
+    use_pool: Option<bool>,
 ) -> Result<String, String> {
     let resizable = resizable.unwrap_or(false);
     let skip_taskbar = skip_taskbar.unwrap_or(true);
     let always_on_top = always_on_top.unwrap_or(false);
+    let use_pool = use_pool.unwrap_or(true);
 
     println!(
-        "Popup requested at ({}, {}) with size {}x{}, route: {}, close_on_blur: {}, x_is_center: {}, animated: {}, below_bar: {}, center: {}, resizable: {}, skip_taskbar: {}, always_on_top: {}",
-        x, y, width, height, route, close_on_blur, x_is_center, animated, below_bar, center, resizable, skip_taskbar, always_on_top
+        "Popup requested at ({}, {}) with size {}x{}, route: {}, close_on_blur: {}, x_is_center: {}, animated: {}, below_bar: {}, center: {}, resizable: {}, skip_taskbar: {}, always_on_top: {}, use_pool: {}",
+        x, y, width, height, route, close_on_blur, x_is_center, animated, below_bar, center, resizable, skip_taskbar, always_on_top, use_pool
     );
 
     if let Some(label) = try_toggle_off_route(&app, &state, &route) {
@@ -443,7 +445,7 @@ pub async fn request_popup(
     let mut selected_label = None;
     let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
 
-    {
+    if use_pool {
         let mut pool = state.windows.lock().unwrap();
         for win in pool.iter_mut() {
             if !win.is_busy {

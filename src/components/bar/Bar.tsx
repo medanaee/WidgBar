@@ -22,7 +22,8 @@ export default function Bar() {
   const sectionSpacing = targetMonitor?.barSectionSpacing ?? 16;
   const isSpacingJustify = ["start", "end", "center"].includes(justify);
   const animate = settings?.barAnimate !== false;
-  const showButton = targetMonitor?.showMainWindowButton !== false;
+  const isPrimary = monitor?.is_primary === true;
+  const showButton = isPrimary || (targetMonitor?.showMainWindowButton !== false);
   const separator = targetMonitor?.barSeparator || "none";
   const showSeparator = isSpacingJustify && separator !== "none";
   const expectedWidgetIds = useMemo(
