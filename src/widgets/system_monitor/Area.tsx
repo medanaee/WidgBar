@@ -149,7 +149,8 @@ export default function SystemMonitorArea({ widgetId }: { widgetId: string }) {
     const renderDoubleSparkline = (downData: number[], upData: number[]) => {
         if (!showChartsArea || downData.length < 2) return null;
 
-        const limit = Math.max(512, ...downData, ...upData, 1);
+        const netMaxSpeed = config.netMaxSpeed ?? 1024;
+        const limit = Math.max(netMaxSpeed, ...downData, ...upData, 1);
         const chartData = downData.map((val, i) => ({
             down: val,
             up: upData[i] || 0,

@@ -1,13 +1,7 @@
 import { useWidgetInstanceStore } from '../../stores/widgetInstanceStore';
 import { Switch } from '../../components/ui/switch';
-
-function SettingCard({ children }: { children: React.ReactNode }) {
-    return (
-        <div className="flex items-center justify-between p-3.5 rounded-xl bg-white/50 dark:bg-zinc-900/10 border border-zinc-500/20 dark:border-zinc-500/20 shadow-sm transition-all hover:bg-white/80 dark:hover:bg-zinc-900/50">
-            {children}
-        </div>
-    );
-}
+import { SettingCard } from '../../components/ui/SettingCard';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 
 export default function SystemMonitorGeneralSetting({ widgetId }: { widgetId: string }) {
     const config = useWidgetInstanceStore(state => state.instances[widgetId]) || {};
@@ -76,6 +70,33 @@ export default function SystemMonitorGeneralSetting({ widgetId }: { widgetId: st
             </SettingCard>
 
             <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider px-1 mt-4">Display Options</h4>
+
+            <SettingCard>
+                <div>
+                    <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Network Chart Speed Ceiling</h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Baseline maximum scale for the network speed sparkline</p>
+                </div>
+                <Select 
+                    value={String(config.netMaxSpeed || 1024)} 
+                    onValueChange={(val) => updateInstance(widgetId, { ...config, netMaxSpeed: Number(val) })}
+                >
+                    <SelectTrigger className="w-[110px] h-8 text-xs">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectGroup>
+                            <SelectItem value="256">256 KB/s</SelectItem>
+                            <SelectItem value="512">512 KB/s</SelectItem>
+                            <SelectItem value="1024">1 MB/s</SelectItem>
+                            <SelectItem value="2048">2 MB/s</SelectItem>
+                            <SelectItem value="5120">5 MB/s</SelectItem>
+                            <SelectItem value="10240">10 MB/s</SelectItem>
+                            <SelectItem value="20480">20 MB/s</SelectItem>
+                            <SelectItem value="51200">50 MB/s</SelectItem>
+                        </SelectGroup>
+                    </SelectContent>
+                </Select>
+            </SettingCard>
 
             <SettingCard>
                 <div>

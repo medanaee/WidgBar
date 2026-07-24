@@ -16,7 +16,7 @@ import MarkdownChatContent from "./MarkdownChatContent";
 import ChatUserMessage from "./ai/ChatUserMessage";
 import { CopyMessageButton } from "./ai/CopyMessageButton";
 import SessionComposer from "./ai/SessionComposer";
-import { Settings as SettingsIcon, Pencil } from "lucide-react";
+import { Settings as SettingsIcon, Pencil, Loader2, Bot } from "lucide-react";
 
 export default function AiChatRoute() {
   useEffect(() => {
@@ -25,7 +25,7 @@ export default function AiChatRoute() {
 
   console.log("Rendering AiChatRoute");
   const { instanceId } = useParams<{ instanceId: string }>();
-  const { data, sessionMessages, sessionsLoaded, loadMessagesForSession, removeSession, updateSession } = useAiServicesStore();
+  const { data, sessionMessages, sessionsLoaded, hasInitialized, loadMessagesForSession, removeSession, updateSession } = useAiServicesStore();
   const { language, t } = useTranslation();
   
   const instance = data.instances.find(i => i.id === instanceId);
@@ -178,8 +178,23 @@ export default function AiChatRoute() {
     }
   }, [instance?.id, instance?.apiKey, instance?.providerId]);
 
+  if (!hasInitialized) {
+    return (
+      <div className="w-full h-full bg-zinc-950 flex items-center justify-center text-zinc-400 text-xs gap-2">
+        <Loader2 className="w-4.5 h-4.5 animate-spin text-cyan-400" />
+        <span>Loading AI Service...</span>
+      </div>
+    );
+  }
+
   if (!instance) {
-    return <div className="p-8 text-center text-red-500">AI Service Instance not found.</div>;
+    return (
+      <div className="w-full h-full bg-zinc-950 flex flex-col items-center justify-center p-8 text-center gap-2 text-zinc-400">
+        <Bot className="w-10 h-10 text-zinc-600 mb-1" />
+        <h3 className="text-sm font-semibold text-zinc-200">AI Service Instance Not Found</h3>
+        <p className="text-xs text-zinc-500 max-w-xs">This AI service configuration may have been removed or updated.</p>
+      </div>
+    );
   }
 
   const handleNewSession = () => {

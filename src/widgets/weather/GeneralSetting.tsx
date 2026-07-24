@@ -4,14 +4,7 @@ import { Switch } from '../../components/ui/switch';
 import { SearchIcon, Loader2Icon, CheckIcon } from 'lucide-react';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
-
-function SettingCard({ children }: { children: any }) {
-    return (
-        <div className="flex items-center justify-between p-3.5 rounded-xl bg-white/50 dark:bg-zinc-900/10 border border-zinc-500/20 dark:border-zinc-500/20 shadow-sm transition-all hover:bg-white/80 dark:hover:bg-zinc-900/50">
-            {children}
-        </div>
-    );
-}
+import { SettingCard } from '../../components/ui/SettingCard';
 
 export default function WeatherGeneralSetting({ widgetId }: { widgetId: string }) {
     const config = useWidgetInstanceStore(state => state.instances[widgetId]) || {};

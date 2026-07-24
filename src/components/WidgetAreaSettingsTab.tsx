@@ -103,7 +103,7 @@ export default function WidgetAreaSettingsTab({
 
             {isBorrowing && (
               <NoticeBanner
-                tone="yellow"
+                tone="primary"
                 icon={Link2}
                 title={t("borrowWidgetLayoutWarning")}
                 description={t("borrowWidgetLayoutWarningDesc")}
@@ -130,34 +130,7 @@ export default function WidgetAreaSettingsTab({
                 />
               </SettingCard>
 
-              {/* Monitor Mini Map */}
-              <div className="w-full flex justify-center py-2">
-                <div
-                  className="relative bg-zinc-100 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden shadow-inner max-w-[280px] w-full"
-                  style={{ aspectRatio: `${targetMon?.width} / ${targetMon?.height}` }}
-                >
-                  <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle, #888 1px, transparent 1px)', backgroundSize: '12px 12px' }}></div>
-                  {targetMon?.widgetArea.map(w => {
-                    const isHovered = w.id === hoveredWidgetId;
-                    const scale = (targetMon.scale_factor || 1) * window.devicePixelRatio;
-                    const mWidth = targetMon.width / scale;
-                    const mHeight = targetMon.height / scale;
 
-                    return (
-                      <div
-                        key={w.id}
-                        className={`absolute rounded-xs transition-all duration-200 border border-zinc-500/30 ${isHovered ? 'bg-indigo-500/50 z-10 shadow-[0_0_8px_rgba(99,102,241,0.5)]' : 'bg-zinc-400/20 dark:bg-zinc-600/30'}`}
-                        style={{
-                          left: `${(w.x / mWidth) * 100}%`,
-                          top: `${(w.y / mHeight) * 100}%`,
-                          width: `${(w.width / mWidth) * 100}%`,
-                          height: `${(w.height / mHeight) * 100}%`
-                        }}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
 
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Desktop Widgets</h3>

@@ -16,7 +16,7 @@ import { useAiServicesStore } from '../../stores/aiServicesStore';
 import { aiManager } from '../../lib/AiServicesManager';
 import MarkdownChatContent from '../../components/MarkdownChatContent';
 import { resolveClipboardAiTarget } from './clipboardAi';
-import { FileTypeIcon } from './FileTypeIcon';
+import { FileTypeIcon, FigmaIcon } from './FileTypeIcon';
 import {
     clipboardPasteHover,
     imageSrc,
@@ -52,8 +52,9 @@ function ClipboardItemRow({
     const { t } = useTranslation();
     const isImage = item.kind === 'image';
     const isFiles = item.kind === 'files';
+    const isFigma = item.kind === 'figma';
     const src = isImage ? imageSrc(item.imagePath) : null;
-    const canAskAi = !isImage && !isFiles && !!item.textContent?.trim();
+    const canAskAi = !isImage && !isFiles && !isFigma && !!item.textContent?.trim();
     const setPinned = useClipboardStore((s) => s.setPinned);
     const setFrozen = useClipboardStore((s) => s.setFrozen);
     const deleteItem = useClipboardStore((s) => s.deleteItem);
@@ -73,11 +74,24 @@ function ClipboardItemRow({
                         <div className="shrink-0 self-stretch w-15 flex items-center justify-center bg-zinc-500/10">
                             <FileTypeIcon paths={item.filePaths} size={28} />
                         </div>
+                    ) : isFigma ? (
+                        <div className="shrink-0 self-stretch w-14 flex items-center justify-center bg-violet-500/10">
+                            <FigmaIcon size={24} />
+                        </div>
                     ) : null}
 
                     <div className="flex-1 min-w-0 flex flex-col justify-start p-2.5">
                         {isImage && src ? (
                             <img src={src} alt="" className="w-fit h-auto max-h-20 object-contain rounded-md" />
+                        ) : isFigma ? (
+                            <div className="flex flex-col gap-0.5 justify-center">
+                                <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+                                    Figma Component 
+                                </div>
+                                <div className="text-[11px] text-zinc-500 truncate">
+                                    Figma Design Object
+                                </div>
+                            </div>
                         ) : isFiles ? (
                             <div
                                 dir="auto"
@@ -195,6 +209,8 @@ function ClipboardItemRow({
 export default function ClipboardArea({ widgetId: _widgetId }: { widgetId: string }) {
     const { t } = useTranslation();
     const items = useClipboardStore((s) => s.items);
+    const hasInitialized = useClipboardStore((s) => s.hasInitialized);
+    const isLoading = useClipboardStore((s) => s.isLoading);
     const clearAll = useClipboardStore((s) => s.clearAll);
 
     const [askItemId, setAskItemId] = useState<string | null>(null);
@@ -310,7 +326,11 @@ export default function ClipboardArea({ widgetId: _widgetId }: { widgetId: strin
                 </div>
             </div>
 
-            {items.length === 0 ? (
+            {!hasInitialized || (isLoading && items.length === 0) ? (
+                <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-2 p-6 text-center text-zinc-400">
+                    <Loader2 className="w-5 h-5 animate-spin text-cyan-400" />
+                </div>
+            ) : items.length === 0 ? (
                 <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-2 p-6 text-center">
                     <Clipboard className="w-8 h-8 text-zinc-400/80" />
                     <div className="text-sm font-medium text-zinc-700 dark:text-zinc-200">{t('clipboardEmpty')}</div>

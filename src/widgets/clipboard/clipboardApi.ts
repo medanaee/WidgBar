@@ -67,7 +67,9 @@ export function useBarClipboardItems(
 }
 
 export async function pasteClipboardItem(item: ClipboardItem) {
-  if (item.kind === 'image' && item.imagePath) {
+  if (item.kind === 'figma' && item.htmlContent) {
+    await invoke('clipboard_paste_figma', { path: item.htmlContent });
+  } else if (item.kind === 'image' && item.imagePath) {
     await invoke('clipboard_paste_image', { path: item.imagePath });
   } else if (item.kind === 'files' && item.filePaths?.length) {
     await invoke('clipboard_paste_files', { paths: item.filePaths });

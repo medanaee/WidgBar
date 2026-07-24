@@ -115,7 +115,8 @@ export default function SystemMonitorBar({ widgetId }: { widgetId: string }) {
     const renderDoubleBarSparkline = (downData: number[], upData: number[]) => {
         if (!isLarge || downData.length < 2) return null;
 
-        const limit = Math.max(512, ...downData, ...upData, 1);
+        const netMaxSpeed = config.netMaxSpeed ?? 1024;
+        const limit = Math.max(netMaxSpeed, ...downData, ...upData, 1);
         const chartData = downData.map((val, i) => ({
             down: val,
             up: upData[i] || 0,
@@ -299,7 +300,7 @@ export default function SystemMonitorBar({ widgetId }: { widgetId: string }) {
                         <div className="flex flex-col gap-0.5 items-start tabular-nums shrink-0">
                             <span className="font-bold text-xs flex items-center gap-0.5 leading-none">
                                 <ArrowDown className="w-2.5 h-2.5 text-amber-400 shrink-0" />
-                                <span className="inline-block text-left min-w-9">
+                                <span className="inline-block text-left min-w-8">
                                     {stats.net_download_kb > 1024
                                         ? `${(stats.net_download_kb / 1024).toFixed(1)}M`
                                         : `${Math.round(stats.net_download_kb)}K`
@@ -308,7 +309,7 @@ export default function SystemMonitorBar({ widgetId }: { widgetId: string }) {
                             </span>
                             <span className="text-xs font-semibold text-white/60 flex items-center gap-0.5 leading-none">
                                 <ArrowUp className="w-2.5 h-2.5 text-orange-400 shrink-0" />
-                                <span className="inline-block text-left min-w-9">
+                                <span className="inline-block text-left min-w-8">
                                     {stats.net_upload_kb > 1024
                                         ? `${(stats.net_upload_kb / 1024).toFixed(1)}M`
                                         : `${Math.round(stats.net_upload_kb)}K`

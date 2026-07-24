@@ -3,6 +3,7 @@ import { NumberInput } from '../../components/ui/NumberInput';
 import { useTranslation } from '@/lib/i18n';
 import TranslateEngineSettingsFields from './TranslateEngineSettingsFields';
 import { selectGlobalTranslateConfig, TranslateEngineConfig } from '../../lib/TranslateCore';
+import { SettingCard } from '../../components/ui/SettingCard';
 
 export default function TranslateTypeSetting() {
   const registry = useWidgetRegistryStore(state => state.registry);
@@ -23,7 +24,7 @@ export default function TranslateTypeSetting() {
 
   return (
     <div className="space-y-3 pt-2">
-      <div className="flex items-center justify-between p-3.5 rounded-xl bg-white/50 dark:bg-zinc-900/10 border border-zinc-500/20 dark:border-zinc-500/20 shadow-sm transition-all hover:bg-white/80 dark:hover:bg-zinc-900/50">
+      <SettingCard>
         <div className="flex-grow min-w-0 pr-3">
           <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
             {t('translateDefaultSize')}
@@ -55,7 +56,7 @@ export default function TranslateTypeSetting() {
             />
           </div>
         </div>
-      </div>
+      </SettingCard>
 
       <div className="pt-1">
         <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100 mb-1">

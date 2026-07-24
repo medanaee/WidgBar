@@ -320,8 +320,8 @@ export default function BarSettingsTab({
             <DragDropContext onDragEnd={onDragEnd}>
               <div className="flex flex-col gap-4">
                 {(currentMon.barSections || []).map((section, sIndex) => (
-                  <div key={section.id} className="border border-zinc-500/20 rounded-lg overflow-hidden flex flex-col bg-zinc-50/50 dark:bg-zinc-900/20">
-                    <div className="flex items-center justify-between bg-zinc-100 dark:bg-zinc-900/60 p-2.5 border-b border-zinc-500/20">
+                  <div key={section.id} className="border border-zinc-500/20 rounded-4xl overflow-hidden flex flex-col bg-zinc-50/50 dark:bg-zinc-900/20">
+                    <div className="flex items-center justify-between bg-zinc-100 dark:bg-zinc-900/60 p-3 border-b border-zinc-500/20">
                       <div className="flex flex-col flex-1 min-w-0 pr-2">
                         {editingSectionId === section.id ? (
                           <input
@@ -393,7 +393,7 @@ export default function BarSettingsTab({
                         </div>
                         <button
                           onClick={() => setAddWidgetTarget({ context: "bar", sectionId: section.id })}
-                          className="flex items-center gap-1 px-2 py-1 bg-zinc-500/20 hover:bg-zinc-500/30 text-zinc-800 dark:text-zinc-200 text-xs font-medium rounded transition-colors"
+                          className="flex items-center gap-1 px-2 py-1 bg-zinc-500/20 hover:bg-zinc-500/30 text-zinc-800 dark:text-zinc-200 text-xs font-medium rounded-lg transition-colors"
                         >
                           <Plus className="w-3 h-3" />
                           Widget
@@ -403,8 +403,8 @@ export default function BarSettingsTab({
                         </button>
                       </div>
                     </div>
-                    <div className="px-3 py-1.5 border-b border-zinc-500/10 bg-zinc-500/5 dark:bg-zinc-500/5 flex items-center justify-between">
-                      <span className="text-xs text-zinc-500 font-medium">Widget Spacing (px)</span>
+                    <div className="px-3 py-1.5 border-b border-zinc-500/10 flex items-center justify-between">
+                      <span className="text-xs dark:text-zinc-400 text-zinc-600 font-medium">Widget Spacing (px)</span>
                       <NumberInput
                         value={section.widgetSpacing ?? 8}
                         min={0}
@@ -438,7 +438,7 @@ export default function BarSettingsTab({
                                         setHoveredWidgetId(null);
                                         emit('widget-highlight', { widgetId: widget.id, isHighlighted: false }).catch(console.error);
                                       }}
-                                      className={`flex items-center justify-between p-2 rounded-md bg-white dark:bg-zinc-800/50 border shadow-sm transition-all ${snapshot.isDragging ? 'border-indigo-500 shadow-md rotate-1 z-50' : 'border-zinc-500/10'}`}
+                                      className={`flex items-center justify-between p-2 rounded-xl bg-white dark:bg-zinc-800/50 border shadow-sm transition-all ${snapshot.isDragging ? 'border-primary/50 shadow-md z-50' : 'border-zinc-500/10'}`}
                                     >
                                       <div className="flex items-center gap-3">
                                         <div

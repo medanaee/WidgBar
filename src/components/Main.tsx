@@ -24,7 +24,7 @@ export default function Main() {
           <SecondarySidebar />
 
           {/* Content Area */}
-          <div className="flex-1 bg-zinc-100/20 dark:bg-zinc-900/20 p-6 z-0 flex flex-col min-h-0 overflow-hidden">
+          <div className={`flex-1 bg-zinc-100/20 dark:bg-zinc-900/20 ${activeTab === 'home' ? 'p-0' : 'p-6'} z-0 flex flex-col min-h-0 overflow-hidden`}>
             {activeTab === "home" && <HomePanel />}
             {activeTab === "widgets_library" && <WidgetLibraryPanel />}
             {activeTab === "settings" && <SettingsPanel />}

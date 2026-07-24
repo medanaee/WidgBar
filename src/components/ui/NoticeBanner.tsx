@@ -72,7 +72,7 @@ export function NoticeBanner({
   return (
     <div
       className={cn(
-        'p-3.5 rounded-xl border text-xs flex gap-3 leading-normal animate-in fade-in duration-200',
+        'p-3.5 rounded-4xl border text-xs flex gap-3 leading-normal animate-in fade-in duration-200',
         styles.box,
         className,
       )}

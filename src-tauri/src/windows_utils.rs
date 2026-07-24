@@ -3,15 +3,15 @@
 use tauri::WebviewWindow;
 
 use windows::core::{s};
-use windows::Win32::Foundation::{COLORREF, HWND};
+use windows::Win32::Foundation::{COLORREF, HWND, RECT};
 use windows::Win32::Graphics::Dwm::{
     DwmSetWindowAttribute, DWMWA_TRANSITIONS_FORCEDISABLED,
     DWMWA_USE_IMMERSIVE_DARK_MODE,
 };
 use windows::Win32::System::LibraryLoader::{GetProcAddress, LoadLibraryA};
 use windows::Win32::UI::WindowsAndMessaging::{
-    GWL_EXSTYLE, GetWindowLongPtrW,
-    LWA_ALPHA, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER,
+    GWL_EXSTYLE, GetClientRect, GetSystemMetrics, GetWindowLongPtrW, GetWindowRect,
+    LWA_ALPHA, SM_CXPADDEDBORDER, SM_CXSIZEFRAME, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER,
     SetLayeredWindowAttributes, SetWindowLongPtrW,
     SetWindowPos, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TRANSPARENT
 };
@@ -192,5 +192,31 @@ pub fn make_window_click_through(hwnd: HWND) {
             verified_style
         );
     }
+}
+
+#[cfg(target_os = "windows")]
+pub fn get_window_invisible_border_offset(hwnd: HWND) -> (f64, f64) {
+    let mut outer_rect = RECT::default();
+    let mut client_rect = RECT::default();
+
+    unsafe {
+        if GetWindowRect(hwnd, &mut outer_rect).is_ok() && GetClientRect(hwnd, &mut client_rect).is_ok() {
+            let outer_w = (outer_rect.right - outer_rect.left) as f64;
+            let client_w = (client_rect.right - client_rect.left) as f64;
+            if outer_w > client_w && client_w > 0.0 {
+                let border_offset = (outer_w - client_w) / 2.0;
+                return (border_offset, border_offset);
+            }
+        }
+
+        // Fallback using Windows System Metrics
+        let frame = GetSystemMetrics(SM_CXSIZEFRAME);
+        let padding = GetSystemMetrics(SM_CXPADDEDBORDER);
+        let sys_border = (frame + padding) as f64;
+        if sys_border > 0.0 {
+            return (sys_border, sys_border);
+        }
+    }
+    (8.0, 8.0)
 }
 

@@ -5,7 +5,7 @@ import { isOwnerWindow } from '../lib/ownerWindow';
 
 export interface ClipboardItem {
   id: string;
-  kind: 'text' | 'image' | 'files';
+  kind: 'text' | 'image' | 'files' | 'figma';
   textContent: string | null;
   htmlContent: string | null;
   rtfContent: string | null;
@@ -69,7 +69,7 @@ function makeFilesPreview(paths: string[]): string {
 function normalizeLoadedItems(items: ClipboardItem[]): ClipboardItem[] {
   return items.map((i) => ({
     ...i,
-    kind: i.kind === 'image' ? 'image' : i.kind === 'files' ? 'files' : 'text',
+    kind: i.kind === 'image' ? 'image' : i.kind === 'files' ? 'files' : i.kind === 'figma' ? 'figma' : 'text',
     htmlContent: i.htmlContent ?? null,
     rtfContent: i.rtfContent ?? null,
     filePaths: Array.isArray(i.filePaths) ? i.filePaths : null,
@@ -174,6 +174,7 @@ export const useClipboardStore = create<ClipboardState>((set, get) => ({
     let kind: ClipboardItem['kind'];
     if (capture.kind === 'image') kind = 'image';
     else if (capture.kind === 'files') kind = 'files';
+    else if (capture.kind === 'figma') kind = 'figma';
     else kind = 'text';
 
     let contentHash: string;
@@ -196,6 +197,12 @@ export const useClipboardStore = create<ClipboardState>((set, get) => ({
       imagePath = path;
       contentHash = hashStr(`i:${path}`);
       preview = 'Image';
+    } else if (kind === 'figma') {
+      const path = capture.html ?? null;
+      if (!path) return;
+      htmlContent = path;
+      contentHash = hashStr(`figma:${path}`);
+      preview = 'Figma Component';
     } else {
       const text = (capture.text ?? '').trim();
       const html = (capture.html ?? '').trim() || null;
@@ -285,6 +292,7 @@ export const useClipboardStore = create<ClipboardState>((set, get) => ({
     const target = get().items.find((i) => i.id === id);
     const items = get().items.filter((i) => i.id !== id);
     if (target?.imagePath) deleteImageFiles([target.imagePath]);
+    if (target?.kind === 'figma' && target.htmlContent) deleteImageFiles([target.htmlContent]);
     set({ items });
     persist(items, get().maxHistory, true);
   },
@@ -293,6 +301,7 @@ export const useClipboardStore = create<ClipboardState>((set, get) => ({
     const kept = get().items.filter((i) => i.frozen);
     const removed = get().items.filter((i) => !i.frozen);
     deleteImageFiles(removed.map((i) => i.imagePath));
+    deleteImageFiles(removed.filter((i) => i.kind === 'figma').map((i) => i.htmlContent));
     set({ items: kept });
     persist(kept, get().maxHistory, true);
   },

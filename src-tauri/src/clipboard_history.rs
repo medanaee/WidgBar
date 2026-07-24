@@ -53,9 +53,34 @@ fn thumb_path_beside(full: &std::path::Path) -> PathBuf {
 
 fn remove_image_files(path: &str) {
     let p = PathBuf::from(path);
-    let thumb = thumb_path_beside(&p);
-    let _ = std::fs::remove_file(&p);
-    let _ = std::fs::remove_file(&thumb);
+    if path.ends_with(".html") || path.contains("figma_") {
+        let _ = std::fs::remove_file(&p);
+    } else {
+        let thumb = thumb_path_beside(&p);
+        let _ = std::fs::remove_file(&p);
+        let _ = std::fs::remove_file(&thumb);
+    }
+}
+
+fn save_clipboard_figma(html_content: &str) -> Result<PathBuf, String> {
+    let dir = IMAGE_DIR
+        .lock()
+        .map_err(|e| format!("IMAGE_DIR lock poisoned: {e}"))?
+        .clone()
+        .ok_or_else(|| "IMAGE_DIR not set".to_string())?;
+
+    if !dir.exists() {
+        std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    }
+
+    let hash = hash_bytes(html_content.as_bytes());
+    let id = &hash[..12.min(hash.len())];
+    let full_path = dir.join(format!("clip_figma_{id}.html"));
+
+    std::fs::write(&full_path, html_content)
+        .map_err(|e| format!("failed to write figma html {}: {e}", full_path.display()))?;
+
+    Ok(full_path)
 }
 
 fn save_clipboard_image(rgba: &[u8], width: u32, height: u32) -> Result<PathBuf, String> {
@@ -189,13 +214,10 @@ fn read_clipboard_unicode_text_open() -> Option<String> {
 
 #[cfg(target_os = "windows")]
 fn read_registered_text_format(format_name: &str) -> Option<String> {
-    use windows::Win32::System::DataExchange::{GetClipboardData, IsClipboardFormatAvailable};
+    use windows::Win32::System::DataExchange::GetClipboardData;
 
     let fmt = register_format(format_name)?;
     unsafe {
-        if IsClipboardFormatAvailable(fmt).is_err() {
-            return None;
-        }
         let handle = GetClipboardData(fmt).ok()?;
         let bytes = read_hglobal_bytes(handle)?;
         // HTML Format is UTF-8; RTF is typically ASCII/UTF-8
@@ -365,6 +387,26 @@ fn read_clipboard_image() -> Option<(Vec<u8>, u32, u32)> {
             return None;
         }
         let result = (|| {
+            // First: Try reading native registered PNG format ("PNG" or "image/png")
+            for fmt_name in &["PNG", "image/png"] {
+                if let Some(fmt_id) = register_format(fmt_name) {
+                    if IsClipboardFormatAvailable(fmt_id).is_ok() {
+                        if let Ok(handle) = GetClipboardData(fmt_id) {
+                            if let Some(bytes) = read_hglobal_bytes(handle) {
+                                if let Ok(dyn_img) = image::load_from_memory(&bytes) {
+                                    let rgba_img = dyn_img.to_rgba8();
+                                    let (width, height) = (rgba_img.width(), rgba_img.height());
+                                    if width > 0 && height > 0 && width <= 8000 && height <= 8000 {
+                                        return Some((rgba_img.into_raw(), width, height));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Fallback: Read GDI CF_BITMAP_FMT
             if IsClipboardFormatAvailable(CF_BITMAP_FMT).is_err() {
                 return None;
             }
@@ -421,9 +463,12 @@ fn read_clipboard_image() -> Option<(Vec<u8>, u32, u32)> {
                 return None;
             }
 
+            let has_alpha = buffer.chunks_exact(4).any(|chunk| chunk[3] != 0 && chunk[3] != 255);
             for chunk in buffer.chunks_exact_mut(4) {
                 chunk.swap(0, 2);
-                chunk[3] = 255;
+                if !has_alpha && chunk[3] == 0 {
+                    chunk[3] = 255;
+                }
             }
 
             Some((buffer, width, height))
@@ -451,7 +496,8 @@ fn alloc_hglobal_bytes(bytes: &[u8]) -> Result<windows::Win32::Foundation::HGLOB
 
 #[cfg(target_os = "windows")]
 fn wrap_cf_html(html: &str) -> String {
-    if html.starts_with("Version:") {
+    let trimmed = html.trim_start();
+    if trimmed.starts_with("Version:") || trimmed.starts_with("StartHTML:") {
         return html.to_string();
     }
     let fragment = html;
@@ -701,7 +747,8 @@ fn set_clipboard_image_from_file(path: &str) -> Result<(), String> {
         CloseClipboard, EmptyClipboard, OpenClipboard, SetClipboardData,
     };
 
-    let dyn_img = image::open(path).map_err(|e| e.to_string())?;
+    let png_bytes = std::fs::read(path).map_err(|e| e.to_string())?;
+    let dyn_img = image::load_from_memory(&png_bytes).map_err(|e| e.to_string())?;
     let width = dyn_img.width();
     let height = dyn_img.height();
 
@@ -747,6 +794,17 @@ fn set_clipboard_image_from_file(path: &str) -> Result<(), String> {
             let _ = CloseClipboard();
             e.to_string()
         })?;
+
+        // 1. Set raw PNG formats ("PNG" and "image/png") for 100% transparent PNG pasting
+        for fmt_name in &["PNG", "image/png"] {
+            if let Some(fmt_id) = register_format(fmt_name) {
+                if let Ok(hmem) = alloc_hglobal_bytes(&png_bytes) {
+                    let _ = SetClipboardData(fmt_id, Some(windows::Win32::Foundation::HANDLE(hmem.0)));
+                }
+            }
+        }
+
+        // 2. Set CF_BITMAP_FMT as fallback for legacy GDI apps
         SetClipboardData(
             CF_BITMAP_FMT,
             Some(windows::Win32::Foundation::HANDLE(hbmp.0)),
@@ -828,89 +886,28 @@ fn send_ctrl_v() -> Result<(), String> {
     }
 }
 
-#[cfg(target_os = "windows")]
-fn clipboard_sequence() -> u32 {
-    use windows::Win32::System::DataExchange::GetClipboardSequenceNumber;
-    unsafe { GetClipboardSequenceNumber() }
-}
-
-fn emit_capture(app: &AppHandle, capture: ClipboardCapture) {
-    let _ = app.emit("clipboard-changed", capture);
-}
-
-fn empty_capture(kind: &str) -> ClipboardCapture {
-    ClipboardCapture {
-        kind: kind.into(),
-        text: None,
-        html: None,
-        rtf: None,
-        image_path: None,
-        file_paths: None,
-    }
-}
-
-pub fn start_clipboard_watcher(app: AppHandle) {
-    if let Ok(dir) = app.path().app_cache_dir() {
-        let clip_dir = dir.join("clipboard");
-        if let Err(e) = std::fs::create_dir_all(&clip_dir) {
-            eprintln!(
-                "[clipboard] failed to create cache dir {}: {e}",
-                clip_dir.display()
-            );
-        } else if let Ok(mut g) = IMAGE_DIR.lock() {
-            *g = Some(clip_dir);
-        }
-    }
-
+/// Paste Figma item from saved disk HTML file into foreground app.
+#[tauri::command]
+pub fn clipboard_paste_figma(path: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
-    std::thread::spawn(move || {
-        let mut last_seq = clipboard_sequence();
-        loop {
-            std::thread::sleep(std::time::Duration::from_millis(400));
-            let seq = clipboard_sequence();
-            if seq == last_seq {
-                continue;
-            }
-            last_seq = seq;
-
-            if now_ms() < IGNORE_CLIPBOARD_UNTIL_MS.load(Ordering::Relaxed) {
-                continue;
-            }
-
-            // Priority: real image pixels (CF_BITMAP) > files (CF_HDROP) > text.
-            //
-            // When an image is copied from an app (Photos, browser, editor, …)
-            // the clipboard carries the actual pixels as CF_BITMAP — usually
-            // *alongside* a virtual "file" (FileGroupDescriptorW + FileContents,
-            // plus a CF_HDROP that only materializes into a temp file on paste).
-            // That virtual descriptor is NOT a real path on disk, so we prefer
-            // the pixels here and store the image content itself.
-            //
-            // Copying a real file from Explorer instead gives a CF_HDROP that
-            // points at an actual path and has NO CF_BITMAP, so it falls through
-            // to the files branch and is kept as a file.
-            if let Some((rgba, w, h)) = read_clipboard_image() {
-                match save_clipboard_image(&rgba, w, h) {
-                    Ok(path) => {
-                        let mut c = empty_capture("image");
-                        c.image_path = Some(path.to_string_lossy().into_owned());
-                        emit_capture(&app, c);
-                    }
-                    Err(e) => eprintln!("[clipboard] save image failed ({w}x{h}): {e}"),
-                }
-            } else if let Some(paths) = read_clipboard_files() {
-                let mut c = empty_capture("files");
-                c.file_paths = Some(paths);
-                emit_capture(&app, c);
-            } else if let Some((plain, html, rtf)) = read_clipboard_text_bundle() {
-                let mut c = empty_capture("text");
-                c.text = plain;
-                c.html = html;
-                c.rtf = rtf;
-                emit_capture(&app, c);
-            }
-        }
-    });
+    {
+        IGNORE_CLIPBOARD_UNTIL_MS.store(now_ms() + 1200, Ordering::Relaxed);
+        let html_content = std::fs::read_to_string(&path)
+            .map_err(|e| format!("failed to read figma file {path}: {e}"))?;
+        set_clipboard_formats(
+            None,
+            Some(&html_content),
+            None,
+        )?;
+        std::thread::sleep(std::time::Duration::from_millis(60));
+        send_ctrl_v()?;
+        Ok(())
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = path;
+        Err("Clipboard paste is only supported on Windows".into())
+    }
 }
 
 /// Paste plain text (legacy) into the foreground app.
@@ -986,4 +983,95 @@ pub fn clipboard_paste_image(path: String) -> Result<(), String> {
 pub fn clipboard_delete_image_files(path: String) -> Result<(), String> {
     remove_image_files(&path);
     Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn clipboard_sequence() -> u32 {
+    use windows::Win32::System::DataExchange::GetClipboardSequenceNumber;
+    unsafe { GetClipboardSequenceNumber() }
+}
+
+fn emit_capture(app: &AppHandle, capture: ClipboardCapture) {
+    let _ = app.emit("clipboard-changed", capture);
+}
+
+fn empty_capture(kind: &str) -> ClipboardCapture {
+    ClipboardCapture {
+        kind: kind.into(),
+        text: None,
+        html: None,
+        rtf: None,
+        image_path: None,
+        file_paths: None,
+    }
+}
+
+pub fn start_clipboard_watcher(app: AppHandle) {
+    if let Ok(dir) = app.path().app_cache_dir() {
+        let clip_dir = dir.join("clipboard");
+        if let Err(e) = std::fs::create_dir_all(&clip_dir) {
+            eprintln!(
+                "[clipboard] failed to create cache dir {}: {e}",
+                clip_dir.display()
+            );
+        } else if let Ok(mut g) = IMAGE_DIR.lock() {
+            *g = Some(clip_dir);
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    std::thread::spawn(move || {
+        let mut last_seq = clipboard_sequence();
+        loop {
+            std::thread::sleep(std::time::Duration::from_millis(400));
+            let seq = clipboard_sequence();
+            if seq == last_seq {
+                continue;
+            }
+            last_seq = seq;
+
+            if now_ms() < IGNORE_CLIPBOARD_UNTIL_MS.load(Ordering::Relaxed) {
+                continue;
+            }
+
+            // Priority: Figma (if HTML contains (figmeta)) > real image pixels > files > text.
+            let figma_capture = (|| {
+                if let Some((_plain, html, _rtf)) = read_clipboard_text_bundle() {
+                    if html.as_deref().map_or(false, |h| h.contains("figmeta") || h.contains("(figmeta)")) {
+                        let raw_html = html.unwrap_or_default();
+                        if let Ok(figma_path) = save_clipboard_figma(&raw_html) {
+                            let mut c = empty_capture("figma");
+                            c.html = Some(figma_path.to_string_lossy().into_owned());
+                            c.text = Some("Figma Component".to_string());
+                            return Some(c);
+                        }
+                    }
+                }
+                None
+            })();
+
+            if let Some(c) = figma_capture {
+                emit_capture(&app, c);
+            } else if let Some((rgba, w, h)) = read_clipboard_image() {
+                match save_clipboard_image(&rgba, w, h) {
+                    Ok(path) => {
+                        let mut c = empty_capture("image");
+                        c.image_path = Some(path.to_string_lossy().into_owned());
+                        emit_capture(&app, c);
+                    }
+                    Err(e) => eprintln!("[clipboard] save image failed ({w}x{h}): {e}"),
+                }
+            } else if let Some(paths) = read_clipboard_files() {
+                let mut c = empty_capture("files");
+                c.file_paths = Some(paths);
+                emit_capture(&app, c);
+            } else if let Some((plain, html, rtf)) = read_clipboard_text_bundle() {
+                let mut c = empty_capture("text");
+                c.text = plain;
+                c.html = html;
+                c.rtf = rtf;
+                emit_capture(&app, c);
+            }
+        }
+    });
 }

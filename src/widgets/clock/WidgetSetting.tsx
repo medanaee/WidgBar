@@ -3,15 +3,7 @@ import { useWidgetInstanceStore } from '../../stores/widgetInstanceStore';
 import { Switch } from '../../components/ui/switch';
 import { VisualSelector } from '../../components/ui/VisualSelector';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-
-// Styled Card matching the Main layout settings card exactly
-function SettingCard({ children }: { children: React.ReactNode }) {
-    return (
-        <div className="flex items-center justify-between p-3.5 rounded-xl bg-white/50 dark:bg-zinc-900/10 border border-zinc-500/20 dark:border-zinc-500/20 shadow-sm transition-all hover:bg-white/80 dark:hover:bg-zinc-900/50">
-            {children}
-        </div>
-    );
-}
+import { SettingCard } from '../../components/ui/SettingCard';
 
 export default function ClockWidgetSetting({ widgetId }: { widgetId: string }) {
     const config = useWidgetInstanceStore(state => state.instances[widgetId]) || {};

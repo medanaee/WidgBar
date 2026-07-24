@@ -91,7 +91,6 @@ export default function AiServicesPanel() {
               <SettingCard 
                 key={instance.id} 
                 className="flex flex-col relative group h-44"
-                style={{ borderRadius: '24px', cornerShape: 'squircle' } as React.CSSProperties}
               >
                 <div className="flex justify-between items-start mb-4 w-full">
                   <div className="flex items-center gap-3">

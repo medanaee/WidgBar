@@ -4,7 +4,7 @@ import { useWidgetInstanceStore } from '../../stores/widgetInstanceStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useClipboardStore, subscribeClipboardSync } from '../../stores/clipboardStore';
 import { useUpdateWidgetConstraints } from '../../stores/widgetConstraintsStore';
-import { FileTypeIcon } from './FileTypeIcon';
+import { FigmaIcon, FileTypeIcon } from './FileTypeIcon';
 import {
     clipboardPasteHover,
     imageSrc,
@@ -45,9 +45,11 @@ function Chip({
     large: boolean;
     maxWidth: number;
 }) {
-    const src = item.kind === 'image' ? imageSrc(item.imagePath) : null;
+    const isImage = item.kind === 'image';
     const isFiles = item.kind === 'files';
-    const label = item.kind === 'image' ? 'Image' : item.preview || '…';
+    const isFigma = item.kind === 'figma';
+    const src = isImage ? imageSrc(item.imagePath) : null;
+    const label = isFigma ? 'Figma' : isImage ? 'Image' : item.preview || '…';
     const stackPinFile = large && item.pinned && isFiles;
 
     return (
@@ -74,6 +76,8 @@ function Chip({
                     ) : null}
                     {isFiles ? (
                         <FileTypeIcon paths={item.filePaths} size={16} />
+                    ) : isFigma ? (
+                        <FigmaIcon size={14} />
                     ) : null}
                 </>
             )}

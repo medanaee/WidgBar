@@ -369,26 +369,43 @@ pub async fn calculate_popup_position(
 
     let physical_width = width * scale_factor;
     let physical_height = height * scale_factor;
+    let margin_physical = 12.0 * scale_factor;
+
+    let (left_border_offset, right_border_offset) = {
+        #[cfg(target_os = "windows")]
+        {
+            if let Ok(hwnd_val) = caller.hwnd() {
+                use windows::Win32::Foundation::HWND;
+                crate::windows_utils::get_window_invisible_border_offset(HWND(hwnd_val.0 as _))
+            } else {
+                (8.0 * scale_factor, 8.0 * scale_factor)
+            }
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            (0.0, 0.0)
+        }
+    };
 
     if let Ok(Some(monitor)) = caller.current_monitor() {
         let monitor_pos = monitor.position();
         let monitor_size = monitor.size();
 
-        let monitor_left = monitor_pos.x as f64;
-        let monitor_right = (monitor_pos.x + monitor_size.width as i32) as f64;
-        let monitor_top = monitor_pos.y as f64;
-        let monitor_bottom = (monitor_pos.y + monitor_size.height as i32) as f64;
+        let monitor_left = monitor_pos.x as f64 + margin_physical;
+        let monitor_right = (monitor_pos.x + monitor_size.width as i32) as f64 - margin_physical;
+        let monitor_top = monitor_pos.y as f64 + margin_physical;
+        let monitor_bottom = (monitor_pos.y + monitor_size.height as i32) as f64 - margin_physical;
 
         if physical_x < monitor_left {
-            physical_x = monitor_left;
+            physical_x = monitor_left - left_border_offset;
         } else if physical_x + physical_width > monitor_right {
-            physical_x = monitor_right - physical_width;
+            physical_x = monitor_right - physical_width - left_border_offset;
         }
 
         if physical_y < monitor_top {
             physical_y = monitor_top;
         } else if physical_y + physical_height > monitor_bottom {
-            physical_y = monitor_bottom - physical_height;
+            physical_y = monitor_bottom - physical_height - left_border_offset;
         }
     }
 
