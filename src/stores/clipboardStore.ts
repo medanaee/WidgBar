@@ -298,16 +298,43 @@ export const useClipboardStore = create<ClipboardState>((set, get) => ({
   },
 }));
 
-listen('clipboard-history-sync', (event: any) => {
-  const data = event.payload as ClipboardPersist | undefined;
-  if (data) {
-    useClipboardStore.getState().replaceState(data, false);
-  }
-}).catch(console.error);
+let clipRefCount = 0;
+let clipUnlistenFns: Array<() => void> = [];
 
-// Only the always-open owner window (primary monitor's bar) ingests captures,
-// so bar/popup/main windows don't double-insert.
-listen<ClipboardCapture>('clipboard-changed', async (event) => {
-  if (!(await isOwnerWindow())) return;
-  useClipboardStore.getState().ingestCapture(event.payload);
-}).catch(console.error);
+export function subscribeClipboardSync(): () => void {
+  clipRefCount++;
+  if (clipRefCount === 1) {
+    let active = true;
+    useClipboardStore.getState().fetchHistory().catch(console.error);
+
+    Promise.all([
+      listen('clipboard-history-sync', (event: any) => {
+        const data = event.payload as ClipboardPersist | undefined;
+        if (data) {
+          useClipboardStore.getState().replaceState(data, false);
+        }
+      }),
+      listen<ClipboardCapture>('clipboard-changed', async (event) => {
+        if (!(await isOwnerWindow())) return;
+        useClipboardStore.getState().ingestCapture(event.payload);
+      }),
+    ])
+      .then((unlistens) => {
+        if (!active) {
+          unlistens.forEach((u) => u());
+        } else {
+          clipUnlistenFns = unlistens;
+        }
+      })
+      .catch(console.error);
+  }
+
+  return () => {
+    clipRefCount--;
+    if (clipRefCount <= 0) {
+      clipRefCount = 0;
+      clipUnlistenFns.forEach((u) => u());
+      clipUnlistenFns = [];
+    }
+  };
+}

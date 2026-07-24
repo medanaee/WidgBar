@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { aiManager } from '../../lib/AiServicesManager';
-import { useAiServicesStore } from '../../stores/aiServicesStore';
+import { useAiServicesStore, subscribeAiServicesSync } from '../../stores/aiServicesStore';
 import { useWidgetInstanceStore } from '../../stores/widgetInstanceStore';
 import { BotSparkleColor, OpenRegular, PersonRegular, AddRegular } from '@fluentui/react-icons';
 import { CompanyLogo } from '../../components/panels/aiSevices/CompanyLogo';
@@ -13,6 +13,9 @@ import SessionComposer from '../../components/ai/SessionComposer';
 import { CutoutProvider } from '../../components/ui/CutoutProvider';
 
 export default function AiArea({ widgetId }: { widgetId: string }) {
+    useEffect(() => {
+        return subscribeAiServicesSync();
+    }, []);
     const [isSending, setIsSending] = useState(false);
     const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);

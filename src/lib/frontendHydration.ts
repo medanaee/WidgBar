@@ -1,5 +1,3 @@
-import { useAiServicesStore } from '../stores/aiServicesStore';
-import { useClipboardStore } from '../stores/clipboardStore';
 import { useLayoutStore } from '../stores/layoutStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useWidgetInstanceStore } from '../stores/widgetInstanceStore';
@@ -19,8 +17,6 @@ export function hydrateFrontendStores(): Promise<void> {
       useLayoutStore.getState().fetchAndSyncLayouts(),
       useWidgetInstanceStore.getState().fetchInstances(),
       useWidgetRegistryStore.getState().fetchRegistry(),
-      useAiServicesStore.getState().fetchAndSyncData(),
-      useClipboardStore.getState().fetchHistory(),
     ]).then(() => undefined);
   }
 

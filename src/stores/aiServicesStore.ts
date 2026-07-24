@@ -307,43 +307,75 @@ export const useAiServicesStore = create<AiServicesState>((set, get) => {
   };
 });
 
-listen('ai-data-sync', () => {
-  useAiServicesStore.getState().fetchAndSyncData();
-}).catch(console.error);
+let aiRefCount = 0;
+let aiUnlistenFns: Array<() => void> = [];
 
-listen<{ sessionId: string; draft: SessionDraft | null }>('ai-draft-sync', (event) => {
-  const { sessionId, draft } = event.payload || {};
-  if (!sessionId) return;
-  const store = useAiServicesStore.getState();
-  if (draft === null) {
-    const drafts = { ...store.sessionDrafts };
-    delete drafts[sessionId];
-    useAiServicesStore.setState({ sessionDrafts: drafts });
-    return;
+export function subscribeAiServicesSync(): () => void {
+  aiRefCount++;
+  if (aiRefCount === 1) {
+    let active = true;
+    useAiServicesStore.getState().fetchAndSyncData().catch(console.error);
+
+    Promise.all([
+      listen('ai-data-sync', () => {
+        useAiServicesStore.getState().fetchAndSyncData();
+      }),
+      listen<{ sessionId: string; draft: SessionDraft | null }>('ai-draft-sync', (event) => {
+        const { sessionId, draft } = event.payload || {};
+        if (!sessionId) return;
+        const store = useAiServicesStore.getState();
+        if (draft === null) {
+          const drafts = { ...store.sessionDrafts };
+          delete drafts[sessionId];
+          useAiServicesStore.setState({ sessionDrafts: drafts });
+          return;
+        }
+        useAiServicesStore.setState({
+          sessionDrafts: { ...store.sessionDrafts, [sessionId]: draft },
+        });
+      }),
+      listen<any>('ai-sync-action', (event) => {
+        const { type, payload } = event.payload;
+        const store = useAiServicesStore.getState();
+
+        if (type === 'ADD_MESSAGE') {
+          const { sessionId, message } = payload;
+          const msgs = store.sessionMessages[sessionId] || [];
+          if (!msgs.find((m) => m.id === message.id)) {
+            useAiServicesStore.setState({
+              sessionMessages: { ...store.sessionMessages, [sessionId]: [...msgs, message] },
+            });
+          }
+        } else if (type === 'UPDATE_MESSAGE') {
+          const { sessionId, messageId, updatedMessage } = payload;
+          const msgs = store.sessionMessages[sessionId] || [];
+          const idx = msgs.findIndex((m) => m.id === messageId);
+          if (idx !== -1) {
+            const newMsgs = [...msgs];
+            newMsgs[idx] = updatedMessage;
+            useAiServicesStore.setState({
+              sessionMessages: { ...store.sessionMessages, [sessionId]: newMsgs },
+            });
+          }
+        }
+      }),
+    ])
+      .then((unlistens) => {
+        if (!active) {
+          unlistens.forEach((u) => u());
+        } else {
+          aiUnlistenFns = unlistens;
+        }
+      })
+      .catch(console.error);
   }
-  useAiServicesStore.setState({
-    sessionDrafts: { ...store.sessionDrafts, [sessionId]: draft },
-  });
-}).catch(console.error);
 
-listen<any>('ai-sync-action', (event) => {
-  const { type, payload } = event.payload;
-  const store = useAiServicesStore.getState();
-
-  if (type === 'ADD_MESSAGE') {
-    const { sessionId, message } = payload;
-    const msgs = store.sessionMessages[sessionId] || [];
-    if (!msgs.find(m => m.id === message.id)) {
-      useAiServicesStore.setState({ sessionMessages: { ...store.sessionMessages, [sessionId]: [...msgs, message] } });
+  return () => {
+    aiRefCount--;
+    if (aiRefCount <= 0) {
+      aiRefCount = 0;
+      aiUnlistenFns.forEach((u) => u());
+      aiUnlistenFns = [];
     }
-  } else if (type === 'UPDATE_MESSAGE') {
-    const { sessionId, messageId, updatedMessage } = payload;
-    const msgs = store.sessionMessages[sessionId] || [];
-    const idx = msgs.findIndex(m => m.id === messageId);
-    if (idx !== -1) {
-      const newMsgs = [...msgs];
-      newMsgs[idx] = updatedMessage;
-      useAiServicesStore.setState({ sessionMessages: { ...store.sessionMessages, [sessionId]: newMsgs } });
-    }
-  }
-}).catch(console.error);
+  };
+}

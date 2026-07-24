@@ -30,9 +30,10 @@ export function useBarClipboardItems(
   const [nowTick, setNowTick] = useState(0);
 
   useEffect(() => {
+    if (!opts.barRecentTimed) return;
     const id = setInterval(() => setNowTick((n) => n + 1), 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [opts.barRecentTimed]);
 
   return useMemo(() => {
     const now = Date.now();

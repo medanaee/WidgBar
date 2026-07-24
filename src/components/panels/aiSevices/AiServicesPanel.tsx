@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useAiServicesStore } from "@stores/aiServicesStore";
+import { useEffect, useState } from "react";
+import { useAiServicesStore, subscribeAiServicesSync } from "@stores/aiServicesStore";
 import { AI_PROVIDERS, AiServiceInstance } from "@t/ai";
 import { Button } from "@c/ui/button";
 import { Plus, Trash2, Settings, MessageSquare } from "lucide-react";
@@ -10,6 +10,10 @@ import EditAiServicePanel from "./EditAiServicePanel";
 import { invoke } from "@tauri-apps/api/core";
 
 export default function AiServicesPanel() {
+  useEffect(() => {
+    return subscribeAiServicesSync();
+  }, []);
+
   const { data, addInstance, removeInstance, updateInstance } = useAiServicesStore();
   const instances = data?.instances || [];
   

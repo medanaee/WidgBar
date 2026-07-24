@@ -11,7 +11,7 @@ import {
     Loader2,
 } from 'lucide-react';
 import { useTranslation } from '../../lib/i18n';
-import { useClipboardStore, type ClipboardItem } from '../../stores/clipboardStore';
+import { useClipboardStore, subscribeClipboardSync, type ClipboardItem } from '../../stores/clipboardStore';
 import { useAiServicesStore } from '../../stores/aiServicesStore';
 import { aiManager } from '../../lib/AiServicesManager';
 import MarkdownChatContent from '../../components/MarkdownChatContent';
@@ -203,7 +203,9 @@ export default function ClipboardArea({ widgetId: _widgetId }: { widgetId: strin
     const [reply, setReply] = useState<AskReply | null>(null);
 
     useEffect(() => {
+        const unsubscribe = subscribeClipboardSync();
         return () => {
+            unsubscribe();
             resetClipboardPasteHover();
             setWindowNoActivate(false).catch(() => { });
         };

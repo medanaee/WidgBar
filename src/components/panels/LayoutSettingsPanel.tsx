@@ -139,34 +139,36 @@ export default function LayoutSettingsPanel() {
 
             <div className="flex-1 overflow-y-auto custom-scrollbar ltr:pr-2 ltr:-mr-2 rtl:pl-2 rtl:-ml-2 pb-6">
               
-              <BarSettingsTab
-                selectedMonitorId={selectedMonitorId}
-                monitors={monitors}
-                settings={settings}
-                registry={registry}
-                t={t}
-                language={language}
-                handleMonitorToggle={handleMonitorToggle}
-                setAddWidgetTarget={setAddWidgetTarget}
-                handleRemoveWidget={handleRemoveWidget}
-                setEditingWidget={setEditingWidget}
-              />
-              
-              <WidgetAreaSettingsTab
-                selectedMonitorId={selectedMonitorId}
-                monitors={monitors}
-                layouts={layouts}
-                currentLayout={currentLayout}
-                registry={registry}
-                t={t}
-                language={language}
-                handleMonitorToggle={handleMonitorToggle}
-                hoveredWidgetId={hoveredWidgetId}
-                setHoveredWidgetId={setHoveredWidgetId}
-                setAddWidgetTarget={setAddWidgetTarget}
-                setEditingWidget={setEditingWidget}
-                handleRemoveWidget={handleRemoveWidget}
-              />
+              {layoutInnerTab === "bar" ? (
+                <BarSettingsTab
+                  selectedMonitorId={selectedMonitorId}
+                  monitors={monitors}
+                  settings={settings}
+                  registry={registry}
+                  t={t}
+                  language={language}
+                  handleMonitorToggle={handleMonitorToggle}
+                  setAddWidgetTarget={setAddWidgetTarget}
+                  handleRemoveWidget={handleRemoveWidget}
+                  setEditingWidget={setEditingWidget}
+                />
+              ) : (
+                <WidgetAreaSettingsTab
+                  selectedMonitorId={selectedMonitorId}
+                  monitors={monitors}
+                  layouts={layouts}
+                  currentLayout={currentLayout}
+                  registry={registry}
+                  t={t}
+                  language={language}
+                  handleMonitorToggle={handleMonitorToggle}
+                  hoveredWidgetId={hoveredWidgetId}
+                  setHoveredWidgetId={setHoveredWidgetId}
+                  setAddWidgetTarget={setAddWidgetTarget}
+                  setEditingWidget={setEditingWidget}
+                  handleRemoveWidget={handleRemoveWidget}
+                />
+              )}
 
             </div>
           </Tabs>

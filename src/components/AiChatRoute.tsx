@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom";
-import { useAiServicesStore } from "../stores/aiServicesStore";
+import { useAiServicesStore, subscribeAiServicesSync } from "../stores/aiServicesStore";
 import { useEffect, useState, useRef } from "react";
 import { aiManager } from "../lib/AiServicesManager";
 import { invoke } from "@tauri-apps/api/core";
@@ -19,6 +19,10 @@ import SessionComposer from "./ai/SessionComposer";
 import { Settings as SettingsIcon, Pencil } from "lucide-react";
 
 export default function AiChatRoute() {
+  useEffect(() => {
+    return subscribeAiServicesSync();
+  }, []);
+
   console.log("Rendering AiChatRoute");
   const { instanceId } = useParams<{ instanceId: string }>();
   const { data, sessionMessages, sessionsLoaded, loadMessagesForSession, removeSession, updateSession } = useAiServicesStore();

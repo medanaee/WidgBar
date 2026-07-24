@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect } from 'react';
 import { Clipboard, Pin } from 'lucide-react';
 import { useWidgetInstanceStore } from '../../stores/widgetInstanceStore';
 import { useSettingsStore } from '../../stores/settingsStore';
-import { useClipboardStore } from '../../stores/clipboardStore';
+import { useClipboardStore, subscribeClipboardSync } from '../../stores/clipboardStore';
 import { useUpdateWidgetConstraints } from '../../stores/widgetConstraintsStore';
 import { FileTypeIcon } from './FileTypeIcon';
 import {
@@ -127,7 +127,13 @@ export default function ClipboardBar({ widgetId }: { widgetId: string }) {
         updateConstraints({ alwaysOnTop: true, closeOnBlur: false });
     }, [updateConstraints]);
 
-    useEffect(() => () => resetClipboardPasteHover(), []);
+    useEffect(() => {
+        const unsubscribe = subscribeClipboardSync();
+        return () => {
+            unsubscribe();
+            resetClipboardPasteHover();
+        };
+    }, []);
 
     return (
         <div className="text-zinc-800 dark:text-zinc-100 flex items-center gap-1.5 select-none h-full px-0.5">
