@@ -1,8 +1,11 @@
 import React from 'react';
 import { Switch } from "@/components/ui/switch";
 import { TabsContent } from "@/components/ui/tabs";
-import { Settings as SettingsIcon, LayoutGrid, Plus, Trash2, Link2 } from 'lucide-react';
-import { SettingCard } from "./ui/SettingCard";
+import { Settings as SettingsIcon, LayoutGrid, Plus, Trash2, Link2, Download, Upload, AlertTriangle } from 'lucide-react';
+import { exportAreaPreset, importAreaPreset, openJsonFile, DesktopAreaPresetExport } from '../lib/presetExportImport';
+import { SettingCard, SettingCardNoLayout } from "./ui/SettingCard";
+import { CutoutModal } from "./ui/CutoutModal";
+import { PresetPreview } from "./PresetPreview";
 import { NoticeBanner } from "./ui/NoticeBanner";
 import { useLayoutStore } from "../stores/layoutStore";
 import { emit } from "@tauri-apps/api/event";
@@ -27,6 +30,9 @@ export default function WidgetAreaSettingsTab({
   setEditingWidget,
   handleRemoveWidget
 }: any) {
+  const [errorModalMsg, setErrorModalMsg] = React.useState<string | null>(null);
+  const [importPending, setImportPending] = React.useState<{ jsonStr: string; preset: DesktopAreaPresetExport } | null>(null);
+
   React.useEffect(() => {
     return () => {
       if (hoveredWidgetId) {
@@ -190,6 +196,133 @@ export default function WidgetAreaSettingsTab({
                 })}
               </div>
             </div>
+
+            {/* Preset Export / Import Card */}
+            <div className="pt-4 border-t border-zinc-500/20">
+              <SettingCardNoLayout className="flex flex-col gap-3">
+                <div>
+                  <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                    {t("exportPreset") || "Export / Import Preset"}
+                  </h3>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                    {t("exportPresetDesc") || "Export or import Desktop Area layout and widget configs as JSON."}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => exportAreaPreset(selectedMonitorId)}
+                    className="flex flex-1 justify-center items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 rounded-lg transition-colors border border-zinc-500/20"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    {t("exportPreset") || "Export JSON"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const jsonStr = await openJsonFile();
+                      if (jsonStr) {
+                        try {
+                          const parsed = JSON.parse(jsonStr);
+                          if (parsed.type !== 'area') {
+                            setErrorModalMsg(language === 'fa' ? 'فرمت فایل با دسکتاپ تداخل دارد. این فایل مربوط به دسکتاپ نیست.' : 'Invalid preset type. Expected a Desktop Area preset file.');
+                          } else {
+                            setImportPending({ jsonStr, preset: parsed });
+                          }
+                        } catch (err) {
+                          setErrorModalMsg(language === 'fa' ? 'فایل JSON معتبر نیست یا آسیب دیده است.' : 'Invalid JSON file structure.');
+                        }
+                      }
+                    }}
+                    className="flex flex-1 justify-center items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 rounded-lg transition-colors border border-zinc-500/20"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    {t("importPreset") || "Import JSON"}
+                  </button>
+                </div>
+              </SettingCardNoLayout>
+            </div>
+
+            {/* Confirmation & Preview Cutout Modal */}
+            <CutoutModal
+              isOpen={importPending !== null}
+              onClose={() => setImportPending(null)}
+              contentClassName="border border-zinc-500/20 dark:border-zinc-500/30 p-6 rounded-2xl shadow-xl max-w-md w-full"
+            >
+              {importPending && (
+                <div className="flex flex-col gap-4" dir={language === 'fa' ? 'rtl' : 'ltr'}>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500 shrink-0">
+                      <AlertTriangle className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                        {language === 'fa' ? 'جایگذاری چیدمان دسکتاپ' : 'Replace Desktop Area Layout'}
+                      </h3>
+                      <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                        {language === 'fa'
+                          ? 'لیوت فعلی پاک می‌شود، آیا مطمئن هستید که می‌خواهید این فایل را جایگذاری کنید؟'
+                          : 'Current layout will be cleared. Are you sure you want to replace it with this file?'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Widget Preview Component */}
+                  <PresetPreview preset={importPending.preset} />
+
+                  <div className="flex items-center gap-2 pt-2 border-t border-zinc-500/10">
+                    <button
+                      type="button"
+                      onClick={() => setImportPending(null)}
+                      className="flex-1 py-2 px-4 text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
+                    >
+                      {language === 'fa' ? 'انصراف' : 'Cancel'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const res = importAreaPreset(selectedMonitorId, importPending.jsonStr);
+                        setImportPending(null);
+                        if (!res.success) {
+                          setErrorModalMsg(res.message);
+                        }
+                      }}
+                      className="flex-1 py-2 px-4 text-xs font-medium bg-red-600 hover:bg-red-700 text-white rounded-xl transition-colors cursor-pointer shadow-sm"
+                    >
+                      {language === 'fa' ? 'جایگذاری و اعمال' : 'Replace & Import'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </CutoutModal>
+
+            {/* Error Cutout Modal */}
+            <CutoutModal
+              isOpen={errorModalMsg !== null}
+              onClose={() => setErrorModalMsg(null)}
+              contentClassName="border border-zinc-500/20 dark:border-zinc-500/30 p-6 rounded-2xl shadow-xl max-w-sm w-full"
+            >
+              <div className="flex flex-col items-center text-center gap-3" dir={language === 'fa' ? 'rtl' : 'ltr'}>
+                <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 shrink-0">
+                  <AlertTriangle className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+                    {language === 'fa' ? 'خطا در ورودی تنظیمات' : 'Import Error'}
+                  </h3>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                    {errorModalMsg}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setErrorModalMsg(null)}
+                  className="mt-2 w-full py-2 px-4 text-xs font-medium bg-zinc-900 dark:bg-zinc-100 text-zinc-100 dark:text-zinc-900 rounded-xl hover:opacity-90 cursor-pointer"
+                >
+                  {language === 'fa' ? 'متوجه شدم' : 'Got it'}
+                </button>
+              </div>
+            </CutoutModal>
           </div>
         );
       })()}

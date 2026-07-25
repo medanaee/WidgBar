@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useCutout } from './CutoutProvider';
 
@@ -16,22 +16,49 @@ export function CutoutModal({ isOpen, onClose, children, contentClassName = "", 
   const { setCutoutRect } = useCutout();
   const popupRef = useRef<HTMLDivElement>(null);
 
+  // Freeze children snapshot when open so content NEVER changes or shifts during exit animation
+  const activeChildrenRef = useRef<React.ReactNode>(children);
+  if (isOpen && children) {
+    activeChildrenRef.current = children;
+  }
+
+  const calculateRect = useCallback(() => {
+    if (!popupRef.current) return;
+    const el = popupRef.current;
+    const width = el.offsetWidth;
+    const height = el.offsetHeight;
+    const x = (window.innerWidth - width) / 2;
+    const y = topOffset + (window.innerHeight - topOffset - height) / 2;
+    setCutoutRect({ width, height, x, y });
+  }, [topOffset, setCutoutRect]);
+
   useEffect(() => {
     if (isOpen) {
       setShouldRender(true);
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => setIsVisible(true));
-      });
+      
+      // 1. Calculate & punch cutout hole FIRST
+      const holeTimer = setTimeout(() => {
+        calculateRect();
+        // 2. Animate modal in right after hole is created
+        requestAnimationFrame(() => {
+          setIsVisible(true);
+        });
+      }, 30);
+
+      return () => clearTimeout(holeTimer);
     } else if (shouldRender) {
-      // Drop the hole immediately; modal can finish its exit animation after
+      // 1. Remove cutout hole immediately on close
       setCutoutRect(null);
+      // 2. Start smooth exit animation (scale-95, opacity-0, translate-y-2)
       setIsVisible(false);
-      const timer = setTimeout(() => {
+      // 3. Unmount after animation completes
+      const unmountTimer = setTimeout(() => {
         setShouldRender(false);
-      }, 200);
-      return () => clearTimeout(timer);
+      }, 300);
+
+      return () => clearTimeout(unmountTimer);
     }
-  }, [isOpen, shouldRender, setCutoutRect]);
+  }, [isOpen, shouldRender, setCutoutRect, calculateRect]);
 
   useEffect(() => {
     return () => {
@@ -40,34 +67,13 @@ export function CutoutModal({ isOpen, onClose, children, contentClassName = "", 
   }, [setCutoutRect]);
 
   useEffect(() => {
-    // Only punch the hole while open — never during the close animation
-    if (!isOpen || !shouldRender) {
-      if (!isOpen) setCutoutRect(null);
-      return;
-    }
-
-    const calculateRect = () => {
-      if (!popupRef.current) return;
-      const el = popupRef.current;
-      const width = el.offsetWidth;
-      const height = el.offsetHeight;
-      // Since the wrapper is 'fixed left-0 right-0 bottom-0 flex items-center justify-center'
-      // the final position at scale-100 will be exactly in the center of the available space.
-      const x = (window.innerWidth - width) / 2;
-      const y = topOffset + (window.innerHeight - topOffset - height) / 2;
-
-      setCutoutRect({ width, height, x, y });
-    };
-
-    // Short delay to let the DOM paint the element before measuring
-    const timer = setTimeout(calculateRect, 10);
+    if (!isOpen || !shouldRender) return;
 
     window.addEventListener('resize', calculateRect);
     return () => {
-      clearTimeout(timer);
       window.removeEventListener('resize', calculateRect);
     };
-  }, [isOpen, shouldRender, topOffset, setCutoutRect]);
+  }, [isOpen, shouldRender, calculateRect]);
 
   if (!shouldRender) return null;
 
@@ -76,15 +82,15 @@ export function CutoutModal({ isOpen, onClose, children, contentClassName = "", 
 
   return createPortal(
     <div 
-        className={`fixed left-0 right-0 bottom-0 z-[100] flex items-center justify-center pointer-events-none transition-opacity duration-200 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+        className={`fixed left-0 right-0 bottom-0 z-[100] flex items-center justify-center pointer-events-none transition-opacity duration-300 ease-in-out ${isVisible ? 'opacity-100' : 'opacity-0'}`}
         style={{ top: topOffset }}
     >
       <div className="absolute inset-0 pointer-events-auto" onClick={onClose} />
       <div 
         ref={popupRef}
-        className={`relative z-10 pointer-events-auto transition-all duration-200 ${isVisible ? 'scale-100 opacity-100' : 'scale-95 opacity-0'} ${contentClassName}`}
+        className={`relative z-10 pointer-events-auto transition-all duration-300 ease-out transform ${isVisible ? 'scale-100 opacity-100 translate-y-0' : 'scale-95 opacity-0 translate-y-2'} ${contentClassName}`}
       >
-        {children}
+        {activeChildrenRef.current}
       </div>
     </div>,
     portalRoot

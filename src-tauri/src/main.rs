@@ -452,6 +452,37 @@ async fn stream_ai_request(
     Ok(())
 }
 
+#[tauri::command]
+async fn save_preset_dialog(default_name: String, content: String) -> Result<bool, String> {
+    let file = rfd::AsyncFileDialog::new()
+        .set_file_name(&default_name)
+        .add_filter("JSON Preset", &["json"])
+        .save_file()
+        .await;
+
+    if let Some(handle) = file {
+        handle.write(content.as_bytes()).await.map_err(|e| e.to_string())?;
+        Ok(true)
+    } else {
+        Ok(false)
+    }
+}
+
+#[tauri::command]
+async fn open_preset_dialog() -> Result<Option<String>, String> {
+    let file = rfd::AsyncFileDialog::new()
+        .add_filter("JSON Preset", &["json"])
+        .pick_file()
+        .await;
+
+    if let Some(handle) = file {
+        let bytes = handle.read().await;
+        String::from_utf8(bytes).map_err(|e| e.to_string()).map(Some)
+    } else {
+        Ok(None)
+    }
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _new_instance_label| {
@@ -523,7 +554,9 @@ fn main() {
             stream_ai_request,
             system_monitor::get_system_stats,
             save_attachment_file,
-            read_attachment_file
+            read_attachment_file,
+            save_preset_dialog,
+            open_preset_dialog
         ])
         .setup(|app| {
             let handle = app.handle().clone();
