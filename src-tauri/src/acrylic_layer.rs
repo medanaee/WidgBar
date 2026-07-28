@@ -609,6 +609,7 @@ pub async fn create_bar(app: AppHandle, monitor_id: String, height: u32) -> Resu
     .decorations(false)
     .resizable(false)
     .shadow(false)
+    .always_on_top(true)
     .skip_taskbar(true)
     .visible(false);
 

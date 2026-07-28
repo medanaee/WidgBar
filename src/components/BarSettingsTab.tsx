@@ -236,44 +236,9 @@ export default function BarSettingsTab({
               />
             )}
 
-            <div className={`space-y-4 ${isBorrowing ? "pointer-events-none opacity-50 select-none" : ""}`}>
-              {/* Bar Configuration */}
+            {/* Independent Settings Button Config Card (Always Active for every monitor) */}
             <SettingCardNoLayout>
-              <h4 className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Layout Settings</h4>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Justify Sections</span>
-                <Select
-                  value={currentMon.barJustify || "space-between"}
-                  onValueChange={(val) => handleUpdateBarConfig(selectedMonitorId, { barJustify: val })}
-                >
-                  <SelectTrigger className="w-36 h-8 text-xs bg-transparent" dir={language === 'fa' ? 'rtl' : 'ltr'}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent dir={language === 'fa' ? 'rtl' : 'ltr'}>
-                    <SelectGroup>
-                      <SelectItem value="start" className="text-xs">Start</SelectItem>
-                      <SelectItem value="center" className="text-xs">Center</SelectItem>
-                      <SelectItem value="end" className="text-xs">End</SelectItem>
-                      <SelectItem value="space-between" className="text-xs">Space Between</SelectItem>
-                      <SelectItem value="space-around" className="text-xs">Space Around</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {["start", "end", "center"].includes(currentMon.barJustify || "space-between") && (
-                <div className="flex items-center justify-between mt-2 pt-2 border-t border-zinc-500/10 animate-in fade-in slide-in-from-top-1 duration-200">
-                  <span className="text-sm font-medium">Section Spacing (px)</span>
-                  <NumberInput
-                    value={currentMon.barSectionSpacing ?? 16}
-                    min={0}
-                    max={128}
-                    onChange={(val) => handleUpdateBarConfig(selectedMonitorId, { barSectionSpacing: val })}
-                  />
-                </div>
-              )}
-
-              <div className="flex items-center justify-between mt-2 pt-2 border-t border-zinc-500/10">
                 <span className="text-sm font-medium">{t("showSettingsButton") || "Show Settings Button"}</span>
                 <Switch
                   checked={currentMon.is_primary ? true : (currentMon.showMainWindowButton !== false)}
@@ -298,6 +263,44 @@ export default function BarSettingsTab({
                 </div>
               )}
             </SettingCardNoLayout>
+
+            <div className={`space-y-4 ${isBorrowing ? "pointer-events-none opacity-50 select-none" : ""}`}>
+              {/* Bar Configuration */}
+              <SettingCardNoLayout>
+                <h4 className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Layout Settings</h4>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Justify Sections</span>
+                  <Select
+                    value={currentMon.barJustify || "space-between"}
+                    onValueChange={(val) => handleUpdateBarConfig(selectedMonitorId, { barJustify: val })}
+                  >
+                    <SelectTrigger className="w-36 h-8 text-xs bg-transparent" dir={language === 'fa' ? 'rtl' : 'ltr'}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent dir={language === 'fa' ? 'rtl' : 'ltr'}>
+                      <SelectGroup>
+                        <SelectItem value="start" className="text-xs">Start</SelectItem>
+                        <SelectItem value="center" className="text-xs">Center</SelectItem>
+                        <SelectItem value="end" className="text-xs">End</SelectItem>
+                        <SelectItem value="space-between" className="text-xs">Space Between</SelectItem>
+                        <SelectItem value="space-around" className="text-xs">Space Around</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {["start", "end", "center"].includes(currentMon.barJustify || "space-between") && (
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-zinc-500/10 animate-in fade-in slide-in-from-top-1 duration-200">
+                    <span className="text-sm font-medium">Section Spacing (px)</span>
+                    <NumberInput
+                      value={currentMon.barSectionSpacing ?? 16}
+                      min={0}
+                      max={128}
+                      onChange={(val) => handleUpdateBarConfig(selectedMonitorId, { barSectionSpacing: val })}
+                    />
+                  </div>
+                )}
+              </SettingCardNoLayout>
 
             {["start", "end", "center"].includes(currentMon.barJustify || "space-between") && (
               <VisualSelector

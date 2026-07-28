@@ -23,7 +23,7 @@ export default function Bar() {
   const isSpacingJustify = ["start", "end", "center"].includes(justify);
   const animate = settings?.barAnimate !== false;
   const isPrimary = monitor?.is_primary === true;
-  const showButton = isPrimary || (targetMonitor?.showMainWindowButton !== false);
+  const showButton = isPrimary || (monitor?.showMainWindowButton !== false);
   const separator = targetMonitor?.barSeparator || "none";
   const showSeparator = isSpacingJustify && separator !== "none";
   const expectedWidgetIds = useMemo(
@@ -117,7 +117,7 @@ export default function Bar() {
     ? `color-mix(in oklab, var(--color-zinc-900) ${bgOpacity}%, transparent)` 
     : `color-mix(in oklab, var(--color-zinc-100) ${bgOpacity}%, transparent)`;
 
-  const isSettingsButtonLeft = (targetMonitor?.settingsButtonPosition || 'right') === 'left';
+  const isSettingsButtonLeft = (monitor?.settingsButtonPosition || 'right') === 'left';
 
   return (
     <div

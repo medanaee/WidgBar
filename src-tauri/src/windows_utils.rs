@@ -15,6 +15,14 @@ use windows::Win32::UI::WindowsAndMessaging::{
     SetLayeredWindowAttributes, SetWindowLongPtrW,
     SetWindowPos, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TRANSPARENT
 };
+#[cfg(target_os = "windows")]
+use windows::Win32::UI::WindowsAndMessaging::{
+    IsIconic, IsWindowVisible, ShowWindow, 
+    SW_RESTORE, SW_SHOW, HWND_TOPMOST
+};
+#[cfg(target_os = "windows")]
+use std::thread;
+use std::time::Duration;
 
 #[cfg(target_os = "windows")]
 #[repr(C)]
@@ -219,4 +227,3 @@ pub fn get_window_invisible_border_offset(hwnd: HWND) -> (f64, f64) {
     }
     (8.0, 8.0)
 }
-
