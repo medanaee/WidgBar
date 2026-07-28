@@ -22,6 +22,7 @@ export interface BarPresetExport {
   barJustify?: string;
   barSectionSpacing?: number;
   showMainWindowButton?: boolean;
+  settingsButtonPosition?: 'right' | 'left';
   barSeparator?: string;
 }
 
@@ -104,6 +105,7 @@ export async function exportBarPreset(monitorId: string): Promise<boolean> {
     barJustify: monitor.barJustify,
     barSectionSpacing: monitor.barSectionSpacing,
     showMainWindowButton: monitor.showMainWindowButton,
+    settingsButtonPosition: monitor.settingsButtonPosition,
     barSeparator: monitor.barSeparator,
   };
 
@@ -193,6 +195,7 @@ export function importBarPreset(monitorId: string, jsonString: string): { succes
     if (data.barJustify) targetMonitor.barJustify = data.barJustify;
     if (data.barSectionSpacing !== undefined) targetMonitor.barSectionSpacing = data.barSectionSpacing;
     if (data.showMainWindowButton !== undefined) targetMonitor.showMainWindowButton = data.showMainWindowButton;
+    if (data.settingsButtonPosition) targetMonitor.settingsButtonPosition = data.settingsButtonPosition;
     if (data.barSeparator) targetMonitor.barSeparator = data.barSeparator;
 
     setLayouts(layoutsCopy, true);

@@ -273,13 +273,45 @@ export default function BarSettingsTab({
               )}
 
               <div className="flex items-center justify-between mt-2 pt-2 border-t border-zinc-500/10">
-                <span className="text-sm font-medium">Show Settings Button</span>
+                <span className="text-sm font-medium">{t("showSettingsButton") || "Show Settings Button"}</span>
                 <Switch
                   checked={currentMon.is_primary ? true : (currentMon.showMainWindowButton !== false)}
                   disabled={currentMon.is_primary}
                   onCheckedChange={(checked) => handleUpdateBarConfig(selectedMonitorId, { showMainWindowButton: checked })}
                 />
               </div>
+
+              {(currentMon.is_primary || currentMon.showMainWindowButton !== false) && (
+                <div className="flex items-center justify-between mt-2 pt-2 border-t border-zinc-500/10">
+                  <span className="text-sm font-medium">
+                    {language === 'fa' ? 'موقعیت دکمه تنظیمات' : 'Settings Button Position'}
+                  </span>
+                  <div className="flex items-center gap-1 p-0.5 rounded-lg bg-zinc-200/60 dark:bg-zinc-800/60 border border-zinc-500/15">
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateBarConfig(selectedMonitorId, { settingsButtonPosition: 'right' })}
+                      className={`px-2.5 py-1 text-[11px] font-medium rounded-md transition-colors cursor-pointer ${
+                        (currentMon.settingsButtonPosition || 'right') === 'right'
+                          ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-xs'
+                          : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+                      }`}
+                    >
+                      {language === 'fa' ? 'راست' : 'Right'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateBarConfig(selectedMonitorId, { settingsButtonPosition: 'left' })}
+                      className={`px-2.5 py-1 text-[11px] font-medium rounded-md transition-colors cursor-pointer ${
+                        (currentMon.settingsButtonPosition || 'right') === 'left'
+                          ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-xs'
+                          : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+                      }`}
+                    >
+                      {language === 'fa' ? 'چپ' : 'Left'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </SettingCardNoLayout>
 
             {["start", "end", "center"].includes(currentMon.barJustify || "space-between") && (

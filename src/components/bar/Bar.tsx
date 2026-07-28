@@ -117,9 +117,15 @@ export default function Bar() {
     ? `color-mix(in oklab, var(--color-zinc-900) ${bgOpacity}%, transparent)` 
     : `color-mix(in oklab, var(--color-zinc-100) ${bgOpacity}%, transparent)`;
 
+  const isSettingsButtonLeft = (targetMonitor?.settingsButtonPosition || 'right') === 'left';
+
   return (
     <div
-      className={`w-full h-screen flex items-center pl-1 ${showButton ? 'pr-8' : 'pr-1'} shadow-[inset_0_-2px_0_0_rgba(255,255,255,0.05)] select-none overflow-hidden relative ${justifyClass} ${animate ? 'transition-[width,height,gap,padding,transform] duration-500 ease-in-out' : ''
+      className={`w-full h-screen flex items-center ${
+        isSettingsButtonLeft
+          ? (showButton ? 'pl-8 pr-1' : 'pl-1 pr-1')
+          : (showButton ? 'pl-1 pr-8' : 'pl-1 pr-1')
+      } shadow-[inset_0_-2px_0_0_rgba(255,255,255,0.05)] select-none overflow-hidden relative ${justifyClass} ${animate ? 'transition-[width,height,gap,padding,transform] duration-500 ease-in-out' : ''
         }`}
       style={{ 
         gap: isSpacingJustify ? `${showSeparator ? sectionSpacing / 2 : sectionSpacing}px` : undefined,
@@ -158,7 +164,7 @@ export default function Bar() {
           onClick={handleOpenMain}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
-          className="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded-lg hover:bg-white/10 text-white/70 hover:text-white transition-all cursor-pointer z-50 flex items-center justify-center"
+          className={`absolute ${isSettingsButtonLeft ? 'left-1' : 'right-1'} top-1/2 -translate-y-1/2 p-1 rounded-lg hover:bg-white/10 text-white/70 hover:text-white transition-all cursor-pointer z-50 flex items-center justify-center`}
         >
           <SettingsRegular />
         </button>

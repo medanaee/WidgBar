@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::Mutex;
 use std::fs;
 
 use tauri::Listener;
@@ -393,6 +394,11 @@ async fn proxy_request(
     Ok(val)
 }
 
+fn get_ai_abort_map() -> &'static Mutex<HashMap<String, tokio::task::AbortHandle>> {
+    static MAP: std::sync::OnceLock<Mutex<HashMap<String, tokio::task::AbortHandle>>> = std::sync::OnceLock::new();
+    MAP.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
 #[tauri::command]
 async fn stream_ai_request(
     window: tauri::Window,
@@ -402,54 +408,91 @@ async fn stream_ai_request(
     body: Option<serde_json::Value>,
     event_id: String,
 ) -> Result<(), String> {
-    let client = reqwest::Client::new();
-    let mut req = match method.to_uppercase().as_str() {
-        "POST" => client.post(&url),
-        _ => client.get(&url),
-    };
+    let event_id_clone = event_id.clone();
+    let window_clone = window.clone();
 
-    for (k, v) in headers {
-        req = req.header(&k, &v);
-    }
+    let task = tokio::spawn(async move {
+        let client = reqwest::Client::new();
+        let mut req = match method.to_uppercase().as_str() {
+            "POST" => client.post(&url),
+            _ => client.get(&url),
+        };
 
-    if let Some(b) = body {
-        req = req.json(&b);
-    }
+        for (k, v) in headers {
+            req = req.header(&k, &v);
+        }
 
-    let mut res = req.send().await.map_err(|e| e.to_string())?;
+        if let Some(b) = body {
+            req = req.json(&b);
+        }
 
-    let status = res.status();
-    if !status.is_success() {
-        let err_text = res.text().await.unwrap_or_default();
-        return Err(format!("HTTP Error {}: {}", status, err_text));
-    }
+        let mut res = match req.send().await {
+            Ok(r) => r,
+            Err(e) => return Err(e.to_string()),
+        };
 
-    let mut buffer = Vec::new();
-    while let Some(chunk) = res.chunk().await.map_err(|e| e.to_string())? {
-        buffer.extend_from_slice(&chunk);
-        
-        while let Some(i) = buffer.iter().position(|&b| b == b'\n') {
-            let line_bytes = buffer.drain(..=i).collect::<Vec<u8>>();
-            if let Ok(line_str) = String::from_utf8(line_bytes) {
-                let trimmed = line_str.trim();
-                if !trimmed.is_empty() {
-                    let _ = window.emit(&format!("ai-chunk-{}", event_id), trimmed);
+        let status = res.status();
+        if !status.is_success() {
+            let err_text = res.text().await.unwrap_or_default();
+            return Err(format!("HTTP Error {}: {}", status, err_text));
+        }
+
+        let mut buffer = Vec::new();
+        while let Ok(Some(chunk)) = res.chunk().await {
+            buffer.extend_from_slice(&chunk);
+            
+            while let Some(i) = buffer.iter().position(|&b| b == b'\n') {
+                let line_bytes = buffer.drain(..=i).collect::<Vec<u8>>();
+                if let Ok(line_str) = String::from_utf8(line_bytes) {
+                    let trimmed = line_str.trim();
+                    if !trimmed.is_empty() {
+                        let _ = window_clone.emit(&format!("ai-chunk-{}", event_id_clone), trimmed);
+                    }
                 }
             }
         }
-    }
 
-    if !buffer.is_empty() {
-        if let Ok(line_str) = String::from_utf8(buffer) {
-            let trimmed = line_str.trim();
-            if !trimmed.is_empty() {
-                let _ = window.emit(&format!("ai-chunk-{}", event_id), trimmed);
+        if !buffer.is_empty() {
+            if let Ok(line_str) = String::from_utf8(buffer) {
+                let trimmed = line_str.trim();
+                if !trimmed.is_empty() {
+                    let _ = window_clone.emit(&format!("ai-chunk-{}", event_id_clone), trimmed);
+                }
             }
         }
+
+        let _ = window_clone.emit(&format!("ai-close-{}", event_id_clone), "");
+        Ok(())
+    });
+
+    let abort_handle = task.abort_handle();
+    {
+        let mut map = get_ai_abort_map().lock().unwrap();
+        map.insert(event_id.clone(), abort_handle);
     }
 
-    let _ = window.emit(&format!("ai-close-{}", event_id), "");
-    Ok(())
+    let res = task.await;
+
+    {
+        let mut map = get_ai_abort_map().lock().unwrap();
+        map.remove(&event_id);
+    }
+
+    match res {
+        Ok(inner_res) => inner_res,
+        Err(_) => Ok(()),
+    }
+}
+
+#[tauri::command]
+async fn abort_ai_request(event_id: String) -> Result<bool, String> {
+    let mut map = get_ai_abort_map().lock().unwrap();
+    if let Some(abort_handle) = map.remove(&event_id) {
+        abort_handle.abort();
+        Ok(true)
+    } else {
+        Ok(false)
+    }
 }
 
 #[tauri::command]
@@ -552,6 +595,7 @@ fn main() {
             set_window_no_activate,
             proxy_request,
             stream_ai_request,
+            abort_ai_request,
             system_monitor::get_system_stats,
             save_attachment_file,
             read_attachment_file,

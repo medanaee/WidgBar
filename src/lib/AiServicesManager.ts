@@ -497,7 +497,11 @@ class AiServicesManager {
         resolve(fullText);
       }).then(u => unlistenClose = u);
       listen('ai-abort-stream', () => {
+        invoke('abort_ai_request', { eventId }).catch(console.error);
         cleanup();
+        if (fullText.includes('<think>') && !fullText.includes('</think>')) {
+          fullText += '\n</think>\n\n';
+        }
         resolve(fullText);
       }).then(u => unlistenAbort = u);
 

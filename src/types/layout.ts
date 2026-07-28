@@ -57,6 +57,7 @@ export interface Monitor {
   is_disconnected?: boolean;
   isEditMode?: boolean;
   showMainWindowButton?: boolean;
+  settingsButtonPosition?: 'right' | 'left';
   barSeparator?: "none" | "line" | "dot";
   borrowBarLayoutFrom?: string;
   borrowAreaLayoutFrom?: string;
