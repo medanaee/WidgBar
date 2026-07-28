@@ -12,6 +12,7 @@ import { TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { NumberInput } from "./ui/NumberInput";
 import { SettingCard, SettingCardNoLayout } from "./ui/SettingCard";
+import { SegmentedControl } from "./ui/SegmentedControl";
 import { VisualSelector } from "./ui/VisualSelector";
 import { ChevronUp24Regular, ChevronDown24Regular } from "@fluentui/react-icons";
 import { WidgetIcon } from './WidgetIcon';
@@ -284,32 +285,16 @@ export default function BarSettingsTab({
               {(currentMon.is_primary || currentMon.showMainWindowButton !== false) && (
                 <div className="flex items-center justify-between mt-2 pt-2 border-t border-zinc-500/10">
                   <span className="text-sm font-medium">
-                    {language === 'fa' ? 'موقعیت دکمه تنظیمات' : 'Settings Button Position'}
+                    {t("settingsButtonPosition")}
                   </span>
-                  <div className="flex items-center gap-1 p-0.5 rounded-lg bg-zinc-200/60 dark:bg-zinc-800/60 border border-zinc-500/15">
-                    <button
-                      type="button"
-                      onClick={() => handleUpdateBarConfig(selectedMonitorId, { settingsButtonPosition: 'right' })}
-                      className={`px-2.5 py-1 text-[11px] font-medium rounded-md transition-colors cursor-pointer ${
-                        (currentMon.settingsButtonPosition || 'right') === 'right'
-                          ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-xs'
-                          : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
-                      }`}
-                    >
-                      {language === 'fa' ? 'راست' : 'Right'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleUpdateBarConfig(selectedMonitorId, { settingsButtonPosition: 'left' })}
-                      className={`px-2.5 py-1 text-[11px] font-medium rounded-md transition-colors cursor-pointer ${
-                        (currentMon.settingsButtonPosition || 'right') === 'left'
-                          ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-xs'
-                          : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
-                      }`}
-                    >
-                      {language === 'fa' ? 'چپ' : 'Left'}
-                    </button>
-                  </div>
+                  <SegmentedControl
+                    value={currentMon.settingsButtonPosition || 'right'}
+                    onChange={(val) => handleUpdateBarConfig(selectedMonitorId, { settingsButtonPosition: val })}
+                    options={[
+                      { value: 'right', label: t("positionRight") },
+                      { value: 'left', label: t("positionLeft") },
+                    ]}
+                  />
                 </div>
               )}
             </SettingCardNoLayout>
@@ -553,12 +538,12 @@ export default function BarSettingsTab({
                         try {
                           const parsed = JSON.parse(jsonStr);
                           if (parsed.type !== 'bar') {
-                            setErrorModalMsg(language === 'fa' ? 'فرمت فایل با نوار تداخل دارد. این فایل مربوط به نوار نیست.' : 'Invalid preset type. Expected a Bar preset file.');
+                            setErrorModalMsg(t("invalidPresetBar"));
                           } else {
                             setImportPending({ jsonStr, preset: parsed });
                           }
                         } catch (err) {
-                          setErrorModalMsg(language === 'fa' ? 'فایل JSON معتبر نیست یا آسیب دیده است.' : 'Invalid JSON file structure.');
+                          setErrorModalMsg(t("invalidJsonStructure"));
                         }
                       }
                     }}
@@ -585,12 +570,10 @@ export default function BarSettingsTab({
                     </div>
                     <div>
                       <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
-                        {language === 'fa' ? 'جایگذاری چیدمان نوار' : 'Replace Bar Layout'}
+                        {t("replaceBarLayout")}
                       </h3>
                       <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
-                        {language === 'fa'
-                          ? 'لیوت فعلی پاک می‌شود، آیا مطمئن هستید که می‌خواهید این فایل را جایگذاری کنید؟'
-                          : 'Current layout will be cleared. Are you sure you want to replace it with this file?'}
+                        {t("replacePresetConfirm")}
                       </p>
                     </div>
                   </div>
@@ -604,7 +587,7 @@ export default function BarSettingsTab({
                       onClick={() => setImportPending(null)}
                       className="flex-1 py-2 px-4 text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
                     >
-                      {language === 'fa' ? 'انصراف' : 'Cancel'}
+                      {t("cancel")}
                     </button>
                     <button
                       type="button"
@@ -617,7 +600,7 @@ export default function BarSettingsTab({
                       }}
                       className="flex-1 py-2 px-4 text-xs font-medium bg-red-600 hover:bg-red-700 text-white rounded-xl transition-colors cursor-pointer shadow-sm"
                     >
-                      {language === 'fa' ? 'جایگذاری و اعمال' : 'Replace & Import'}
+                      {t("replaceAndImport")}
                     </button>
                   </div>
                 </div>
@@ -636,7 +619,7 @@ export default function BarSettingsTab({
                 </div>
                 <div>
                   <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
-                    {language === 'fa' ? 'خطا در ورودی تنظیمات' : 'Import Error'}
+                    {t("importError")}
                   </h3>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
                     {errorModalMsg}
@@ -647,7 +630,7 @@ export default function BarSettingsTab({
                   onClick={() => setErrorModalMsg(null)}
                   className="mt-2 w-full py-2 px-4 text-xs font-medium bg-zinc-900 dark:bg-zinc-100 text-zinc-100 dark:text-zinc-900 rounded-xl hover:opacity-90 transition-opacity cursor-pointer"
                 >
-                  {language === 'fa' ? 'متوجه شدم' : 'Got it'}
+                  {t("gotIt")}
                 </button>
               </div>
             </CutoutModal>

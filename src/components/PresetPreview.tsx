@@ -9,10 +9,8 @@ interface PresetPreviewProps {
 }
 
 export function PresetPreview({ preset }: PresetPreviewProps) {
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
   const { registry } = useWidgetRegistryStore();
-
-  const isRtl = language === 'fa';
 
   if (preset.type === 'bar') {
     const barPreset = preset as BarPresetExport;
@@ -22,15 +20,15 @@ export function PresetPreview({ preset }: PresetPreviewProps) {
     return (
       <div className="w-full flex flex-col gap-2.5 my-1">
         <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
-          <span>{isRtl ? 'پیش‌نمایش نوار:' : 'Bar Preview:'}</span>
-          <span>{isRtl ? 'تعداد ابزارک‌ها:' : 'Total Widgets:'} <strong className="text-zinc-800 dark:text-zinc-200">{allWidgets.length}</strong></span>
+          <span>{t("barPreview")}</span>
+          <span>{t("totalWidgets")} <strong className="text-zinc-800 dark:text-zinc-200">{allWidgets.length}</strong></span>
         </div>
 
         {/* Bar Strip with Section Rectangles */}
         <div className="w-full p-1.5 rounded-full bg-zinc-200/80 dark:bg-zinc-800/80 border border-zinc-500/20 shadow-inner flex items-center justify-between gap-2 overflow-x-auto custom-scrollbar">
           {sections.length === 0 || allWidgets.length === 0 ? (
             <div className="w-full text-center text-xs text-zinc-400 py-1">
-              {isRtl ? 'هیچ ویجتی در این نوار نیست' : 'No widgets in this bar preset'}
+              {t("noWidgetsInBar")}
             </div>
           ) : (
             <div className="flex items-center gap-2 w-full justify-between px-1">
@@ -77,8 +75,8 @@ export function PresetPreview({ preset }: PresetPreviewProps) {
   return (
     <div className="w-full flex flex-col gap-2 my-1">
       <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
-        <span>{isRtl ? 'پیش‌نمایش دسکتاپ:' : 'Desktop Area Preview:'}</span>
-        <span>{isRtl ? 'ویجت‌های دسکتاپ:' : 'Desktop Widgets:'} <strong className="text-zinc-800 dark:text-zinc-200">{widgets.length}</strong></span>
+        <span>{t("desktopPreview")}</span>
+        <span>{t("desktopWidgetsCount")} <strong className="text-zinc-800 dark:text-zinc-200">{widgets.length}</strong></span>
       </div>
 
       {/* Mini Desktop Canvas Grid (16:9 Aspect Ratio) */}
@@ -94,7 +92,7 @@ export function PresetPreview({ preset }: PresetPreviewProps) {
 
         {widgets.length === 0 ? (
           <div className="text-xs text-zinc-500">
-            {isRtl ? 'هیچ ویجت دسکتاپی یافت نشد' : 'No desktop widgets found'}
+            {t("noDesktopWidgets")}
           </div>
         ) : (
           widgets.map((w, idx) => {

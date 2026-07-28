@@ -225,12 +225,12 @@ export default function WidgetAreaSettingsTab({
                         try {
                           const parsed = JSON.parse(jsonStr);
                           if (parsed.type !== 'area') {
-                            setErrorModalMsg(language === 'fa' ? 'فرمت فایل با دسکتاپ تداخل دارد. این فایل مربوط به دسکتاپ نیست.' : 'Invalid preset type. Expected a Desktop Area preset file.');
+                            setErrorModalMsg(t("invalidPresetArea"));
                           } else {
                             setImportPending({ jsonStr, preset: parsed });
                           }
                         } catch (err) {
-                          setErrorModalMsg(language === 'fa' ? 'فایل JSON معتبر نیست یا آسیب دیده است.' : 'Invalid JSON file structure.');
+                          setErrorModalMsg(t("invalidJsonStructure"));
                         }
                       }
                     }}
@@ -257,12 +257,10 @@ export default function WidgetAreaSettingsTab({
                     </div>
                     <div>
                       <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
-                        {language === 'fa' ? 'جایگذاری چیدمان دسکتاپ' : 'Replace Desktop Area Layout'}
+                        {t("replaceAreaLayout")}
                       </h3>
                       <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
-                        {language === 'fa'
-                          ? 'لیوت فعلی پاک می‌شود، آیا مطمئن هستید که می‌خواهید این فایل را جایگذاری کنید؟'
-                          : 'Current layout will be cleared. Are you sure you want to replace it with this file?'}
+                        {t("replacePresetConfirm")}
                       </p>
                     </div>
                   </div>
@@ -276,7 +274,7 @@ export default function WidgetAreaSettingsTab({
                       onClick={() => setImportPending(null)}
                       className="flex-1 py-2 px-4 text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
                     >
-                      {language === 'fa' ? 'انصراف' : 'Cancel'}
+                      {t("cancel")}
                     </button>
                     <button
                       type="button"
@@ -289,7 +287,7 @@ export default function WidgetAreaSettingsTab({
                       }}
                       className="flex-1 py-2 px-4 text-xs font-medium bg-red-600 hover:bg-red-700 text-white rounded-xl transition-colors cursor-pointer shadow-sm"
                     >
-                      {language === 'fa' ? 'جایگذاری و اعمال' : 'Replace & Import'}
+                      {t("replaceAndImport")}
                     </button>
                   </div>
                 </div>
@@ -308,7 +306,7 @@ export default function WidgetAreaSettingsTab({
                 </div>
                 <div>
                   <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
-                    {language === 'fa' ? 'خطا در ورودی تنظیمات' : 'Import Error'}
+                    {t("importError")}
                   </h3>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
                     {errorModalMsg}
@@ -319,7 +317,7 @@ export default function WidgetAreaSettingsTab({
                   onClick={() => setErrorModalMsg(null)}
                   className="mt-2 w-full py-2 px-4 text-xs font-medium bg-zinc-900 dark:bg-zinc-100 text-zinc-100 dark:text-zinc-900 rounded-xl hover:opacity-90 cursor-pointer"
                 >
-                  {language === 'fa' ? 'متوجه شدم' : 'Got it'}
+                  {t("gotIt")}
                 </button>
               </div>
             </CutoutModal>
