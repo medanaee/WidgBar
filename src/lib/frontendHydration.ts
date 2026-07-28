@@ -2,8 +2,10 @@ import { useLayoutStore } from '../stores/layoutStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useWidgetInstanceStore } from '../stores/widgetInstanceStore';
 import { useWidgetRegistryStore } from '../stores/widgetRegistryStore';
+import { subscribeAiServicesSync } from '../stores/aiServicesStore';
 
 let hydrationPromise: Promise<void> | null = null;
+let unsubscribeAi: (() => void) | null = null;
 
 /**
  * Hydrates all frontend stores needed by real Bar/Area widget content.
@@ -12,6 +14,11 @@ let hydrationPromise: Promise<void> | null = null;
  */
 export function hydrateFrontendStores(): Promise<void> {
   if (!hydrationPromise) {
+    // Ensure AI services data is loaded and listeners are registered globally
+    if (!unsubscribeAi) {
+      unsubscribeAi = subscribeAiServicesSync();
+    }
+
     hydrationPromise = Promise.all([
       useSettingsStore.getState().fetchAndSyncSettings(),
       useLayoutStore.getState().fetchAndSyncLayouts(),
