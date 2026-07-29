@@ -37,18 +37,18 @@ export function CopyMessageButton({
       onClick={handleCopy}
       type="button"
       className={`inline-flex items-center gap-1 opacity-75 hover:opacity-100 transition-all select-none cursor-pointer focus:outline-none ${
-        isWidget ? 'text-[9px]' : 'text-[10px]'
+        isWidget ? 'text-[10px]' : 'text-[12px]'
       } ${baseTextClass} ${className}`}
       title="Copy message"
     >
       {copied ? (
         <span className="text-green-500 flex items-center gap-1 font-semibold animate-in fade-in duration-150">
-          <CheckmarkRegular fontSize={isWidget ? 11 : 13} />
+          <CheckmarkRegular fontSize={isWidget ? 13 : 18} />
           <span>Copied</span>
         </span>
       ) : (
         <span className="flex items-center gap-1">
-          <CopyRegular fontSize={isWidget ? 11 : 13} />
+          <CopyRegular fontSize={isWidget ? 13 : 18} />
           <span>Copy</span>
         </span>
       )}

@@ -24,8 +24,8 @@ export default function AiServicesPanel() {
     invoke('request_popup', {
       x: window.screenX + 100,
       y: window.screenY + 100,
-      width: 800,
-      height: 600,
+      width: 1200,
+      height: 800,
       route: `/ai-chat/${instanceId}`,
       closeOnBlur: false,
       xIsCenter: false,

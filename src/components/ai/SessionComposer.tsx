@@ -16,6 +16,7 @@ import { SessionAttachment, EMPTY_SESSION_DRAFT } from '../../types/ai';
 import { AttachmentChips } from './AttachmentChips';
 import { readTextFileFromInput, TEXT_FILE_ACCEPT } from '../../lib/textFileAttach';
 import { invoke } from '@tauri-apps/api/core';
+import { ModelSelector } from '../ui/ModelSelector';
 
 /** Stable empty attachments ref for Zustand selectors */
 const EMPTY_ATTACHMENTS: SessionAttachment[] = EMPTY_SESSION_DRAFT.attachments;
@@ -222,7 +223,7 @@ export default function SessionComposer({
       const sid = ensureSession();
       flushPendingPrompt(sid);
       const parsed = await readTextFileFromInput(file);
-      
+
       const savedPath = await invoke<string>('save_attachment_file', {
         sessionId: sid,
         fileName: parsed.name,
@@ -251,27 +252,48 @@ export default function SessionComposer({
     <>
       <div className={`shrink-0 overflow-visible ${compact ? 'pt-0' : ''}`}>
         <div
-          className={`border-t border-zinc-500/20 dark:border-white/10 bg-white/70 dark:bg-zinc-900/60 shadow-sm overflow-visible z-10 ${
-            compact ? 'rounded-2xl' : ''
-          }`}
+          className={`bg-white/70 dark:bg-zinc-900/60 shadow-sm overflow-visible z-10 ${compact ? 'rounded-2xl' : 'border-t border-zinc-500/20 dark:border-white/10'
+            }`}
         >
-          <div className="flex items-center gap-1.5 px-2.5 pt-2 overflow-x-auto min-h-[36px]">
+          {attachments.length !== 0 && (<div className="flex items-center gap-1.5 px-2.5 pt-2 overflow-x-auto min-h-[36px]">
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={TEXT_FILE_ACCEPT}
+              className="hidden"
+              onChange={handleFileSelected}
+            />
+
+            <AttachmentChips
+              attachments={attachments}
+              onRemove={removeAttach}
+              compact={compact}
+              topOffset={compact ? 8 : 36}
+            />
+          </div>)}
+
+
+          {fileError && (
+            <div className="px-2.5 pt-1 text-[10px] text-red-500">{fileError}</div>
+          )}
+
+          <div className={`flex items-center justify-center gap-2 p-2.5`}>
             <Popover open={attachMenuOpen} onOpenChange={setAttachMenuOpen}>
               <PopoverTrigger asChild>
                 <button
                   type="button"
                   disabled={isSending}
-                  className="shrink-0 inline-flex items-center gap-1 h-7 px-2 rounded-lg text-[10px] font-medium bg-zinc-900/5 dark:bg-white/5 hover:bg-zinc-900/10 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-300 border border-zinc-500/15 transition-colors disabled:opacity-40"
+                  className="shrink-0 inline-flex items-center justify-center h-9 w-9 rounded-lg text-[10px] font-medium bg-zinc-900/5 dark:bg-white/5 hover:bg-zinc-900/10 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-300 border border-zinc-500/15 transition-colors disabled:opacity-40"
                 >
-                  <AddRegular fontSize={14} />
-                  <span>Attach</span>
+                  <AddRegular fontSize={18} />
                 </button>
               </PopoverTrigger>
               <PopoverContent
                 side="top"
                 align="start"
                 sideOffset={6}
-                className="w-40 p-1 min-w-[140px] rounded-xl border border-zinc-500/20 bg-white/95 dark:bg-zinc-900/95 shadow-lg backdrop-blur-md z-50 pointer-events-auto"
+                className="w-40 p-1 min-w-[140px] rounded-xl border-0 border-zinc-500/20 bg-white/95 dark:bg-zinc-900/95 shadow-lg z-50 pointer-events-auto"
               >
                 <div className="flex flex-col gap-0.5">
                   <button
@@ -294,46 +316,18 @@ export default function SessionComposer({
               </PopoverContent>
             </Popover>
 
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept={TEXT_FILE_ACCEPT}
-              className="hidden"
-              onChange={handleFileSelected}
-            />
-
-            <AttachmentChips
-              attachments={attachments}
-              onRemove={removeAttach}
-              compact={compact}
-              topOffset={compact ? 8 : 36}
-            />
-          </div>
-
-          {fileError && (
-            <div className="px-2.5 pt-1 text-[10px] text-red-500">{fileError}</div>
-          )}
-
-          <div className={`flex items-end gap-2 px-2.5 pb-2.5 ${attachments.length ? 'pt-1' : 'pt-1'}`}>
             {modelPicker && (
               modelPicker.isLoadingModels ? (
                 <span className="text-[10px] text-zinc-400 animate-pulse w-28 text-center mb-2 shrink-0">Loading…</span>
               ) : modelPicker.models.length > 0 ? (
-                <div className="mb-0.5 shrink-0">
-                  <Select value={modelPicker.currentModel} onValueChange={modelPicker.onModelChange}>
-                    <SelectTrigger className="w-36 h-9 text-[10px] bg-zinc-500/5 dark:bg-white/5 border-zinc-500/15 text-zinc-700 dark:text-zinc-300">
-                      <SelectValue placeholder="Model" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {modelPicker.models.map((m) => (
-                          <SelectItem key={m} value={m} className="text-[10px] truncate max-w-[200px]">
-                            {m.split('/').pop()}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
+                <div className="shrink-0">
+                  <ModelSelector
+                    models={modelPicker.models}
+                    value={modelPicker.currentModel}
+                    onValueChange={modelPicker.onModelChange}
+                    isLoading={modelPicker.isLoadingModels}
+                    className="w-45 h-9 text-[12px] bg-zinc-500/5 dark:bg-white/5 text-zinc-700 dark:text-zinc-300"
+                  />
                 </div>
               ) : null
             )}
@@ -359,9 +353,8 @@ export default function SessionComposer({
               placeholder="Write a message…"
               rows={1}
               disabled={isSending}
-              className={`flex-1 bg-transparent border-0 text-xs focus:outline-none resize-none [field-sizing:content] leading-relaxed dark:text-white placeholder:text-zinc-400 ${
-                compact ? 'min-h-[36px] max-h-[100px] py-2' : 'min-h-[40px] max-h-[140px] py-2.5'
-              }`}
+              className={`flex-1 px-2 bg-transparent border-0 text-sm focus:outline-none resize-none [field-sizing:content] leading-relaxed dark:text-white placeholder:text-zinc-400 ${compact ? 'min-h-[36px] max-h-[100px] py-2' : 'min-h-[40px] max-h-[140px] py-2.5'
+                }`}
             />
 
             <button
@@ -374,11 +367,10 @@ export default function SessionComposer({
                 }
               }}
               disabled={!isSending && !hasContent}
-              className={`flex items-center justify-center rounded-xl shrink-0 transition-colors border border-zinc-500/10 h-9 w-9 ${
-                isSending
+              className={`flex items-center justify-center rounded-xl shrink-0 transition-colors border border-zinc-500/10 h-9 w-9 ${isSending
                   ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20'
                   : 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:opacity-90 disabled:opacity-35'
-              }`}
+                }`}
             >
               {isSending ? <StopRegular fontSize={16} /> : <SendRegular fontSize={16} />}
             </button>

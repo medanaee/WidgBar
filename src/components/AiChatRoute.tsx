@@ -132,8 +132,7 @@ export default function AiChatRoute() {
             .filter((id: string) => 
               !id.includes('embed') && 
               !id.includes('rerank') && 
-              !id.includes('similarity') && 
-              !id.includes('vl') // Exclude vision-language models if we only support text chat
+              !id.includes('similarity')
             );
           setModels(chatModels.length > 0 ? chatModels : resData.data.map((m: any) => m.id));
         }
@@ -149,8 +148,7 @@ export default function AiChatRoute() {
       .then(resData => {
         if (resData && Array.isArray(resData.data)) {
           const chatModels = resData.data
-             .map((m: any) => m.id)
-             .filter((id: string) => id.includes('gpt'));
+             .map((m: any) => m.id);
           setModels(chatModels);
         }
       })
@@ -165,8 +163,7 @@ export default function AiChatRoute() {
       .then(resData => {
         if (resData && Array.isArray(resData.data)) {
           const chatModels = resData.data
-            .map((m: any) => m.id)
-            .filter((id: string) => !id.includes('whisper'));
+            .map((m: any) => m.id);
           setModels(chatModels);
         }
       })
@@ -306,7 +303,7 @@ export default function AiChatRoute() {
               {sessions.map(s => (
                 <div 
                   key={s.id}
-                  className={`group flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-colors ${
+                  className={`group flex items-center justify-between px-3 py-1.5 rounded-lg text-xs transition-colors ${
                     renamingSessionId === s.id
                       ? 'bg-zinc-500/10 dark:bg-white/5'
                       : activeSession?.id === s.id 
@@ -337,7 +334,7 @@ export default function AiChatRoute() {
                         }
                       }}
                       onBlur={commitRenameSession}
-                      className="flex-1 min-w-0 bg-white/40 dark:bg-zinc-900/40 border border-zinc-500/30 rounded-md px-1.5 py-0.5 text-xs outline-none focus:border-zinc-500/60 text-zinc-900 dark:text-zinc-100"
+                      className="flex-1 min-w-0 bg-white/40 dark:bg-zinc-900/40 border border-zinc-500/30 rounded-md px-1.5 py-0.5 m-0 text-xs outline-none focus:border-zinc-500/60 text-zinc-900 dark:text-zinc-100"
                       maxLength={80}
                     />
                   ) : (
@@ -350,10 +347,10 @@ export default function AiChatRoute() {
                           e.stopPropagation();
                           startRenameSession(s);
                         }}
-                        className="opacity-0 group-hover:opacity-100 hover:text-zinc-800 dark:hover:text-zinc-200 transition-opacity p-0.5"
+                        className="opacity-0 group-hover:opacity-100 hover:text-primary transition-opacity p-0.5"
                         title={t('renameChat')}
                       >
-                        <Pencil className="w-3.5 h-3.5" />
+                        <Pencil className="w-3 h-3" />
                       </button>
                       <button
                         onClick={(e) => {
@@ -363,7 +360,7 @@ export default function AiChatRoute() {
                         className="opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity p-0.5"
                         title="Delete chat"
                       >
-                        <DeleteRegular fontSize={14} />
+                        <DeleteRegular className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   )}
@@ -376,7 +373,7 @@ export default function AiChatRoute() {
           <div className="flex-grow flex flex-col min-h-0 overflow-hidden bg-transparent">
             {/* Header bar with Settings Button */}
             <div className="px-4 py-2 border-b border-zinc-500/10 dark:border-white/5 flex items-center justify-between shrink-0 bg-white/20 dark:bg-zinc-900/10">
-              <div className="text-xs font-semibold text-zinc-500">
+              <div className="text-sm font-semibold text-zinc-500">
                 Chatting with {instance.name}
               </div>
               <button
@@ -415,7 +412,7 @@ export default function AiChatRoute() {
                     </div>
                   )}
                   <div 
-                    className={`max-w-[80%] text-[11px] leading-relaxed border overflow-hidden ${
+                    className={`max-w-[80%] text-xs leading-relaxed border overflow-hidden ${
                       msg.role === 'user' 
                         ? 'px-2 py-2 bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-900 border-zinc-700 dark:border-zinc-300' 
                         : 'px-4 py-3 bg-white/40 dark:bg-zinc-900/40 border-zinc-500/10 dark:border-white/5'

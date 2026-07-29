@@ -28,6 +28,7 @@ mod audio_control;
 mod media_control;
 mod clipboard_history;
 mod clipboard_hook;
+mod fullscreen_detector;
 
 mod system_monitor;
 
@@ -608,6 +609,7 @@ fn main() {
         .setup(|app| {
             let handle = app.handle().clone();
             clipboard_hook::init(handle.clone());
+            fullscreen_detector::start_detector(handle.clone());
             let _ = init_monitors(handle.clone());
             init_reserved_windows(handle.clone());
             app.manage(SharedWidgetState::default());

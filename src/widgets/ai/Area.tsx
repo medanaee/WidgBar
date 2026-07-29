@@ -33,8 +33,12 @@ export default function AiArea({ widgetId }: { widgetId: string }) {
 
     const openFullChat = async () => {
         if (!instance) return;
-        invoke('open_sub_window', {
+        invoke('request_popup', {
             route: `/ai-chat/${instance.id}`,
+            x: window.screenX + 100,
+            y: window.screenY + 100,
+            width: 1200,
+            height: 800,
             closeOnBlur: false,
             xIsCenter: false,
             animated: true,
@@ -153,7 +157,7 @@ export default function AiArea({ widgetId }: { widgetId: string }) {
                                         {msg.role === 'user' ? <PersonRegular fontSize={12} /> : (instance ? <CompanyLogo providerId={instance.providerId} size={12} /> : <BotSparkleColor fontSize={12} />)}
                                         <span>{msg.role === 'user' ? 'You' : (instance ? instance.name : 'Assistant')}</span>
                                     </div>
-                                    <div className="text-zinc-700 dark:text-zinc-300 leading-normal overflow-hidden w-full px-2">
+                                    <div className="text-zinc-700 dark:text-zinc-300 leading-normal overflow-hidden w-full px-2 text-[11px]">
                                         <div className="flex flex-col gap-1.5 overflow-x-auto overflow-y-hidden break-words">
                                             {msg.role === 'user' ? (
                                                 <ChatUserMessage

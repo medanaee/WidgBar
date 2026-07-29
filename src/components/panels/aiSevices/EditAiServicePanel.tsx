@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Slider } from "@c/ui/slider";
 import { ArrowLeftRegular, EyeRegular, EyeOffRegular } from '@fluentui/react-icons';
 import { invoke } from "@tauri-apps/api/core";
+import { ModelSelector } from "@/components/ui/ModelSelector";
 import { DEFAULT_SYSTEM_PROMPT } from "@lib/AiServicesManager";
 import { CompanyLogo } from "@/components/panels/aiSevices/CompanyLogo";
 
@@ -47,8 +48,7 @@ export default function EditAiServicePanel({ instance, onBack, onSave }: EditAiS
             .filter((id: string) => 
               !id.includes('embed') && 
               !id.includes('rerank') && 
-              !id.includes('similarity') && 
-              !id.includes('vl')
+              !id.includes('similarity')
             );
           setEditModels(chatModels);
           if (chatModels.length > 0 && !chatModels.includes(editModel)) {
@@ -67,8 +67,7 @@ export default function EditAiServicePanel({ instance, onBack, onSave }: EditAiS
       .then(resData => {
         if (resData && Array.isArray(resData.data)) {
           const chatModels = resData.data
-            .map((m: any) => m.id)
-            .filter((id: string) => id.includes('gpt'));
+            .map((m: any) => m.id);
           setEditModels(chatModels);
           if (chatModels.length > 0 && !chatModels.includes(editModel)) {
             setEditModel(chatModels[0]);
@@ -86,8 +85,7 @@ export default function EditAiServicePanel({ instance, onBack, onSave }: EditAiS
       .then(resData => {
         if (resData && Array.isArray(resData.data)) {
           const chatModels = resData.data
-            .map((m: any) => m.id)
-            .filter((id: string) => !id.includes('whisper'));
+            .map((m: any) => m.id);
           setEditModels(chatModels);
           if (chatModels.length > 0 && !chatModels.includes(editModel)) {
             setEditModel(chatModels[0]);
@@ -200,20 +198,13 @@ export default function EditAiServicePanel({ instance, onBack, onSave }: EditAiS
           {isLoadingEditModels ? (
             <div className="text-xs text-zinc-400 py-2 animate-pulse">Fetching models...</div>
           ) : editModels.length > 0 ? (
-            <Select value={editModel} onValueChange={setEditModel}>
-              <SelectTrigger className="w-full bg-transparent border-zinc-500/20 text-zinc-800 dark:text-zinc-200">
-                <SelectValue placeholder="Select a Model" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {editModels.map(m => (
-                    <SelectItem key={m} value={m}>
-                      {m.split('/').pop()}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+            <ModelSelector
+              models={editModels}
+              value={editModel}
+              onValueChange={setEditModel}
+              isLoading={isLoadingEditModels}
+              className="w-full bg-transparent border-zinc-500/20 text-zinc-800 dark:text-zinc-200"
+            />
           ) : (
             <Input 
               placeholder="Model identifier (e.g. gpt-4o)" 
