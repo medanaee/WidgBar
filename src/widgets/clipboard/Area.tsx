@@ -347,6 +347,7 @@ export default function ClipboardArea({ widgetId: _widgetId }: { widgetId: strin
 
     const closePopup = () => {
         resetClipboardPasteHover();
+        invoke('disable_clipboard_keys').catch(console.error);
         invoke('hide_popup', { selfClose: true }).catch(console.error);
     };
 
