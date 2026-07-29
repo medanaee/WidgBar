@@ -537,6 +537,10 @@ pub async fn request_popup(
 
     let _ = tokio::time::timeout(std::time::Duration::from_millis(1000), rx.recv()).await;
 
+    if route.contains("clipboard") {
+        crate::clipboard_hook::enable_clipboard_keys();
+    }
+
     if animated {
         let _ = window.set_position(tauri::PhysicalPosition::new(
             physical_x as i32,
@@ -598,6 +602,8 @@ pub async fn hide_popup(
             w.close().ok();
         }
     }
+
+    crate::clipboard_hook::disable_clipboard_keys();
 
     Ok(())
 }

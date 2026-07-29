@@ -293,7 +293,6 @@ export default function ClipboardArea({ widgetId: _widgetId }: { widgetId: strin
                 unlisten();
             } else {
                 unlistenKeys = unlisten;
-                invoke('enable_clipboard_keys').catch(console.error);
             }
         };
 
@@ -333,7 +332,6 @@ export default function ClipboardArea({ widgetId: _widgetId }: { widgetId: strin
             isUnmounted = true;
             window.removeEventListener('keydown', handleKeyDown);
             if (unlistenKeys) unlistenKeys();
-            invoke('disable_clipboard_keys').catch(console.error);
         };
     }, []);
 
@@ -347,7 +345,6 @@ export default function ClipboardArea({ widgetId: _widgetId }: { widgetId: strin
 
     const closePopup = () => {
         resetClipboardPasteHover();
-        invoke('disable_clipboard_keys').catch(console.error);
         invoke('hide_popup', { selfClose: true }).catch(console.error);
     };
 
