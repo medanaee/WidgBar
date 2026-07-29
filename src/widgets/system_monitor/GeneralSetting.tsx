@@ -25,10 +25,11 @@ export default function SystemMonitorGeneralSetting({ widgetId }: { widgetId: st
         <div className="space-y-3 pt-2">
             <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider px-1">Enabled Metrics</h4>
             
+            {/* 1. CPU Usage */}
             <SettingCard>
                 <div>
                     <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">CPU Usage</h3>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Monitor overall CPU utilization</p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Monitor overall CPU utilization %</p>
                 </div>
                 <Switch 
                     checked={enabledMetrics.includes('cpu')} 
@@ -36,6 +37,33 @@ export default function SystemMonitorGeneralSetting({ widgetId }: { widgetId: st
                 />
             </SettingCard>
 
+
+
+            {/* 3. GPU Usage */}
+            <SettingCard>
+                <div>
+                    <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">GPU Usage</h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Monitor GPU utilization %</p>
+                </div>
+                <Switch 
+                    checked={enabledMetrics.includes('gpu')} 
+                    onCheckedChange={(checked) => toggleMetric('gpu', checked)} 
+                />
+            </SettingCard>
+
+            {/* 4. GPU Temperature */}
+            <SettingCard>
+                <div>
+                    <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">GPU Temperature</h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Monitor GPU temperature (°C)</p>
+                </div>
+                <Switch 
+                    checked={enabledMetrics.includes('gpu_temp')} 
+                    onCheckedChange={(checked) => toggleMetric('gpu_temp', checked)} 
+                />
+            </SettingCard>
+
+            {/* 5. RAM Usage */}
             <SettingCard>
                 <div>
                     <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">RAM Usage</h3>
@@ -47,6 +75,7 @@ export default function SystemMonitorGeneralSetting({ widgetId }: { widgetId: st
                 />
             </SettingCard>
 
+            {/* 6. Disk Usage */}
             <SettingCard>
                 <div>
                     <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Disk Usage</h3>
@@ -58,6 +87,7 @@ export default function SystemMonitorGeneralSetting({ widgetId }: { widgetId: st
                 />
             </SettingCard>
 
+            {/* 7. Network Usage */}
             <SettingCard>
                 <div>
                     <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Network Usage</h3>
@@ -67,6 +97,56 @@ export default function SystemMonitorGeneralSetting({ widgetId }: { widgetId: st
                     checked={enabledMetrics.includes('net')} 
                     onCheckedChange={(checked) => toggleMetric('net', checked)} 
                 />
+            </SettingCard>
+
+            <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider px-1 mt-4">Top Processes (Widget Area)</h4>
+
+            <SettingCard>
+                <div>
+                    <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Top CPU Processes Count</h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Number of top CPU consuming apps (1 to 5)</p>
+                </div>
+                <Select 
+                    value={String(config.topCpuCount ?? 3)} 
+                    onValueChange={(val) => updateInstance(widgetId, { ...config, topCpuCount: Number(val) })}
+                >
+                    <SelectTrigger className="w-[90px] h-8 text-xs">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectGroup>
+                            <SelectItem value="1">1</SelectItem>
+                            <SelectItem value="2">2</SelectItem>
+                            <SelectItem value="3">3</SelectItem>
+                            <SelectItem value="4">4</SelectItem>
+                            <SelectItem value="5">5</SelectItem>
+                        </SelectGroup>
+                    </SelectContent>
+                </Select>
+            </SettingCard>
+
+            <SettingCard>
+                <div>
+                    <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Top RAM Processes Count</h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Number of top RAM consuming apps (1 to 5)</p>
+                </div>
+                <Select 
+                    value={String(config.topRamCount ?? 3)} 
+                    onValueChange={(val) => updateInstance(widgetId, { ...config, topRamCount: Number(val) })}
+                >
+                    <SelectTrigger className="w-[90px] h-8 text-xs">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectGroup>
+                            <SelectItem value="1">1</SelectItem>
+                            <SelectItem value="2">2</SelectItem>
+                            <SelectItem value="3">3</SelectItem>
+                            <SelectItem value="4">4</SelectItem>
+                            <SelectItem value="5">5</SelectItem>
+                        </SelectGroup>
+                    </SelectContent>
+                </Select>
             </SettingCard>
 
             <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider px-1 mt-4">Display Options</h4>
@@ -122,3 +202,4 @@ export default function SystemMonitorGeneralSetting({ widgetId }: { widgetId: st
         </div>
     );
 }
+

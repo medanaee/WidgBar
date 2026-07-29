@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import {
     Clipboard,
     Pin,
@@ -32,19 +33,25 @@ interface AskReply {
 
 function ClipboardItemRow({
     item,
+    isSelected,
+    isKeyboardNav,
     askOpen,
     askPrompt,
     sending,
     reply,
+    onSelect,
     onToggleAsk,
     onAskPromptChange,
     onAskSend,
 }: {
     item: ClipboardItem;
+    isSelected: boolean;
+    isKeyboardNav: boolean;
     askOpen: boolean;
     askPrompt: string;
     sending: boolean;
     reply: AskReply | null;
+    onSelect: (byKeyboard?: boolean) => void;
     onToggleAsk: () => void;
     onAskPromptChange: (v: string) => void;
     onAskSend: () => void;
@@ -59,9 +66,24 @@ function ClipboardItemRow({
     const setFrozen = useClipboardStore((s) => s.setFrozen);
     const deleteItem = useClipboardStore((s) => s.deleteItem);
     const showReply = askOpen && (reply || sending);
+    const rowRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (isSelected && isKeyboardNav) {
+            rowRef.current?.scrollIntoView({ block: 'nearest' });
+        }
+    }, [isSelected, isKeyboardNav]);
 
     return (
-        <div className="rounded-xl border border-zinc-500/15 bg-white/40 dark:bg-zinc-900/30 hover:bg-white/70 dark:hover:bg-zinc-900/55 transition-colors overflow-hidden">
+        <div 
+            ref={rowRef}
+            onMouseEnter={() => onSelect(false)}
+            className={`rounded-xl border overflow-hidden ${
+                isSelected 
+                    ? 'ring-2 ring-sky-500/80 dark:ring-sky-400/80 border-sky-500/30 bg-sky-500/10 dark:bg-sky-500/15 shadow-sm' 
+                    : 'border-zinc-500/15 bg-white/40 dark:bg-zinc-900/30 hover:bg-white/70 dark:hover:bg-zinc-900/55'
+            }`}
+        >
             <div className="group flex items-stretch">
                 <button
                     type="button"
@@ -217,13 +239,109 @@ export default function ClipboardArea({ widgetId: _widgetId }: { widgetId: strin
     const [askPrompt, setAskPrompt] = useState('');
     const [sending, setSending] = useState(false);
     const [reply, setReply] = useState<AskReply | null>(null);
+    const [selectedIndex, setSelectedIndex] = useState(0);
+    const [isKeyboardNav, setIsKeyboardNav] = useState(false);
+
+    const itemsRef = useRef(items);
+    useEffect(() => {
+        itemsRef.current = items;
+    }, [items]);
+
+    const selectedIndexRef = useRef(selectedIndex);
+    useEffect(() => {
+        selectedIndexRef.current = selectedIndex;
+    }, [selectedIndex]);
+
+    useEffect(() => {
+        if (selectedIndex >= items.length) {
+            setSelectedIndex(Math.max(0, items.length - 1));
+        }
+    }, [items.length, selectedIndex]);
+
+    useEffect(() => {
+        let unlistenKeys: (() => void) | undefined;
+        let isUnmounted = false;
+
+        const setupListener = async () => {
+            const unlisten = await listen<string>('clipboard-key', (event) => {
+                const activeEl = document.activeElement;
+                if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+                    if (event.payload !== 'Escape') {
+                        return;
+                    }
+                }
+
+                if (itemsRef.current.length === 0) return;
+
+                if (event.payload === 'Down') {
+                    setIsKeyboardNav(true);
+                    setSelectedIndex((prev) => (prev < itemsRef.current.length - 1 ? prev + 1 : 0));
+                } else if (event.payload === 'Up') {
+                    setIsKeyboardNav(true);
+                    setSelectedIndex((prev) => (prev > 0 ? prev - 1 : itemsRef.current.length - 1));
+                } else if (event.payload === 'Enter') {
+                    const targetItem = itemsRef.current[selectedIndexRef.current];
+                    if (targetItem) {
+                        pasteClipboardItem(targetItem).catch(console.error);
+                    }
+                } else if (event.payload === 'Escape') {
+                    closePopup();
+                }
+            });
+            
+            if (isUnmounted) {
+                unlisten();
+            } else {
+                unlistenKeys = unlisten;
+                invoke('enable_clipboard_keys').catch(console.error);
+            }
+        };
+
+        setupListener();
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            const activeEl = document.activeElement;
+            if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+                return;
+            }
+
+            if (itemsRef.current.length === 0) return;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setIsKeyboardNav(true);
+                setSelectedIndex((prev) => (prev < itemsRef.current.length - 1 ? prev + 1 : 0));
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setIsKeyboardNav(true);
+                setSelectedIndex((prev) => (prev > 0 ? prev - 1 : itemsRef.current.length - 1));
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                const targetItem = itemsRef.current[selectedIndexRef.current];
+                if (targetItem) {
+                    pasteClipboardItem(targetItem).catch(console.error);
+                }
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                closePopup();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        
+        return () => {
+            isUnmounted = true;
+            window.removeEventListener('keydown', handleKeyDown);
+            if (unlistenKeys) unlistenKeys();
+            invoke('disable_clipboard_keys').catch(console.error);
+        };
+    }, []);
 
     useEffect(() => {
         const unsubscribe = subscribeClipboardSync();
         return () => {
             unsubscribe();
             resetClipboardPasteHover();
-            setWindowNoActivate(false).catch(() => { });
         };
     }, []);
 
@@ -338,10 +456,16 @@ export default function ClipboardArea({ widgetId: _widgetId }: { widgetId: strin
                 </div>
             ) : (
                 <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 p-2">
-                    {items.map((item) => (
+                    {items.map((item, index) => (
                         <ClipboardItemRow
                             key={item.id}
                             item={item}
+                            isSelected={selectedIndex === index}
+                            isKeyboardNav={isKeyboardNav}
+                            onSelect={(byKeyboard = false) => {
+                                setIsKeyboardNav(byKeyboard);
+                                setSelectedIndex(index);
+                            }}
                             askOpen={askItemId === item.id}
                             askPrompt={askItemId === item.id ? askPrompt : ''}
                             sending={sending && askItemId === item.id}

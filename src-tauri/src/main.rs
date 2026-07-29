@@ -27,6 +27,7 @@ use crate::database::*;
 mod audio_control;
 mod media_control;
 mod clipboard_history;
+mod clipboard_hook;
 
 mod system_monitor;
 
@@ -600,10 +601,13 @@ fn main() {
             save_attachment_file,
             read_attachment_file,
             save_preset_dialog,
-            open_preset_dialog
+            open_preset_dialog,
+            clipboard_hook::enable_clipboard_keys,
+            clipboard_hook::disable_clipboard_keys
         ])
         .setup(|app| {
             let handle = app.handle().clone();
+            clipboard_hook::init(handle.clone());
             let _ = init_monitors(handle.clone());
             init_reserved_windows(handle.clone());
             app.manage(SharedWidgetState::default());

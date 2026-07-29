@@ -2,11 +2,20 @@ import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useWidgetInstanceStore } from '../../stores/widgetInstanceStore';
 import { useUpdateWidgetConstraints } from '../../stores/widgetConstraintsStore';
-import { Cpu, Database, HardDrive, ArrowUp, ArrowDown, Globe } from 'lucide-react';
+import { Cpu, Database, HardDrive, ArrowUp, ArrowDown, Globe, Thermometer, Activity, Flame, Layers } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area as RechartsArea, YAxis } from 'recharts';
+
+interface ProcessInfo {
+    pid: number;
+    name: string;
+    cpu_usage: number;
+    ram_used_mb: number;
+}
 
 interface SystemStats {
     cpu_usage: number;
+    gpu_usage: number;
+    gpu_temp: number;
     ram_usage: number;
     ram_used_gb: number;
     ram_total_gb: number;
@@ -15,6 +24,8 @@ interface SystemStats {
     disk_total_gb: number;
     net_upload_kb: number;
     net_download_kb: number;
+    top_cpu_processes: ProcessInfo[];
+    top_ram_processes: ProcessInfo[];
 }
 
 export default function SystemMonitorArea({ widgetId }: { widgetId: string }) {
@@ -35,15 +46,16 @@ export default function SystemMonitorArea({ widgetId }: { widgetId: string }) {
 
     const [history, setHistory] = useState<{
         cpu: number[];
+        gpu: number[];
+        gpuTemp: number[];
         ram: number[];
         disk: number[];
         netDown: number[];
         netUp: number[];
-    }>({ cpu: [], ram: [], disk: [], netDown: [], netUp: [] });
+    }>({ cpu: [], gpu: [], gpuTemp: [], ram: [], disk: [], netDown: [], netUp: [] });
 
     const enabledMetrics = config.enabledMetrics || ['cpu', 'ram', 'disk', 'net'];
     const showChartsArea = config.showChartsArea ?? true;
-    const isCompact = (config.areaLayout as string || 'compact') === 'compact';
 
     useEffect(() => {
         if (!containerElement) return;
@@ -69,6 +81,8 @@ export default function SystemMonitorArea({ widgetId }: { widgetId: string }) {
                     const keep = 20;
                     return {
                         cpu: [...prev.cpu.slice(-keep + 1), res.cpu_usage],
+                        gpu: [...prev.gpu.slice(-keep + 1), res.gpu_usage],
+                        gpuTemp: [...prev.gpuTemp.slice(-keep + 1), res.gpu_temp],
                         ram: [...prev.ram.slice(-keep + 1), res.ram_usage],
                         disk: [...prev.disk.slice(-keep + 1), res.disk_usage],
                         netDown: [...prev.netDown.slice(-keep + 1), res.net_download_kb],
@@ -101,16 +115,16 @@ export default function SystemMonitorArea({ widgetId }: { widgetId: string }) {
         return `grid-cols-${Math.min(4, activeCount)}`;
     };
 
-    const chartH = isCompact ? 24 : 40;
-    const cardPad = isCompact ? 'p-2' : 'p-3';
-    const gridGap = isCompact ? 'gap-1.5' : 'gap-3';
-    const rootPad = isCompact ? 'p-2' : 'p-3 md:p-4';
-    const iconCls = isCompact ? 'w-3.5 h-3.5' : 'w-4 h-4';
-    const labelCls = isCompact ? 'text-[10px]' : 'text-xs';
-    const valueCls = isCompact ? 'text-sm' : 'text-base';
-    const metaCls = isCompact ? 'text-[8px]' : 'text-[9px]';
-    const barH = isCompact ? 'h-0.5' : 'h-1';
-    const cardMt = isCompact ? 'mt-1' : 'mt-2';
+    const chartH = 24;
+    const cardPad = 'p-2';
+    const gridGap = 'gap-1.5';
+    const rootPad = 'p-2';
+    const iconCls = 'w-3.5 h-3.5';
+    const labelCls = 'text-[10px]';
+    const valueCls = 'text-sm';
+    const metaCls = 'text-[8px]';
+    const barH = 'h-0.5';
+    const cardMt = 'mt-1';
 
     const renderSparkline = (data: number[], maxVal = 100, color = '#3b82f6') => {
         if (!showChartsArea || data.length < 2) return null;
@@ -120,7 +134,7 @@ export default function SystemMonitorArea({ widgetId }: { widgetId: string }) {
 
         return (
             <div
-                className={`w-full pointer-events-none select-none overflow-hidden ${isCompact ? 'h-6 mt-1' : 'h-10 mt-2'}`}
+                className={`w-full pointer-events-none select-none overflow-hidden h-6 mt-1`}
             >
                 <ResponsiveContainer width="100%" height={chartH}>
                     <AreaChart data={chartData} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
@@ -135,7 +149,7 @@ export default function SystemMonitorArea({ widgetId }: { widgetId: string }) {
                             type="monotone" 
                             dataKey="value" 
                             stroke={color} 
-                            strokeWidth={isCompact ? 1.2 : 1.5}
+                            strokeWidth={1.2}
                             fillOpacity={1} 
                             fill={`url(#glow-${color.replace('#', '')})`} 
                             isAnimationActive={false}
@@ -159,7 +173,7 @@ export default function SystemMonitorArea({ widgetId }: { widgetId: string }) {
 
         return (
             <div
-                className={`w-full pointer-events-none select-none overflow-hidden ${isCompact ? 'h-6 mt-1' : 'h-10 mt-2'}`}
+                className={`w-full pointer-events-none select-none overflow-hidden h-6 mt-1`}
             >
                 <ResponsiveContainer width="100%" height={chartH}>
                     <AreaChart data={chartData} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
@@ -178,7 +192,7 @@ export default function SystemMonitorArea({ widgetId }: { widgetId: string }) {
                             type="monotone" 
                             dataKey="down" 
                             stroke="#f59e0b" 
-                            strokeWidth={isCompact ? 1.2 : 1.5}
+                            strokeWidth={1.2}
                             fillOpacity={1} 
                             fill="url(#glow-net-down)" 
                             isAnimationActive={false}
@@ -187,7 +201,7 @@ export default function SystemMonitorArea({ widgetId }: { widgetId: string }) {
                             type="monotone" 
                             dataKey="up" 
                             stroke="#f97316" 
-                            strokeWidth={isCompact ? 1.2 : 1.5}
+                            strokeWidth={1.2}
                             fillOpacity={1} 
                             fill="url(#glow-net-up)" 
                             isAnimationActive={false}
@@ -203,9 +217,9 @@ export default function SystemMonitorArea({ widgetId }: { widgetId: string }) {
     return (
         <div 
             ref={setContainerElement} 
-            className={`w-full h-full text-zinc-800 dark:text-zinc-100 ${rootPad} flex flex-col justify-between overflow-hidden relative pointer-events-none select-none`}
+            className={`w-full h-full text-zinc-800 dark:text-zinc-100 ${rootPad} flex flex-col justify-between overflow-y-auto relative pointer-events-auto select-none no-scrollbar`}
         >
-            <div className={`grid ${getGridCols()} ${gridGap} w-full h-full items-stretch`}>
+            <div className={`grid ${getGridCols()} ${gridGap} w-full h-auto items-stretch`}>
                 {enabledMetrics.includes('cpu') && (
                     <div className={cardClass}>
                         <div className="flex justify-between items-start gap-1">
@@ -226,6 +240,52 @@ export default function SystemMonitorArea({ widgetId }: { widgetId: string }) {
                             </div>
                         </div>
                         {showChartsArea && renderSparkline(history.cpu, 100, '#3b82f6')}
+                    </div>
+                )}
+
+                {enabledMetrics.includes('gpu') && (
+                    <div className={cardClass}>
+                        <div className="flex justify-between items-start gap-1">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                                <Activity className={`${iconCls} text-purple-500/80 shrink-0`} />
+                                <span className={`${labelCls} font-semibold text-zinc-500 dark:text-zinc-400`}>GPU</span>
+                            </div>
+                            <span className={`${valueCls} font-bold tabular-nums shrink-0`}>{Math.round(stats.gpu_usage)}%</span>
+                        </div>
+                        <div className={`flex justify-between items-end ${cardMt}`}>
+                            <div className="w-full">
+                                <div className={`${barH} w-full bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden`}>
+                                    <div 
+                                        className="h-full bg-purple-500 transition-all duration-500" 
+                                        style={{ width: `${stats.gpu_usage}%` }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        {showChartsArea && renderSparkline(history.gpu, 100, '#a855f7')}
+                    </div>
+                )}
+
+                {enabledMetrics.includes('gpu_temp') && (
+                    <div className={cardClass}>
+                        <div className="flex justify-between items-start gap-1">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                                <Thermometer className={`${iconCls} text-rose-500/80 shrink-0`} />
+                                <span className={`${labelCls} font-semibold text-zinc-500 dark:text-zinc-400`}>GPU TEMP</span>
+                            </div>
+                            <span className={`${valueCls} font-bold tabular-nums shrink-0`}>{Math.round(stats.gpu_temp)}°C</span>
+                        </div>
+                        <div className={`flex justify-between items-end ${cardMt}`}>
+                            <div className="w-full">
+                                <div className={`${barH} w-full bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden`}>
+                                    <div 
+                                        className="h-full bg-rose-500 transition-all duration-500" 
+                                        style={{ width: `${Math.min(100, stats.gpu_temp)}%` }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        {showChartsArea && renderSparkline(history.gpuTemp, 100, '#f43f5e')}
                     </div>
                 )}
 
@@ -295,15 +355,15 @@ export default function SystemMonitorArea({ widgetId }: { widgetId: string }) {
                                 <span className={`${labelCls} font-semibold text-zinc-500 dark:text-zinc-400`}>NET</span>
                             </div>
                             <div className="flex flex-col items-end leading-none shrink-0">
-                                <span className={`${isCompact ? 'text-[10px]' : 'text-xs'} font-bold flex items-center gap-0.5 tabular-nums`}>
-                                    <ArrowDown className={`${isCompact ? 'w-2 h-2' : 'w-2.5 h-2.5'} text-amber-500`} />
+                                <span className={`text-[10px] font-bold flex items-center gap-0.5 tabular-nums`}>
+                                    <ArrowDown className={`w-2 h-2 text-amber-500`} />
                                     {stats.net_download_kb > 1024 
                                         ? `${(stats.net_download_kb / 1024).toFixed(1)} MB/s` 
                                         : `${Math.round(stats.net_download_kb)} KB/s`
                                     }
                                 </span>
                                 <span className={`${metaCls} font-semibold text-zinc-500 flex items-center gap-0.5 mt-0.5 tabular-nums`}>
-                                    <ArrowUp className={`${isCompact ? 'w-2 h-2' : 'w-2.5 h-2.5'} text-orange-500`} />
+                                    <ArrowUp className={`w-2 h-2 text-orange-500`} />
                                     {stats.net_upload_kb > 1024 
                                         ? `${(stats.net_upload_kb / 1024).toFixed(1)} MB/s` 
                                         : `${Math.round(stats.net_upload_kb)} KB/s`
@@ -317,6 +377,54 @@ export default function SystemMonitorArea({ widgetId }: { widgetId: string }) {
                             </div>
                         </div>
                         {showChartsArea && renderDoubleSparkline(history.netDown, history.netUp)}
+                    </div>
+                )}
+
+                {/* Top CPU Processes */}
+                {(stats.top_cpu_processes?.length ?? 0) > 0 && (
+                    <div className={cardClass}>
+                        <div className="flex justify-between items-center gap-1 mb-1">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                                <Flame className={`${iconCls} text-blue-500/80 shrink-0`} />
+                                <span className={`${labelCls} font-semibold text-zinc-500 dark:text-zinc-400`}>TOP CPU</span>
+                            </div>
+                        </div>
+                        <div className="space-y-1 mt-1">
+                            {stats.top_cpu_processes.slice(0, Math.min(5, Math.max(1, config.topCpuCount ?? 3))).map((proc) => (
+                                <div key={proc.pid} className="flex justify-between items-center text-[10px] tabular-nums">
+                                    <span className="font-medium text-zinc-700 dark:text-zinc-300 truncate max-w-[110px]" title={proc.name}>
+                                        {proc.name}
+                                    </span>
+                                    <span className="font-bold text-blue-600 dark:text-blue-400 ml-1">
+                                        {proc.cpu_usage.toFixed(1)}%
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Top RAM Processes */}
+                {(stats.top_ram_processes?.length ?? 0) > 0 && (
+                    <div className={cardClass}>
+                        <div className="flex justify-between items-center gap-1 mb-1">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                                <Layers className={`${iconCls} text-emerald-500/80 shrink-0`} />
+                                <span className={`${labelCls} font-semibold text-zinc-500 dark:text-zinc-400`}>TOP RAM</span>
+                            </div>
+                        </div>
+                        <div className="space-y-1 mt-1">
+                            {stats.top_ram_processes.slice(0, Math.min(5, Math.max(1, config.topRamCount ?? 3))).map((proc) => (
+                                <div key={proc.pid} className="flex justify-between items-center text-[10px] tabular-nums">
+                                    <span className="font-medium text-zinc-700 dark:text-zinc-300 truncate max-w-[110px]" title={proc.name}>
+                                        {proc.name}
+                                    </span>
+                                    <span className="font-bold text-emerald-600 dark:text-emerald-400 ml-1 w-15 text-right">
+                                        {proc.ram_used_mb > 1024 ? `${(proc.ram_used_mb / 1024).toFixed(1)} GB` : `${Math.round(proc.ram_used_mb)} MB`}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )}
             </div>

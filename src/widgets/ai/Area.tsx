@@ -19,6 +19,7 @@ export default function AiArea({ widgetId }: { widgetId: string }) {
     const [isSending, setIsSending] = useState(false);
     const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     const widgetConfig = useWidgetInstanceStore(state => state.instances[widgetId]) || {};
     const selectedInstanceId = widgetConfig.selectedInstanceId;
@@ -30,13 +31,9 @@ export default function AiArea({ widgetId }: { widgetId: string }) {
         instance = instances[0];
     }
 
-    const openFullChat = () => {
+    const openFullChat = async () => {
         if (!instance) return;
-        invoke('request_popup', {
-            x: window.screenX + 100,
-            y: window.screenY + 100,
-            width: 800,
-            height: 600,
+        invoke('open_sub_window', {
             route: `/ai-chat/${instance.id}`,
             closeOnBlur: false,
             xIsCenter: false,
@@ -72,18 +69,23 @@ export default function AiArea({ widgetId }: { widgetId: string }) {
         isAutoScrollEnabled.current = isAtBottom;
     };
 
+    const scrollToBottomIfEnabled = (smooth = false) => {
+        if (isAutoScrollEnabled.current && scrollContainerRef.current) {
+            const container = scrollContainerRef.current;
+            if (smooth) {
+                container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+            } else {
+                container.scrollTop = container.scrollHeight;
+            }
+        }
+    };
+
     useEffect(() => {
         if (isAutoScrollEnabled.current || isSending) {
-            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            scrollToBottomIfEnabled(true);
             if (isSending) isAutoScrollEnabled.current = true;
         }
     }, [currentMessages.length > 0 ? currentMessages[currentMessages.length - 1].id : null, isSending]);
-
-    const scrollToBottomIfEnabled = () => {
-        if (isAutoScrollEnabled.current) {
-            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        }
-    };
 
     return (
         <CutoutProvider className="w-full h-full">
@@ -136,6 +138,7 @@ export default function AiArea({ widgetId }: { widgetId: string }) {
                 </h2>
 
                 <div
+                    ref={scrollContainerRef}
                     className="flex-1 bg-zinc-500/5 dark:bg-black/20 border border-zinc-500/10 dark:border-white/5 rounded-xl p-3 mb-3 overflow-y-auto text-xs font-sans leading-relaxed flex flex-col gap-2"
                     onScroll={handleScroll}
                 >

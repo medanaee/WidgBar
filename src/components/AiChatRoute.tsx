@@ -45,19 +45,24 @@ export default function AiChatRoute() {
 
   const isAutoScrollEnabled = useRef(true);
 
+  const scrollToBottomIfEnabled = (smooth = false) => {
+      if (isAutoScrollEnabled.current && scrollContainerRef.current) {
+          const container = scrollContainerRef.current;
+          if (smooth) {
+              container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+          } else {
+              container.scrollTop = container.scrollHeight;
+          }
+      }
+  };
+
   // Scroll to bottom whenever messages change or we start sending, if we're near bottom
   useEffect(() => {
     if (isAutoScrollEnabled.current || isSending) {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        scrollToBottomIfEnabled(true);
         if (isSending) isAutoScrollEnabled.current = true;
     }
   }, [currentMessages.length > 0 ? currentMessages[currentMessages.length - 1].id : null, isSending]);
-
-  const scrollToBottomIfEnabled = () => {
-      if (isAutoScrollEnabled.current) {
-          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }
-  };
 
   const [models, setModels] = useState<string[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
@@ -385,6 +390,7 @@ export default function AiChatRoute() {
 
             {/* Messages Scroll View */}
             <div 
+              ref={scrollContainerRef}
               className="flex-1 overflow-y-auto p-4 space-y-4 bg-zinc-100/10 dark:bg-zinc-950/20"
               onScroll={handleScroll}
             >

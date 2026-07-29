@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useWidgetInstanceStore } from '../../stores/widgetInstanceStore';
 import { useSettingsStore } from '../../stores/settingsStore';
-import { Cpu, Database, HardDrive, ArrowUp, ArrowDown, Globe } from 'lucide-react';
+import { Cpu, Database, HardDrive, ArrowUp, ArrowDown, Globe, Thermometer, Activity } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area as RechartsArea, YAxis } from 'recharts';
 import { useUpdateWidgetConstraints } from '../../stores/widgetConstraintsStore';
 
 interface SystemStats {
     cpu_usage: number;
+    gpu_usage: number;
+    gpu_temp: number;
     ram_usage: number;
     ram_used_gb: number;
     ram_total_gb: number;
@@ -30,11 +32,13 @@ export default function SystemMonitorBar({ widgetId }: { widgetId: string }) {
     }, [widgetId, updateConstraints]);
     const [history, setHistory] = useState<{
         cpu: number[];
+        gpu: number[];
+        gpuTemp: number[];
         ram: number[];
         disk: number[];
         netDown: number[];
         netUp: number[];
-    }>({ cpu: [], ram: [], disk: [], netDown: [], netUp: [] });
+    }>({ cpu: [], gpu: [], gpuTemp: [], ram: [], disk: [], netDown: [], netUp: [] });
 
     const barHeight = settings.barHeight || 36;
     const isLarge = barHeight >= 48;
@@ -43,6 +47,8 @@ export default function SystemMonitorBar({ widgetId }: { widgetId: string }) {
     const showLabelsBar = config.showLabelsBar ?? false;
     const fillIndicatorsBar = config.fillIndicatorsBar ?? false;
     const showCpuChart = config.showCpuChartBar ?? config.showChartsBar ?? false;
+    const showGpuChart = config.showGpuChartBar ?? config.showChartsBar ?? false;
+    const showGpuTempChart = config.showGpuTempChartBar ?? config.showChartsBar ?? false;
     const showRamChart = config.showRamChartBar ?? config.showChartsBar ?? false;
     const showDiskChart = config.showDiskChartBar ?? config.showChartsBar ?? false;
     const showNetChart = config.showNetChartBar ?? config.showChartsBar ?? false;
@@ -58,6 +64,8 @@ export default function SystemMonitorBar({ widgetId }: { widgetId: string }) {
                     const keep = 15;
                     return {
                         cpu: [...prev.cpu.slice(-keep + 1), res.cpu_usage],
+                        gpu: [...prev.gpu.slice(-keep + 1), res.gpu_usage],
+                        gpuTemp: [...prev.gpuTemp.slice(-keep + 1), res.gpu_temp],
                         ram: [...prev.ram.slice(-keep + 1), res.ram_usage],
                         disk: [...prev.disk.slice(-keep + 1), res.disk_usage],
                         netDown: [...prev.netDown.slice(-keep + 1), res.net_download_kb],
@@ -203,6 +211,72 @@ export default function SystemMonitorBar({ widgetId }: { widgetId: string }) {
                             {isLarge && showCpuChart && (
                                 <div className="mt-0.5">
                                     {renderBarSparkline(history.cpu, '#3b82f6')}
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
+            )}
+
+            {/* GPU Usage */}
+            {enabledMetrics.includes('gpu') && (
+                <div
+                    className={metricShell(showGpuChart)}
+                    style={getCardStyle(stats.gpu_usage, 'rgba(168, 85, 247, 0.2)')}
+                >
+                    {isLarge && !showGpuChart ? (
+                        <>
+                            <div className="flex items-center gap-0.5 leading-none">
+                                <Activity className="w-3.5 h-3.5 text-purple-400" />
+                                {showLabelsBar && <span className="font-semibold text-[10px] text-white/70">GPU</span>}
+                            </div>
+                            <span className="font-bold tabular-nums leading-none">
+                                {Math.round(stats.gpu_usage)}%
+                            </span>
+                        </>
+                    ) : (
+                        <>
+                            <div className="flex items-center gap-1 leading-none">
+                                <Activity className="w-3.5 h-3.5 text-purple-400" />
+                                {showLabelsBar && <span className="font-semibold text-[10px] text-white/70">GPU</span>}
+                                <span className="font-bold tabular-nums inline-block text-left min-w-7">{Math.round(stats.gpu_usage)}%</span>
+                            </div>
+                            {isLarge && showGpuChart && (
+                                <div className="mt-0.5">
+                                    {renderBarSparkline(history.gpu, '#a855f7')}
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
+            )}
+
+            {/* GPU Temp */}
+            {enabledMetrics.includes('gpu_temp') && (
+                <div
+                    className={metricShell(showGpuTempChart)}
+                    style={getCardStyle(Math.min(100, stats.gpu_temp), 'rgba(244, 63, 94, 0.2)')}
+                >
+                    {isLarge && !showGpuTempChart ? (
+                        <>
+                            <div className="flex items-center gap-0.5 leading-none">
+                                <Thermometer className="w-3.5 h-3.5 text-rose-400" />
+                                {showLabelsBar && <span className="font-semibold text-[10px] text-white/70">GPUT</span>}
+                            </div>
+                            <span className="font-bold tabular-nums leading-none">
+                                {Math.round(stats.gpu_temp)}°C
+                            </span>
+                        </>
+                    ) : (
+                        <>
+                            <div className="flex items-center gap-1 leading-none">
+                                <Thermometer className="w-3.5 h-3.5 text-rose-400" />
+                                {showLabelsBar && <span className="font-semibold text-[10px] text-white/70">GPUT</span>}
+                                <span className="font-bold tabular-nums inline-block text-left min-w-7">{Math.round(stats.gpu_temp)}°C</span>
+                            </div>
+                            {isLarge && showGpuTempChart && (
+                                <div className="mt-0.5">
+                                    {renderBarSparkline(history.gpuTemp, '#f43f5e')}
                                 </div>
                             )}
                         </>

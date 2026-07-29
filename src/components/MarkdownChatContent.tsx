@@ -206,9 +206,10 @@ function MarkdownChatContent({
   }
 
   // Adjust font sizes and paddings based on isWidget flag
-  const h1Class = isWidget ? "text-[13px] font-bold mt-2 mb-1" : "text-lg font-bold mt-2 mb-1";
-  const h2Class = isWidget ? "text-[12px] font-bold mt-2 mb-1" : "text-base font-bold mt-2 mb-1";
-  const h3Class = isWidget ? "text-[11px] font-bold mt-1.5 mb-1" : "text-sm font-bold mt-1.5 mb-1";
+  const h1Class = isWidget ? "text-[13px] font-bold! mt-2 mb-1" : "text-lg font-bold mt-2 mb-1";
+  const h2Class = isWidget ? "text-[12px] font-bold! mt-2 mb-1" : "text-base font-bold mt-2 mb-1";
+  const h3Class = isWidget ? "text-[11px] font-bold! mt-1.5 mb-1" : "text-sm font-bold mt-1.5 mb-1";
+  const h4Class = isWidget ? "text-[11px] font-bold! mt-1.5 mb-1" : "text-sm font-bold mt-1.5 mb-1";
   const codeInlineClass = isWidget ? "bg-zinc-500/10 dark:bg-white/10 rounded px-1 py-0.5 font-mono text-[9px]" : "bg-zinc-500/20 dark:bg-white/20 rounded px-1.5 py-0.5 font-mono text-[10px]";
   const codeBlockContainerClass = isWidget 
     ? "relative my-1.5 rounded border border-zinc-500/20 overflow-hidden bg-zinc-100 dark:bg-black/30" 
@@ -229,6 +230,7 @@ function MarkdownChatContent({
     h1: ({node, ...props}: any) => <h1 className={h1Class} dir="auto" {...props} />,
     h2: ({node, ...props}: any) => <h2 className={h2Class} dir="auto" {...props} />,
     h3: ({node, ...props}: any) => <h3 className={h3Class} dir="auto" {...props} />,
+    h4: ({node, ...props}: any) => <h4 className={h4Class} dir="auto" {...props} />,
     code: ({node, inline, className, children, ...props}: any) => {
       const match = /language-(\w+)/.exec(className || '');
       const isInline = inline ?? (!match && !className?.includes('language-') && !String(children).includes('\n'));

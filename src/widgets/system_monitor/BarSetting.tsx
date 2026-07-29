@@ -63,6 +63,30 @@ export default function SystemMonitorBarSetting({ widgetId }: { widgetId: string
                 />
             </SettingCard>
 
+
+
+            <SettingCard>
+                <div>
+                    <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">GPU Mini Chart</h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Show GPU history sparkline in the bar</p>
+                </div>
+                <Switch 
+                    checked={config.showGpuChartBar ?? config.showChartsBar ?? false} 
+                    onCheckedChange={(checked) => handleUpdate({ showGpuChartBar: checked })} 
+                />
+            </SettingCard>
+
+            <SettingCard>
+                <div>
+                    <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">GPU Temp Mini Chart</h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Show GPU Temperature history sparkline in the bar</p>
+                </div>
+                <Switch 
+                    checked={config.showGpuTempChartBar ?? config.showChartsBar ?? false} 
+                    onCheckedChange={(checked) => handleUpdate({ showGpuTempChartBar: checked })} 
+                />
+            </SettingCard>
+
             <SettingCard>
                 <div>
                     <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">RAM Mini Chart</h3>
