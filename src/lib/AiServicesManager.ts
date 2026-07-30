@@ -11,8 +11,10 @@ import {
 
 export const DEFAULT_SYSTEM_PROMPT = 
   "You are a helpful assistant. Respond using well-formatted Markdown. " +
-  "For mathematical equations, always use LaTeX syntax: use $...$ for inline math (e.g. $E=mc^2$) " +
-  "and $$...$$ for block display equations on separate lines (e.g. $$\\sum_{i=1}^n i = \\frac{n(n+1)}{2}$$). " +
+  "CRITICAL: For mathematical equations, you MUST use standard LaTeX syntax. " +
+  "For inline math, use exactly $...$ (e.g., $E=mc^2$). " +
+  "For block display equations, you MUST use exactly $$...$$ on separate lines (e.g., $$\\sum_{i=1}^n i = \\frac{n(n+1)}{2}$$). " +
+  "Do NOT use \\[...\\] or \\(...\\) or any other delimiters. " +
   "Always keep code blocks and math LTR.";
 
 /** Options for one-shot (ephemeral) AI calls that never touch sessions/messages in DB */
@@ -290,6 +292,16 @@ class AiServicesManager {
     });
     await store.updateSession(sessionId, { updatedAt: Date.now() });
 
+    // 5. Auto-generate title if this is the first exchange (2 messages)
+    const allMsgs = useAiServicesStore.getState().sessionMessages[sessionId] || [];
+    console.log(`[AutoTitle] Session ${sessionId} has ${allMsgs.length} messages after exchange.`);
+    if (allMsgs.length === 2) {
+      console.log(`[AutoTitle] Triggering generateTitleForSession...`);
+      this.generateTitleForSession(instanceId, sessionId, allMsgs).catch(err => {
+        console.error(`[AutoTitle] generateTitleForSession error:`, err);
+      });
+    }
+
     return aiMessage;
   }
 
@@ -297,6 +309,39 @@ class AiServicesManager {
   public finishTyping(sessionId: string, messageId: string) {
     const store = useAiServicesStore.getState();
     store.updateMessageInSession(sessionId, messageId, { typing: false });
+  }
+
+  private async generateTitleForSession(instanceId: string, sessionId: string, messages: ChatMessage[]) {
+    try {
+      console.log(`[AutoTitle] Starting title generation for session ${sessionId} with ${messages.length} messages`);
+      if (messages.length === 0) return;
+      const userMsg = messages[0].content;
+      console.log(`[AutoTitle] User message to summarize:`, userMsg);
+      const store = useAiServicesStore.getState();
+      
+      const prompt = `Based on the following user message, generate a very short, concise title (max 4-5 words) for this chat. Return ONLY the title, without quotes, labels, or extra text.\n\nMessage: "${userMsg}"`;
+      
+      console.log(`[AutoTitle] Calling promptOnce...`);
+      const title = await this.promptOnce(instanceId, {
+        content: prompt,
+        systemPrompt: "You are a helpful assistant that generates short chat titles.",
+        temperature: 0.3,
+        reasoningEffort: false,
+      });
+
+      console.log(`[AutoTitle] Received title from AI:`, title);
+
+      if (title && title.length < 50) {
+        const cleanedTitle = title.replace(/^["']|["']$/g, '').trim();
+        console.log(`[AutoTitle] Saving cleaned title:`, cleanedTitle);
+        await store.updateSession(sessionId, { title: cleanedTitle });
+        console.log(`[AutoTitle] Session updated successfully.`);
+      } else {
+        console.log(`[AutoTitle] Title was empty or too long (${title?.length} chars), skipping save.`);
+      }
+    } catch (err) {
+      console.error("[AutoTitle] Failed to generate session title", err);
+    }
   }
 
   /** Non-streaming one-shot provider call (no session side-effects) */
@@ -315,7 +360,11 @@ class AiServicesManager {
 
     for (const m of messages) {
       if (m.role === 'user' || m.role === 'assistant') {
-        requestMessages.push({ role: m.role, content: await messageWireContent(m) });
+        let wire = await messageWireContent(m);
+        if (m.role === 'assistant') {
+          wire = stripReasoningBlocks(wire);
+        }
+        requestMessages.push({ role: m.role, content: wire });
       }
     }
 
@@ -427,7 +476,11 @@ class AiServicesManager {
     const geminiFormattedContents = [];
 
     for (const m of messages) {
-      const wire = await messageWireContent(m);
+      let wire = await messageWireContent(m);
+      if (m.role === 'assistant') {
+        wire = stripReasoningBlocks(wire);
+      }
+      
       requestMessages.push({ role: m.role, content: wire });
       
       geminiFormattedContents.push({
