@@ -412,12 +412,11 @@ export default function AiChatRoute() {
                     </div>
                   )}
                   <div 
-                    className={`max-w-[80%] text-xs leading-relaxed border overflow-hidden ${
+                    className={`max-w-[80%] text-xs leading-relaxed border rounded-4xl overflow-hidden ${
                       msg.role === 'user' 
-                        ? 'px-2 py-2 bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-900 border-zinc-700 dark:border-zinc-300' 
-                        : 'px-4 py-3 bg-white/40 dark:bg-zinc-900/40 border-zinc-500/10 dark:border-white/5'
+                        ? 'px-3 py-3 bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-900 border-zinc-700 dark:border-zinc-300' 
+                        : 'px-4 py-4 bg-white/40 dark:bg-zinc-900/40 border-zinc-500/10 dark:border-white/5'
                     }`}
-                    style={{ borderRadius: '16px', cornerShape: 'squircle' } as React.CSSProperties}
                     
                   >
                     <div className="flex flex-col gap-2 overflow-x-auto overflow-y-hidden break-words">

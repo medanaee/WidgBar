@@ -40,7 +40,7 @@ function preprocessMarkdown(text: string): string {
   return processedLines.join('\n');
 }
 
-function ThinkBlock({ content, isWidget, markdownComponents }: { content: string, isWidget: boolean, markdownComponents: any }) {
+function ThinkBlock({ content, isWidget, markdownComponents, isThinking }: { content: string, isWidget: boolean, markdownComponents: any, isThinking: boolean }) {
   const [isOpen, setIsOpen] = useState(false);
   
   return (
@@ -51,6 +51,13 @@ function ThinkBlock({ content, isWidget, markdownComponents }: { content: string
       >
         <span className="text-[12px]">🧠</span> 
         <span>Reasoning</span>
+        {isThinking && (
+          <span className="flex items-center gap-0.5 ml-1">
+            <span className="w-1 h-1 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+            <span className="w-1 h-1 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+            <span className="w-1 h-1 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+          </span>
+        )}
         <span className="text-[9px] opacity-70">{isOpen ? '▼' : '▶'}</span>
       </div>
       <div className={`relative overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[5000px] opacity-80' : 'max-h-20 opacity-50'}`}>
@@ -275,7 +282,8 @@ function MarkdownChatContent({
     if (match.index > lastIndex) {
       parts.push({ type: 'text', content: displayText.slice(lastIndex, match.index) });
     }
-    parts.push({ type: 'think', content: match[1] });
+    const isThinking = !match[0].endsWith('</think>');
+    parts.push({ type: 'think', content: match[1], isThinking });
     lastIndex = match.index + match[0].length;
   }
   if (lastIndex < displayText.length) {
@@ -286,7 +294,7 @@ function MarkdownChatContent({
     <div className="flex flex-col gap-1 w-full">
       {parts.map((part, i) => {
         if (part.type === 'think') {
-          return <ThinkBlock key={i} content={part.content} isWidget={isWidget} markdownComponents={markdownComponents} />;
+          return <ThinkBlock key={i} content={part.content} isWidget={isWidget} markdownComponents={markdownComponents} isThinking={part.isThinking} />;
         }
         return (
           <ReactMarkdown
