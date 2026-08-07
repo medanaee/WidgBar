@@ -1,7 +1,7 @@
 # WidgBar
 
 <p align="center">
-  <img src="./public/banner.png" alt="WidgBar Banner" width="100%" />
+  <img src="./public/bannerv2.png" alt="WidgBar Banner" width="100%" />
 </p>
 
 <p align="center">
