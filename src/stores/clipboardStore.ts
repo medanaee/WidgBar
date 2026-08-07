@@ -3,12 +3,21 @@ import { invoke } from '@tauri-apps/api/core';
 import { emit, listen } from '@tauri-apps/api/event';
 import { isOwnerWindow } from '../lib/ownerWindow';
 
+/** Spill full text/html/rtf to disk when any format exceeds this (UTF-8 bytes). */
+const TEXT_SPILL_THRESHOLD = 350 * 1024;
+/** In-store UI preview size when spilled (UTF-8 bytes, char-boundary safe). */
+const TEXT_CONTENT_PREVIEW_BYTES = 25 * 1024;
+
 export interface ClipboardItem {
   id: string;
   kind: 'text' | 'image' | 'files' | 'figma';
   textContent: string | null;
   htmlContent: string | null;
   rtfContent: string | null;
+  /** Full text/html/rtf JSON on disk when spilled; otherwise null. */
+  contentPath: string | null;
+  /** First 25KB of plain (fallback html/rtf) for list UI when spilled. */
+  contentPreview: string | null;
   imagePath: string | null;
   filePaths: string[] | null;
   preview: string;
@@ -40,7 +49,7 @@ interface ClipboardState {
   hasInitialized: boolean;
   fetchHistory: () => Promise<void>;
   setMaxHistory: (max: number, sync?: boolean) => void;
-  ingestCapture: (capture: ClipboardCapture) => void;
+  ingestCapture: (capture: ClipboardCapture) => Promise<void>;
   setPinned: (id: string, pinned: boolean) => void;
   setFrozen: (id: string, frozen: boolean) => void;
   deleteItem: (id: string) => void;
@@ -66,6 +75,25 @@ function makeFilesPreview(paths: string[]): string {
   return `${makePreview(first)} (+${paths.length - 1})`;
 }
 
+/** Truncate to at most `maxBytes` UTF-8 bytes without splitting a code point. */
+function truncateUtf8Bytes(s: string, maxBytes: number): string {
+  const encoder = new TextEncoder();
+  if (encoder.encode(s).length <= maxBytes) return s;
+  let out = '';
+  let used = 0;
+  for (const ch of s) {
+    const n = encoder.encode(ch).length;
+    if (used + n > maxBytes) break;
+    out += ch;
+    used += n;
+  }
+  return out;
+}
+
+function utf8ByteLength(s: string): number {
+  return new TextEncoder().encode(s).length;
+}
+
 function normalizeLoadedItems(items: ClipboardItem[]): ClipboardItem[] {
   return items.map((i) => ({
     ...i,
@@ -74,6 +102,8 @@ function normalizeLoadedItems(items: ClipboardItem[]): ClipboardItem[] {
     rtfContent: i.rtfContent ?? null,
     filePaths: Array.isArray(i.filePaths) ? i.filePaths : null,
     textContent: i.textContent ?? null,
+    contentPath: i.contentPath ?? null,
+    contentPreview: i.contentPreview ?? null,
     imagePath: i.imagePath ?? null,
   }));
 }
@@ -114,11 +144,17 @@ function pruneItems(items: ClipboardItem[], maxHistory: number): {
   return { kept, removed };
 }
 
-function deleteImageFiles(paths: (string | null | undefined)[]) {
+function deleteDiskFiles(paths: (string | null | undefined)[]) {
   for (const p of paths) {
     if (!p) continue;
     invoke('clipboard_delete_image_files', { path: p }).catch(console.error);
   }
+}
+
+function deleteItemDiskFiles(item: ClipboardItem) {
+  if (item.imagePath) deleteDiskFiles([item.imagePath]);
+  if (item.contentPath) deleteDiskFiles([item.contentPath]);
+  if (item.kind === 'figma' && item.htmlContent) deleteDiskFiles([item.htmlContent]);
 }
 
 function persist(items: ClipboardItem[], maxHistory: number, sync: boolean) {
@@ -164,12 +200,12 @@ export const useClipboardStore = create<ClipboardState>((set, get) => ({
   setMaxHistory: (max, sync = true) => {
     const maxHistory = Math.max(5, Math.min(500, max));
     const { kept, removed } = pruneItems(get().items, maxHistory);
-    deleteImageFiles(removed.map((i) => i.imagePath));
+    removed.forEach(deleteItemDiskFiles);
     set({ items: kept, maxHistory });
     persist(kept, maxHistory, sync);
   },
 
-  ingestCapture: (capture) => {
+  ingestCapture: async (capture) => {
     const now = Date.now();
     let kind: ClipboardItem['kind'];
     if (capture.kind === 'image') kind = 'image';
@@ -181,6 +217,8 @@ export const useClipboardStore = create<ClipboardState>((set, get) => ({
     let textContent: string | null = null;
     let htmlContent: string | null = null;
     let rtfContent: string | null = null;
+    let contentPath: string | null = null;
+    let contentPreview: string | null = null;
     let imagePath: string | null = null;
     let filePaths: string[] | null = null;
     let preview: string;
@@ -208,11 +246,40 @@ export const useClipboardStore = create<ClipboardState>((set, get) => ({
       const html = (capture.html ?? '').trim() || null;
       const rtf = (capture.rtf ?? '').trim() || null;
       if (!text && !html && !rtf) return;
-      textContent = text || null;
-      htmlContent = html;
-      rtfContent = rtf;
+
       contentHash = hashStr(`t:${text}\n${html ?? ''}\n${rtf ?? ''}`);
       preview = makePreview(text || html || rtf || 'Text');
+
+      const needsSpill =
+        utf8ByteLength(text) > TEXT_SPILL_THRESHOLD ||
+        (html != null && utf8ByteLength(html) > TEXT_SPILL_THRESHOLD) ||
+        (rtf != null && utf8ByteLength(rtf) > TEXT_SPILL_THRESHOLD);
+
+      if (needsSpill) {
+        try {
+          contentPath = await invoke<string>('clipboard_save_text_payload', {
+            text: text || null,
+            html,
+            rtf,
+          });
+          const previewSource = text || html || rtf || '';
+          contentPreview = truncateUtf8Bytes(previewSource, TEXT_CONTENT_PREVIEW_BYTES);
+          textContent = null;
+          htmlContent = null;
+          rtfContent = null;
+        } catch (e) {
+          console.error('Failed to spill large clipboard text to disk; storing inline', e);
+          textContent = text || null;
+          htmlContent = html;
+          rtfContent = rtf;
+          contentPath = null;
+          contentPreview = null;
+        }
+      } else {
+        textContent = text || null;
+        htmlContent = html;
+        rtfContent = rtf;
+      }
     }
 
     const prev = get().items;
@@ -220,6 +287,21 @@ export const useClipboardStore = create<ClipboardState>((set, get) => ({
     let next: ClipboardItem[];
 
     if (existing) {
+      if (
+        existing.contentPath &&
+        contentPath &&
+        existing.contentPath !== contentPath
+      ) {
+        deleteDiskFiles([existing.contentPath]);
+      }
+      if (
+        kind === 'image' &&
+        existing.imagePath &&
+        imagePath &&
+        existing.imagePath !== imagePath
+      ) {
+        deleteDiskFiles([existing.imagePath]);
+      }
       next = prev.map((i) =>
         i.id === existing.id
           ? {
@@ -229,20 +311,14 @@ export const useClipboardStore = create<ClipboardState>((set, get) => ({
               textContent,
               htmlContent,
               rtfContent,
+              contentPath,
+              contentPreview,
               imagePath,
               filePaths,
               preview,
             }
           : i,
       );
-      if (
-        kind === 'image' &&
-        existing.imagePath &&
-        imagePath &&
-        existing.imagePath !== imagePath
-      ) {
-        deleteImageFiles([existing.imagePath]);
-      }
     } else {
       const item: ClipboardItem = {
         id: newId(),
@@ -250,6 +326,8 @@ export const useClipboardStore = create<ClipboardState>((set, get) => ({
         textContent,
         htmlContent,
         rtfContent,
+        contentPath,
+        contentPreview,
         imagePath,
         filePaths,
         preview,
@@ -263,7 +341,7 @@ export const useClipboardStore = create<ClipboardState>((set, get) => ({
     }
 
     const { kept, removed } = pruneItems(next, get().maxHistory);
-    deleteImageFiles(removed.map((i) => i.imagePath));
+    removed.forEach(deleteItemDiskFiles);
     set({ items: kept });
     persist(kept, get().maxHistory, true);
   },
@@ -291,8 +369,7 @@ export const useClipboardStore = create<ClipboardState>((set, get) => ({
   deleteItem: (id) => {
     const target = get().items.find((i) => i.id === id);
     const items = get().items.filter((i) => i.id !== id);
-    if (target?.imagePath) deleteImageFiles([target.imagePath]);
-    if (target?.kind === 'figma' && target.htmlContent) deleteImageFiles([target.htmlContent]);
+    if (target) deleteItemDiskFiles(target);
     set({ items });
     persist(items, get().maxHistory, true);
   },
@@ -300,8 +377,7 @@ export const useClipboardStore = create<ClipboardState>((set, get) => ({
   clearAll: () => {
     const kept = get().items.filter((i) => i.frozen);
     const removed = get().items.filter((i) => !i.frozen);
-    deleteImageFiles(removed.map((i) => i.imagePath));
-    deleteImageFiles(removed.filter((i) => i.kind === 'figma').map((i) => i.htmlContent));
+    removed.forEach(deleteItemDiskFiles);
     set({ items: kept });
     persist(kept, get().maxHistory, true);
   },
@@ -325,7 +401,7 @@ export function subscribeClipboardSync(): () => void {
       }),
       listen<ClipboardCapture>('clipboard-changed', async (event) => {
         if (!(await isOwnerWindow())) return;
-        useClipboardStore.getState().ingestCapture(event.payload);
+        await useClipboardStore.getState().ingestCapture(event.payload);
       }),
     ])
       .then((unlistens) => {

@@ -53,13 +53,63 @@ fn thumb_path_beside(full: &std::path::Path) -> PathBuf {
 
 fn remove_image_files(path: &str) {
     let p = PathBuf::from(path);
-    if path.ends_with(".html") || path.contains("figma_") {
+    // Figma HTML, spilled text JSON, or image (+ sibling thumb)
+    if path.ends_with(".html")
+        || path.ends_with(".json")
+        || path.contains("figma_")
+        || path.contains("clip_text_")
+    {
         let _ = std::fs::remove_file(&p);
     } else {
         let thumb = thumb_path_beside(&p);
         let _ = std::fs::remove_file(&p);
         let _ = std::fs::remove_file(&thumb);
     }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClipboardTextPayload {
+    pub text: Option<String>,
+    pub html: Option<String>,
+    pub rtf: Option<String>,
+}
+
+fn save_clipboard_text_payload(
+    text: Option<&str>,
+    html: Option<&str>,
+    rtf: Option<&str>,
+) -> Result<PathBuf, String> {
+    let dir = IMAGE_DIR
+        .lock()
+        .map_err(|e| format!("IMAGE_DIR lock poisoned: {e}"))?
+        .clone()
+        .ok_or_else(|| "IMAGE_DIR not set".to_string())?;
+
+    if !dir.exists() {
+        std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    }
+
+    let payload = ClipboardTextPayload {
+        text: text.filter(|s| !s.is_empty()).map(|s| s.to_string()),
+        html: html.filter(|s| !s.is_empty()).map(|s| s.to_string()),
+        rtf: rtf.filter(|s| !s.is_empty()).map(|s| s.to_string()),
+    };
+    let json = serde_json::to_string(&payload).map_err(|e| e.to_string())?;
+    let hash = hash_bytes(json.as_bytes());
+    let id = &hash[..12.min(hash.len())];
+    let full_path = dir.join(format!("clip_text_{id}.json"));
+
+    std::fs::write(&full_path, json)
+        .map_err(|e| format!("failed to write text payload {}: {e}", full_path.display()))?;
+
+    Ok(full_path)
+}
+
+fn load_clipboard_text_payload(path: &str) -> Result<ClipboardTextPayload, String> {
+    let raw = std::fs::read_to_string(path)
+        .map_err(|e| format!("failed to read text payload {path}: {e}"))?;
+    serde_json::from_str(&raw).map_err(|e| format!("failed to parse text payload {path}: {e}"))
 }
 
 fn save_clipboard_figma(html_content: &str) -> Result<PathBuf, String> {
@@ -978,11 +1028,32 @@ pub fn clipboard_paste_image(path: String) -> Result<(), String> {
     }
 }
 
-/// Delete a stored clipboard image and its thumb from disk.
+/// Delete a stored clipboard image/thumb, figma HTML, or spilled text JSON.
 #[tauri::command]
 pub fn clipboard_delete_image_files(path: String) -> Result<(), String> {
     remove_image_files(&path);
     Ok(())
+}
+
+/// Persist full text/html/rtf when any format is too large for the FE store.
+#[tauri::command]
+pub fn clipboard_save_text_payload(
+    text: Option<String>,
+    html: Option<String>,
+    rtf: Option<String>,
+) -> Result<String, String> {
+    let path = save_clipboard_text_payload(
+        text.as_deref(),
+        html.as_deref(),
+        rtf.as_deref(),
+    )?;
+    Ok(path.to_string_lossy().into_owned())
+}
+
+/// Load a spilled text payload from disk (paste / AI).
+#[tauri::command]
+pub fn clipboard_load_text_payload(path: String) -> Result<ClipboardTextPayload, String> {
+    load_clipboard_text_payload(&path)
 }
 
 #[cfg(target_os = "windows")]

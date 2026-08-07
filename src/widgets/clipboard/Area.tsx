@@ -21,6 +21,7 @@ import { FileTypeIcon, FigmaIcon } from './FileTypeIcon';
 import {
     clipboardPasteHover,
     imageSrc,
+    loadClipboardTextPayload,
     pasteClipboardItem,
     resetClipboardPasteHover,
     setWindowNoActivate,
@@ -61,7 +62,11 @@ function ClipboardItemRow({
     const isFiles = item.kind === 'files';
     const isFigma = item.kind === 'figma';
     const src = isImage ? imageSrc(item.imagePath) : null;
-    const canAskAi = !isImage && !isFiles && !isFigma && !!item.textContent?.trim();
+    const canAskAi =
+        !isImage &&
+        !isFiles &&
+        !isFigma &&
+        !!(item.contentPreview?.trim() || item.textContent?.trim() || item.contentPath);
     const setPinned = useClipboardStore((s) => s.setPinned);
     const setFrozen = useClipboardStore((s) => s.setFrozen);
     const deleteItem = useClipboardStore((s) => s.deleteItem);
@@ -126,7 +131,7 @@ function ClipboardItemRow({
                                 dir="auto"
                                 className="w-full text-xs font-medium leading-snug text-zinc-900 dark:text-zinc-100 line-clamp-4 break-words"
                             >
-                                {item.textContent || item.preview}
+                                {item.contentPreview || item.textContent || item.preview}
                             </div>
                         )}
                     </div>
@@ -348,7 +353,7 @@ export default function ClipboardArea({ widgetId: _widgetId }: { widgetId: strin
         invoke('hide_popup', { selfClose: true }).catch(console.error);
     };
 
-    const handleToggleAsk = (item: ClipboardItem) => {
+    const handleToggleAsk = async (item: ClipboardItem) => {
         if (askItemId === item.id) {
             setAskItemId(null);
             setAskPrompt('');
@@ -357,13 +362,14 @@ export default function ClipboardArea({ widgetId: _widgetId }: { widgetId: strin
         }
         try {
             const { sessionId } = resolveClipboardAiTarget();
-            const text = (item.textContent || '').trim();
-            if (!text) return;
+            const { text, html, rtf } = await loadClipboardTextPayload(item);
+            const fullText = (text || html || rtf || '').trim();
+            if (!fullText) return;
             aiManager.clearAttachments(sessionId);
             aiManager.addAttach(sessionId, {
                 kind: 'text',
                 name: 'Clipboard',
-                content: text,
+                content: fullText,
             });
             setAskItemId(item.id);
             setAskPrompt('');

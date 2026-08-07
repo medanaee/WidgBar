@@ -66,6 +66,30 @@ export function useBarClipboardItems(
   ]);
 }
 
+export async function loadClipboardTextPayload(item: ClipboardItem): Promise<{
+  text: string | null;
+  html: string | null;
+  rtf: string | null;
+}> {
+  if (item.contentPath) {
+    const payload = await invoke<{
+      text?: string | null;
+      html?: string | null;
+      rtf?: string | null;
+    }>('clipboard_load_text_payload', { path: item.contentPath });
+    return {
+      text: payload.text ?? null,
+      html: payload.html ?? null,
+      rtf: payload.rtf ?? null,
+    };
+  }
+  return {
+    text: item.textContent,
+    html: item.htmlContent,
+    rtf: item.rtfContent,
+  };
+}
+
 export async function pasteClipboardItem(item: ClipboardItem) {
   if (item.kind === 'figma' && item.htmlContent) {
     await invoke('clipboard_paste_figma', { path: item.htmlContent });
@@ -74,10 +98,11 @@ export async function pasteClipboardItem(item: ClipboardItem) {
   } else if (item.kind === 'files' && item.filePaths?.length) {
     await invoke('clipboard_paste_files', { paths: item.filePaths });
   } else {
+    const { text, html, rtf } = await loadClipboardTextPayload(item);
     await invoke('clipboard_paste_formats', {
-      text: item.textContent || null,
-      html: item.htmlContent || null,
-      rtf: item.rtfContent || null,
+      text: text || null,
+      html: html || null,
+      rtf: rtf || null,
     });
   }
 }
