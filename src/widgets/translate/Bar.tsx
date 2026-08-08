@@ -23,9 +23,9 @@ export default function TranslateBar({ widgetId }: { widgetId: string }) {
 
   return (
     <div
-      className={`text-zinc-800 dark:text-zinc-100 font-medium tracking-wide flex items-center select-none ${
-        isLarge && !hideLabel ? 'flex-col gap-0.5' : 'flex-row gap-1.5'
-      } ${isLarge ? 'text-[10px]' : 'text-[10px]'}`}
+      className={`text-zinc-800 dark:text-zinc-100 font-medium tracking-wide flex items-center select-none text-[11px] ${
+        isLarge && !hideLabel ? 'flex-col gap-0.5' : 'flex-row gap-1'
+      }`}
     >
       <Icon />
       {!hideLabel && <span className="leading-none truncate max-w-28">{label}</span>}

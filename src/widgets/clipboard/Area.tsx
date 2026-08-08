@@ -22,6 +22,7 @@ import {
     clipboardPasteHover,
     imageSrc,
     loadClipboardTextPayload,
+    openClipboardContextMenu,
     pasteClipboardItem,
     resetClipboardPasteHover,
     setWindowNoActivate,
@@ -83,6 +84,11 @@ function ClipboardItemRow({
         <div 
             ref={rowRef}
             onMouseEnter={() => onSelect(false)}
+            onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                openClipboardContextMenu(item.id, e.clientX, e.clientY).catch(console.error);
+            }}
             className={`rounded-xl border overflow-hidden ${
                 isSelected 
                     ? 'ring-2 ring-sky-500/80 dark:ring-sky-400/80 border-sky-500/30 bg-sky-500/10 dark:bg-sky-500/15 shadow-sm' 

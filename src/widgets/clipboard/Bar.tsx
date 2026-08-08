@@ -8,6 +8,7 @@ import { FigmaIcon, FileTypeIcon } from './FileTypeIcon';
 import {
     clipboardPasteHover,
     imageSrc,
+    openClipboardContextMenu,
     pasteClipboardItem,
     resetClipboardPasteHover,
     useBarClipboardItems,
@@ -60,6 +61,11 @@ function Chip({
             onClick={(e) => {
                 e.stopPropagation();
                 pasteClipboardItem(item).catch(console.error);
+            }}
+            onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                openClipboardContextMenu(item.id, e.clientX, e.clientY).catch(console.error);
             }}
             style={{ maxWidth }}
             className={`shrink-0 flex items-center gap-0.5 rounded-md bg-zinc-900/10 hover:bg-zinc-900/15 dark:bg-white/10 dark:hover:bg-white/20 transition-colors text-left h-full px-1 py-0.5 `}

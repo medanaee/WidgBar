@@ -9,6 +9,7 @@ const Desktop = lazy(() => import("./components/desktop/Desktop"));
 const Bar = lazy(() => import("./components/bar/Bar"));
 const Popup = lazy(() => import("./components/Popup"));
 const Tooltip = lazy(() => import("./components/ui/Tooltip"));
+const ClipboardContextMenu = lazy(() => import("./components/ClipboardContextMenu"));
 import { useSettingsStore } from "./stores/settingsStore";
 import AiChatRoute from "./components/AiChatRoute";
 
@@ -97,6 +98,7 @@ function AppContent() {
                 <Route path="/widget_area/:monitorId" element={<Desktop />} />
                 <Route path="/popup/:widgetType/:widgetId" element={<Popup />} />
                 <Route path="/tooltip/:text" element={<Tooltip />} />
+                <Route path="/context-menu/clipboard/:itemId" element={<ClipboardContextMenu />} />
                 <Route path="/ai-chat/:instanceId" element={<AiChatRoute />} />
                 <Route path="/blank" element={<div />} />
             </Routes>

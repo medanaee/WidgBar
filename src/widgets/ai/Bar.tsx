@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BotSparkleColor } from '@fluentui/react-icons';
+import { BotSparkle16Regular, BotSparkle20Regular } from '@fluentui/react-icons';
 import { useWidgetInstanceStore } from '../../stores/widgetInstanceStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useUpdateWidgetConstraints } from '../../stores/widgetConstraintsStore';
@@ -15,6 +15,7 @@ export default function AiBar({ widgetId }: { widgetId: string }) {
     const label = (config.barLabel as string | undefined)?.trim() || t('widgetAi');
     const barHeight = settings.barHeight || 36;
     const isLarge = barHeight >= 48;
+    const Icon = isLarge ? BotSparkle20Regular : BotSparkle16Regular;
 
     useEffect(() => {
         updateConstraints({ squareInBar: hideLabel });
@@ -22,11 +23,11 @@ export default function AiBar({ widgetId }: { widgetId: string }) {
 
     return (
         <div
-            className={`text-zinc-800 dark:text-zinc-200 font-medium tracking-wide flex items-center select-none ${
-                isLarge && !hideLabel ? 'flex-col gap-0.5' : 'flex-row gap-2'
-            } ${isLarge ? 'text-[10px]' : 'text-[11px]'}`}
+            className={`text-zinc-800 dark:text-zinc-200 font-medium tracking-wide flex items-center select-none text-[11px] ${
+                isLarge && !hideLabel ? 'flex-col gap-0.5' : 'flex-row gap-1'
+            }`}
         >
-            <BotSparkleColor fontSize={isLarge ? 20 : 18} />
+            <Icon />
             {!hideLabel && <span className="leading-none truncate max-w-28">{label}</span>}
         </div>
     );

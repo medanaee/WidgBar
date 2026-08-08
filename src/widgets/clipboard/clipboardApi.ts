@@ -4,6 +4,7 @@ import {
   type ClipboardItem,
   useClipboardStore,
 } from '../../stores/clipboardStore';
+import { contextMenuHeight } from '../../components/ui/ContextMenu';
 
 export type { ClipboardItem };
 
@@ -88,6 +89,28 @@ export async function loadClipboardTextPayload(item: ClipboardItem): Promise<{
     html: item.htmlContent,
     rtf: item.rtfContent,
   };
+}
+
+export async function openClipboardContextMenu(
+  itemId: string,
+  clientX: number,
+  clientY: number,
+) {
+  await invoke('request_popup', {
+    x: clientX,
+    y: clientY,
+    width: 160,
+    height: contextMenuHeight(2),
+    route: `/context-menu/clipboard/${encodeURIComponent(itemId)}`,
+    closeOnBlur: true,
+    xIsCenter: false,
+    animated: false,
+    belowBar: false,
+    center: false,
+    resizable: false,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+  });
 }
 
 export async function pasteClipboardItem(item: ClipboardItem) {

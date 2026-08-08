@@ -57,7 +57,7 @@ fn start_animation(
 }
 
 pub fn init_reserved_windows(app: AppHandle) {
-    let num_window_reserved = 1;
+    let num_window_reserved = 2;
     let mut pool_tracker = Vec::new();
     for i in 0..num_window_reserved {
         let label = format!("pool_win_{}", i);
@@ -537,7 +537,9 @@ pub async fn request_popup(
 
     let _ = tokio::time::timeout(std::time::Duration::from_millis(1000), rx.recv()).await;
 
-    if route.contains("clipboard") {
+    // Only the clipboard widget Area popup needs the keyboard hook
+    // (not context menus or other routes that merely mention "clipboard").
+    if route.starts_with("/popup/clipboard/") {
         crate::clipboard_hook::enable_clipboard_keys();
     }
 
